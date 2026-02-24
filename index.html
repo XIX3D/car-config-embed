@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Car Config Embed - Test Page</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        margin: 0;
+        padding: 40px;
+        min-height: 100vh;
+        background: #f0f0f0;
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 40px;
+        color: #333;
+      }
+      .test-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 24px;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .test-card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      }
+      .test-card.dark {
+        background: #1a1a1a;
+      }
+      .test-card h2 {
+        margin: 0 0 8px 0;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .test-card.dark h2 {
+        color: #fff;
+      }
+      .test-card p {
+        margin: 0 0 20px 0;
+        font-size: 13px;
+        color: #666;
+      }
+      .test-card.dark p {
+        color: #888;
+      }
+      .button-container {
+        display: flex;
+        justify-content: center;
+        min-height: 60px;
+        align-items: center;
+      }
+      .api-section {
+        max-width: 1200px;
+        margin: 40px auto 0;
+        background: #fff;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      }
+      .api-section h2 {
+        margin: 0 0 16px 0;
+      }
+      .api-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .api-btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .api-btn.primary {
+        background: linear-gradient(135deg, #44CCFF, #46FF81);
+        color: #000;
+      }
+      .api-btn.primary:hover {
+        transform: scale(1.02);
+        box-shadow: 0 4px 12px rgba(68, 204, 255, 0.4);
+      }
+      .api-btn.secondary {
+        background: #f0f0f0;
+        color: #333;
+      }
+      .api-btn.secondary:hover {
+        background: #e0e0e0;
+      }
+      .dynamic-container {
+        margin-top: 20px;
+        padding: 20px;
+        background: #f9f9f9;
+        border-radius: 12px;
+        min-height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .dynamic-container:empty::before {
+        content: 'Dynamic buttons will appear here';
+        color: #999;
+        font-size: 13px;
+      }
+      code {
+        background: #f0f0f0;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+      .info-box {
+        background: #e8f4fd;
+        border: 1px solid #b8daff;
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-top: 20px;
+        font-size: 13px;
+        color: #004085;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🚗 Car Config Embed Widget Test</h1>
+
+    <div class="test-grid">
+      <!-- HRE P101SC - Real JWT -->
+      <div class="test-card dark" data-theme="dark">
+        <h2>HRE P101SC (Real JWT)</h2>
+        <p>Actual wheel product from production</p>
+        <div class="button-container">
+          <button class="avacar-preview" data-button-theme="dark" data-size="compact" data-brand="HRE WHEELS" data-jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6MTQ2LCJtYW51ZmFjdHVyZXJfaWQiOjcsImlhdCI6MTc3MDc3ODI4NSwiZXhwIjoxODAyMzE0Mjg1fQ.Hio2CD-BJ-Gljpl_DXnlvIkbTqwLF8onPkIwd-_AVxM">Preview On Your Car</button>
+        </div>
+      </div>
+
+      <!-- Brixton TR04 - Real JWT -->
+      <div class="test-card dark" data-theme="dark">
+        <h2>Brixton TR04 Aero1 (Real JWT)</h2>
+        <p>Actual wheel product from production</p>
+        <div class="button-container">
+          <button class="avacar-preview" data-button-theme="dark" data-size="compact" data-brand="BRIXTON" data-jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6MTQ2LCJtYW51ZmFjdHVyZXJfaWQiOjcsImlhdCI6MTc3MDc3ODI4NSwiZXhwIjoxODAyMzE0Mjg1fQ.Hio2CD-BJ-Gljpl_DXnlvIkbTqwLF8onPkIwd-_AVxM">Preview On Your Car</button>
+        </div>
+      </div>
+
+      <!-- HRE Light Theme -->
+      <div class="test-card">
+        <h2>HRE P101SC (Light Theme)</h2>
+        <p>Same JWT but with light theme</p>
+        <div class="button-container">
+          <button class="avacar-preview" data-button-theme="light" data-brand="HRE WHEELS" data-jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6MTQ2LCJtYW51ZmFjdHVyZXJfaWQiOjcsImlhdCI6MTc3MDc3ODI4NSwiZXhwIjoxODAyMzE0Mjg1fQ.Hio2CD-BJ-Gljpl_DXnlvIkbTqwLF8onPkIwd-_AVxM">Preview On Your Car</button>
+        </div>
+      </div>
+
+      <!-- Brixton Standard Size -->
+      <div class="test-card">
+        <h2>Brixton TR04 (Standard Size)</h2>
+        <p>Standard size button</p>
+        <div class="button-container">
+          <button class="avacar-preview" data-button-theme="light" data-brand="BRIXTON" data-jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6MTQ2LCJtYW51ZmFjdHVyZXJfaWQiOjcsImlhdCI6MTc3MDc3ODI4NSwiZXhwIjoxODAyMzE0Mjg1fQ.Hio2CD-BJ-Gljpl_DXnlvIkbTqwLF8onPkIwd-_AVxM">Preview On Your Car</button>
+        </div>
+      </div>
+
+      <!-- Compact Light -->
+      <div class="test-card">
+        <h2>Light Theme (Compact)</h2>
+        <p>Compact size with light theme</p>
+        <div class="button-container">
+          <button class="avacar-preview" data-jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6MTQ2LCJtYW51ZmFjdHVyZXJfaWQiOjcsImlhdCI6MTc3MDc3ODI4NSwiZXhwIjoxODAyMzE0Mjg1fQ.Hio2CD-BJ-Gljpl_DXnlvIkbTqwLF8onPkIwd-_AVxM" data-button-theme="light" data-size="compact">
+            Preview
+          </button>
+        </div>
+      </div>
+
+      <!-- Compact Dark -->
+      <div class="test-card dark" data-theme="dark">
+        <h2>Dark Theme (Compact)</h2>
+        <p>Compact size with dark theme</p>
+        <div class="button-container">
+          <button class="avacar-preview" data-jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6MTQ2LCJtYW51ZmFjdHVyZXJfaWQiOjcsImlhdCI6MTc3MDc3ODI4NSwiZXhwIjoxODAyMzE0Mjg1fQ.Hio2CD-BJ-Gljpl_DXnlvIkbTqwLF8onPkIwd-_AVxM" data-button-theme="dark" data-size="compact">
+            Preview
+          </button>
+        </div>
+      </div>
+
+      <!-- Auto Theme Detection -->
+      <div class="test-card">
+        <h2>Auto Theme Detection</h2>
+        <p>No explicit theme - detects from parent</p>
+        <div class="button-container">
+          <button class="avacar-preview" data-jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6MTQ2LCJtYW51ZmFjdHVyZXJfaWQiOjcsImlhdCI6MTc3MDc3ODI4NSwiZXhwIjoxODAyMzE0Mjg1fQ.Hio2CD-BJ-Gljpl_DXnlvIkbTqwLF8onPkIwd-_AVxM">
+            Preview on Your Car
+          </button>
+        </div>
+      </div>
+
+      <!-- Unstyled Custom -->
+      <div class="test-card">
+        <h2>Unstyled (Custom Button)</h2>
+        <p>Using <code>data-styled="false"</code> for custom styling</p>
+        <div class="button-container">
+          <button class="avacar-preview" data-jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6MTQ2LCJtYW51ZmFjdHVyZXJfaWQiOjcsImlhdCI6MTc3MDc3ODI4NSwiZXhwIjoxODAyMzE0Mjg1fQ.Hio2CD-BJ-Gljpl_DXnlvIkbTqwLF8onPkIwd-_AVxM" data-styled="false" style="padding: 14px 28px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 14px;">
+            🎨 Custom Styled Button
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Programmatic API Section -->
+    <div class="api-section">
+      <h2>🔧 Programmatic API</h2>
+      <p>Test the JavaScript API directly</p>
+
+      <div class="api-buttons">
+        <button class="api-btn primary" onclick="openHRE()">
+          Open HRE P101SC
+        </button>
+        <button class="api-btn primary" onclick="openBrixton()">
+          Open Brixton TR04
+        </button>
+        <button class="api-btn secondary" onclick="addDynamicButton()">
+          Add Dynamic Button
+        </button>
+        <button class="api-btn secondary" onclick="clearDynamicButtons()">
+          Clear Dynamic Buttons
+        </button>
+      </div>
+
+      <div id="dynamic-buttons" class="dynamic-container"></div>
+
+      <div class="info-box">
+        <strong>Available API:</strong><br>
+        <code>AvaCar.open(jwt, brand?)</code> - Open modal programmatically<br>
+        <code>AvaCar.bindButtons()</code> - Bind all .avacar-preview buttons<br>
+        <code>AvaCar.updateThemes()</code> - Refresh button themes<br>
+        <code>AvaCar.createButton(container, jwt, options?)</code> - Create button in container
+      </div>
+    </div>
+
+    <script type="module" src="/src/index.tsx"></script>
+    <script>
+      // Real JWTs from production
+      const TEST_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6MTQ2LCJtYW51ZmFjdHVyZXJfaWQiOjcsImlhdCI6MTc3MDc3ODI4NSwiZXhwIjoxODAyMzE0Mjg1fQ.Hio2CD-BJ-Gljpl_DXnlvIkbTqwLF8onPkIwd-_AVxM';
+
+      let buttonCount = 0;
+
+      function openHRE() {
+        if (window.AvaCar) {
+          window.AvaCar.open(TEST_JWT, 'HRE WHEELS');
+        } else {
+          alert('AvaCar not loaded yet');
+        }
+      }
+
+      function openBrixton() {
+        if (window.AvaCar) {
+          window.AvaCar.open(TEST_JWT, 'BRIXTON');
+        } else {
+          alert('AvaCar not loaded yet');
+        }
+      }
+
+      function addDynamicButton() {
+        buttonCount++;
+        const container = document.getElementById('dynamic-buttons');
+        const btn = document.createElement('button');
+        btn.className = 'avacar-preview';
+        btn.setAttribute('data-jwt', buttonCount % 2 === 0 ? TEST_JWT : TEST_JWT);
+        btn.setAttribute('data-brand', buttonCount % 2 === 0 ? 'BRIXTON' : 'HRE');
+        btn.setAttribute('data-text', 'Dynamic #' + buttonCount);
+        btn.textContent = 'Dynamic #' + buttonCount;
+        container.appendChild(btn);
+
+        // Rebind to pick up new button
+        if (window.AvaCar) {
+          window.AvaCar.bindButtons();
+        }
+      }
+
+      function clearDynamicButtons() {
+        document.getElementById('dynamic-buttons').innerHTML = '';
+        buttonCount = 0;
+      }
+
+      // Make functions global
+      window.openHRE = openHRE;
+      window.openBrixton = openBrixton;
+      window.addDynamicButton = addDynamicButton;
+      window.clearDynamicButtons = clearDynamicButtons;
+    </script>
+  </body>
+</html>

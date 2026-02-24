@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Car Config Embed - Build Test</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        margin: 0;
+        padding: 40px;
+        min-height: 100vh;
+        background: #f0f0f0;
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 40px;
+        color: #333;
+      }
+      .test-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 24px;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .test-card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      }
+      .test-card.dark {
+        background: #1a1a1a;
+      }
+      .test-card h2 {
+        margin: 0 0 8px 0;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .test-card.dark h2 {
+        color: #fff;
+      }
+      .test-card p {
+        margin: 0 0 20px 0;
+        font-size: 13px;
+        color: #666;
+      }
+      .test-card.dark p {
+        color: #888;
+      }
+      .button-container {
+        display: flex;
+        justify-content: center;
+        min-height: 60px;
+        align-items: center;
+      }
+      .api-section {
+        max-width: 1200px;
+        margin: 40px auto 0;
+        background: #fff;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      }
+      .api-section h2 {
+        margin: 0 0 16px 0;
+      }
+      .api-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .api-btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .api-btn.primary {
+        background: linear-gradient(135deg, #44CCFF, #46FF81);
+        color: #000;
+      }
+      .api-btn.primary:hover {
+        transform: scale(1.02);
+        box-shadow: 0 4px 12px rgba(68, 204, 255, 0.4);
+      }
+      .info-box {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-top: 20px;
+        font-size: 13px;
+        color: #155724;
+      }
+      code {
+        background: #f0f0f0;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Build Test - Production Bundle</h1>
+
+    <div class="test-grid">
+      <!-- Dark Theme Test -->
+      <div class="test-card dark" data-theme="dark">
+        <h2>Dark Theme</h2>
+        <p>Testing production build with dark theme</p>
+        <div class="button-container">
+          <button class="avacar-preview" data-button-theme="dark" data-size="compact" data-brand="BRIXTON" data-jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6MTQ2LCJtYW51ZmFjdHVyZXJfaWQiOjcsImlhdCI6MTc3MDc3ODI4NSwiZXhwIjoxODAyMzE0Mjg1fQ.Hio2CD-BJ-Gljpl_DXnlvIkbTqwLF8onPkIwd-_AVxM">Preview On Your Car</button>
+        </div>
+      </div>
+
+      <!-- Light Theme Test -->
+      <div class="test-card">
+        <h2>Light Theme</h2>
+        <p>Testing production build with light theme</p>
+        <div class="button-container">
+          <button class="avacar-preview" data-button-theme="light" data-brand="BRIXTON" data-jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6MTQ2LCJtYW51ZmFjdHVyZXJfaWQiOjcsImlhdCI6MTc3MDc3ODI4NSwiZXhwIjoxODAyMzE0Mjg1fQ.Hio2CD-BJ-Gljpl_DXnlvIkbTqwLF8onPkIwd-_AVxM">Preview On Your Car</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Programmatic API Section -->
+    <div class="api-section">
+      <h2>Programmatic API Test</h2>
+      <p>Test the JavaScript API from the production bundle</p>
+
+      <div class="api-buttons">
+        <button class="api-btn primary" onclick="testOpen()">
+          AvaCar.open()
+        </button>
+      </div>
+
+      <div class="info-box">
+        <strong>Testing Production Build</strong><br>
+        This page loads <code>dist/car-config-embed.iife.js</code> to verify the bundled output works correctly.
+      </div>
+    </div>
+
+    <!-- Load the built IIFE bundle -->
+    <script src="../dist/car-config-embed.iife.js"></script>
+    <script>
+      const TEST_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6MTQ2LCJtYW51ZmFjdHVyZXJfaWQiOjcsImlhdCI6MTc3MDc3ODI4NSwiZXhwIjoxODAyMzE0Mjg1fQ.Hio2CD-BJ-Gljpl_DXnlvIkbTqwLF8onPkIwd-_AVxM';
+
+      function testOpen() {
+        if (window.AvaCar) {
+          window.AvaCar.open(TEST_JWT, 'BRIXTON');
+        } else {
+          alert('AvaCar not loaded - check console for errors');
+        }
+      }
+    </script>
+  </body>
+</html>

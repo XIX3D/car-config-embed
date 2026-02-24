@@ -1,0 +1,1897 @@
+@import "tailwindcss";
+@import "./fonts.css";
+@import "./animations.css";
+
+@theme {
+  --color-zeno-cyan: #44CCFF;
+  --color-zeno-green: #46FF81;
+  --color-zeno-pink: #FF44CC;
+  --color-zeno-dark: #0a0a0a;
+  --color-zeno-card: #1a1a1a;
+  --font-franie: 'Franie', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ===== Glow Container Classes ===== */
+.glow-container { z-index: 0; }
+.glow-cyan { animation: floatCyanOrb 6s ease-in-out infinite; transform-origin: center; }
+.glow-white { animation: floatWhiteOrb 5s ease-in-out infinite 0.5s; transform-origin: center; }
+.glow-green-left { animation: floatGreenLeft 8s ease-in-out infinite; transform-origin: center; }
+.glow-green-right { animation: floatGreenRight 8s ease-in-out infinite 1s; transform-origin: center; }
+
+/* ===== Animation Utility Classes ===== */
+.animate-fadeInUp { animation: fadeInUp 0.4s ease-out forwards; }
+.animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ===== Zeno Button Styles ===== */
+.avacar-btn-zeno {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  overflow: hidden;
+}
+.avacar-btn-zeno.size-standard { width: 270px; height: 48px; }
+.avacar-btn-zeno.size-compact { width: 250px; height: 40px; }
+.avacar-btn-zeno.light-mode { border: 1px solid rgba(0, 0, 0, 0.08); }
+.avacar-btn-zeno.dark-mode { border: 1px solid rgba(255, 255, 255, 0.08); }
+
+.avacar-btn-zeno:hover {
+  box-shadow: 0 0 20px rgba(68, 204, 255, 0.4), 0 0 40px rgba(70, 255, 129, 0.2), 0 0 30px rgba(255, 68, 204, 0.15);
+}
+.avacar-btn-zeno:active { transform: scale(0.98); }
+
+.avacar-zeno-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #44CCFF 0%, #46FF81 33%, #44CCFF 66%, #46FF81 100%);
+  background-size: 300% 100%;
+  animation: avacar-ambientPulse 8s linear infinite;
+}
+.avacar-btn-zeno:hover .avacar-zeno-bg {
+  background: linear-gradient(135deg, #44CCFF 0%, #46FF81 25%, #FF44CC 50%, #44CCFF 75%, #46FF81 100%);
+  background-size: 400% 400%;
+  animation: avacar-holoWave 2s linear infinite;
+}
+
+.avacar-zeno-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  padding: 12px 24px;
+  border-radius: 50px;
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-family: var(--font-franie);
+  transition: all 0.3s ease;
+  z-index: 1;
+}
+.avacar-btn-zeno.light-mode .avacar-zeno-inner {
+  background: rgba(255, 255, 255, 0.95);
+  color: #191919;
+}
+.avacar-btn-zeno.dark-mode .avacar-zeno-inner {
+  background: rgba(25, 25, 25, 0.92);
+  color: #ffffff;
+}
+.avacar-btn-zeno.light-mode:hover .avacar-zeno-inner { background: rgba(255, 255, 255, 0.90); }
+.avacar-btn-zeno.dark-mode:hover .avacar-zeno-inner { background: rgba(25, 25, 25, 0.88); }
+
+.avacar-zeno-icon {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.avacar-zeno-icon > svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  animation: avacar-iconGlowPulse 3s ease-in-out infinite;
+}
+
+.avacar-sparkle { position: absolute; opacity: 0; }
+.avacar-sparkle svg { fill: currentColor; }
+.avacar-sp-1 { top: -3px; right: 0px; animation: avacar-twinkle1 4s ease-in-out infinite; }
+.avacar-sp-1 svg { width: 6px; height: 6px; fill: #44CCFF; }
+.avacar-sp-2 { bottom: 0px; right: -2px; animation: avacar-twinkle2 4s ease-in-out infinite 1s; }
+.avacar-sp-2 svg { width: 4px; height: 4px; fill: #46FF81; }
+.avacar-sp-3 { bottom: -1px; left: 0px; animation: avacar-twinkle3 4s ease-in-out infinite 2s; }
+.avacar-sp-3 svg { width: 3px; height: 3px; fill: #44CCFF; }
+.avacar-sp-4 { top: -1px; left: -2px; animation: avacar-twinkle4 4s ease-in-out infinite 3s; }
+.avacar-sp-4 svg { width: 4px; height: 4px; fill: #FF44CC; }
+
+.avacar-btn-zeno:hover .avacar-sp-1 { animation: avacar-sparkleGlow1 0.8s ease-in-out infinite; }
+.avacar-btn-zeno:hover .avacar-sp-2 { animation: avacar-sparkleGlow2 1s ease-in-out infinite 0.15s; }
+.avacar-btn-zeno:hover .avacar-sp-3 { animation: avacar-sparkleGlow3 0.6s ease-in-out infinite 0.3s; }
+.avacar-btn-zeno:hover .avacar-sp-4 { animation: avacar-sparkleGlow4 0.9s ease-in-out infinite 0.45s; }
+
+.avacar-zeno-text {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  transform: translateY(2px);
+}
+
+.avacar-btn-zeno.size-compact .avacar-zeno-text {
+  font-size: 0.7rem;
+}
+
+.avacar-zeno-text .avacar-letter {
+  transform: translateY(-2px);
+  opacity: 0.8;
+  animation: avacar-letterWave 4s ease-in-out infinite;
+  transition: font-weight 0.3s ease, text-shadow 0.3s ease;
+  text-shadow: 0 0 0 transparent;
+}
+.avacar-zeno-text .avacar-space { width: 5px; }
+
+.avacar-zeno-text .avacar-letter:nth-child(1) { animation-delay: 0s; }
+.avacar-zeno-text .avacar-letter:nth-child(2) { animation-delay: 0.05s; }
+.avacar-zeno-text .avacar-letter:nth-child(3) { animation-delay: 0.1s; }
+.avacar-zeno-text .avacar-letter:nth-child(4) { animation-delay: 0.15s; }
+.avacar-zeno-text .avacar-letter:nth-child(5) { animation-delay: 0.2s; }
+.avacar-zeno-text .avacar-letter:nth-child(6) { animation-delay: 0.25s; }
+.avacar-zeno-text .avacar-letter:nth-child(7) { animation-delay: 0.3s; }
+.avacar-zeno-text .avacar-letter:nth-child(8) { animation-delay: 0.35s; }
+.avacar-zeno-text .avacar-letter:nth-child(9) { animation-delay: 0.4s; }
+.avacar-zeno-text .avacar-letter:nth-child(10) { animation-delay: 0.45s; }
+.avacar-zeno-text .avacar-letter:nth-child(11) { animation-delay: 0.5s; }
+.avacar-zeno-text .avacar-letter:nth-child(12) { animation-delay: 0.55s; }
+.avacar-zeno-text .avacar-letter:nth-child(13) { animation-delay: 0.6s; }
+.avacar-zeno-text .avacar-letter:nth-child(14) { animation-delay: 0.65s; }
+.avacar-zeno-text .avacar-letter:nth-child(15) { animation-delay: 0.7s; }
+.avacar-zeno-text .avacar-letter:nth-child(16) { animation-delay: 0.75s; }
+.avacar-zeno-text .avacar-letter:nth-child(17) { animation-delay: 0.8s; }
+.avacar-zeno-text .avacar-letter:nth-child(18) { animation-delay: 0.85s; }
+.avacar-zeno-text .avacar-letter:nth-child(19) { animation-delay: 0.9s; }
+.avacar-zeno-text .avacar-letter:nth-child(20) { animation-delay: 0.95s; }
+
+.avacar-btn-zeno:hover .avacar-zeno-text .avacar-letter {
+  animation-duration: 2s;
+  font-weight: bold;
+}
+
+/* ===== Modal Overlay ===== */
+.avacar-modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999999;
+  font-family: var(--font-franie);
+  font-weight: 300;
+}
+
+/* ===== Wraps Modal ===== */
+.avacar-wraps-modal {
+  position: relative;
+  background: #0a0a0a;
+  border-radius: 32px;
+  max-width: 680px;
+  width: 92%;
+  height: 75vh;
+  overflow: hidden;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+.avacar-wraps-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+  border: none;
+  color: rgba(255,255,255,0.7);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+
+.avacar-wraps-close:hover {
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+}
+
+.avacar-wraps-iframe-wrap {
+  flex: 1;
+  overflow: hidden;
+}
+
+.avacar-wraps-iframe-wrap iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #0a0a0a;
+}
+
+.avacar-wraps-footer {
+  padding: 10px 24px;
+  text-align: center;
+  font-size: 11px;
+  color: rgba(255,255,255,0.25);
+  background: #0a0a0a;
+  flex-shrink: 0;
+}
+
+.avacar-wraps-footer strong {
+  color: rgba(255,255,255,0.4);
+}
+
+@media (max-width: 480px) {
+  .avacar-wraps-modal {
+    width: 94%;
+    height: 78vh;
+    border-radius: 24px;
+  }
+}
+
+/* ===== Main Modal V2 ===== */
+.avacar-modal-v2 {
+  position: relative;
+  background: #1a1a1a;
+  border-radius: 40px;
+  max-width: 480px;
+  width: 92%;
+  max-height: 90vh;
+  overflow: hidden;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  transition: max-width 0.3s ease, max-height 0.3s ease, width 0.3s ease;
+}
+
+.avacar-modal-v2.avacar-expanded {
+  max-height: 95vh;
+}
+
+.avacar-modal-v2.avacar-expanded .avacar-result-view {
+  min-height: auto;
+  padding-bottom: 16px;
+}
+
+.avacar-modal-v2.avacar-expanded .avacar-result-img {
+  max-height: calc(95vh - 380px);
+  max-height: calc(95svh - 380px);
+  max-width: 100%;
+  object-fit: contain;
+}
+
+@media (min-width: 768px) {
+  .avacar-modal-v2.avacar-expanded .avacar-result-content {
+    max-width: 100%;
+  }
+}
+
+.avacar-hidden { display: none !important; }
+
+/* ===== Header ===== */
+.avacar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  animation: fadeInUp 0.4s ease-out forwards;
+  width: 100%;
+}
+
+.avacar-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 auto;
+}
+
+.avacar-header-thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.avacar-header-thumb img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avacar-header-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.avacar-header-brand {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  background: linear-gradient(90deg, #44CCFF, #46FF81);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.avacar-header-model {
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* ===== Close Button ===== */
+.avacar-close-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 10;
+}
+.avacar-close-btn:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.05);
+  transform: scale(1.05);
+}
+
+/* ===== Gradient Line ===== */
+.avacar-gradient-line {
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, #44CCFF, #46FF81);
+  margin-bottom: 24px;
+  animation: fadeInUp 0.4s ease-out forwards;
+  animation-delay: 0.1s;
+  opacity: 0;
+}
+
+/* ===== Upload View ===== */
+.avacar-upload-view {
+  position: relative;
+  z-index: 1;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-height: 520px;
+}
+
+.avacar-title-stylized {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 24px 0;
+  color: #fff;
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+/* ===== Upload Zone ===== */
+.avacar-upload-box {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  border-radius: 16px;
+  padding: 64px 32px;
+  background: rgba(26, 40, 40, 0.8);
+  cursor: pointer;
+  transition: all 0.3s;
+  animation: fadeInUp 0.4s ease-out forwards;
+  animation-delay: 0.2s;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.avacar-upload-box:hover {
+  transform: scale(1.01);
+  box-shadow: 0 0 30px rgba(68, 204, 255, 0.2);
+}
+
+.avacar-upload-box.dragover {
+  transform: scale(1.02);
+  box-shadow: 0 0 40px rgba(70, 255, 129, 0.3);
+}
+
+.avacar-upload-border {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.avacar-upload-border rect {
+  animation: dashMoveSeamless 8s linear infinite;
+}
+
+.avacar-upload-shimmer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 16px;
+  background: linear-gradient(135deg, transparent 40%, rgba(68, 204, 255, 0.05) 50%, rgba(70, 255, 129, 0.05) 55%, transparent 60%);
+  background-size: 200% 200%;
+  animation: shimmer 4s ease-in-out infinite;
+}
+
+.avacar-upload-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.avacar-upload-icon-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  transition: all 0.3s;
+}
+
+.avacar-upload-box:hover .avacar-upload-icon-circle {
+  background: rgba(255,255,255,0.12);
+  transform: scale(1.1);
+}
+
+.avacar-upload-icon {
+  width: 28px;
+  height: 28px;
+  color: rgba(255,255,255,0.7);
+  transition: color 0.2s;
+}
+
+.avacar-upload-box:hover .avacar-upload-icon {
+  color: rgba(255,255,255,0.9);
+}
+
+.avacar-upload-label {
+  font-size: 18px;
+  font-weight: 500;
+  color: #fff;
+  margin: 0 0 4px 0;
+}
+
+.avacar-upload-sublabel {
+  font-size: 14px;
+  color: rgba(255,255,255,0.4);
+  margin: 0;
+}
+
+.avacar-upload-box.has-file {
+  padding: 8px;
+}
+
+.avacar-upload-preview {
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+/* ===== Tip Box ===== */
+.avacar-tip-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  animation: fadeInUp 0.4s ease-out forwards;
+  animation-delay: 0.3s;
+  opacity: 0;
+}
+
+.avacar-tip-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.avacar-tip-icon svg {
+  width: 20px;
+  height: 20px;
+  color: #46FF81;
+}
+
+.avacar-tip-text {
+  font-size: 14px;
+  color: rgba(255,255,255,0.5);
+}
+
+.avacar-tip-text strong {
+  color: rgba(255,255,255,0.7);
+  font-weight: 600;
+}
+
+/* ===== Footer ===== */
+.avacar-footer {
+  color: rgba(255,255,255,0.4);
+  font-size: 12px;
+  text-align: center;
+  padding: 16px 0;
+  margin-top: auto;
+}
+.avacar-footer strong { color: rgba(255,255,255,0.6); font-weight: 600; }
+
+/* ===== Loading View ===== */
+.avacar-loading-view {
+  position: relative;
+  z-index: 1;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-height: 520px;
+}
+
+/* ===== Image Container ===== */
+.avacar-image-container {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  animation: fadeInUp 0.4s ease-out forwards;
+  animation-delay: 0.15s;
+  opacity: 0;
+  aspect-ratio: 16/9;
+  width: 100%;
+  max-width: 360px;
+}
+
+.avacar-image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avacar-image-container.generating img {
+  filter: brightness(0.7);
+}
+
+.avacar-inner-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  animation: innerGlowRotate 2s linear infinite;
+  border-radius: inherit;
+}
+
+.avacar-generating-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 70%);
+}
+
+/* ===== Loading Text ===== */
+.avacar-loading-text {
+  display: flex;
+  justify-content: center;
+}
+
+.avacar-loading-letter {
+  display: inline-block;
+  font-size: 24px;
+  font-weight: 300;
+  color: #fff;
+  opacity: 0.4;
+  animation: loaderLetterAnim 2s infinite;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  letter-spacing: 0.05em;
+}
+
+.avacar-loading-hint {
+  margin-top: 16px;
+  font-size: 14px;
+  color: rgba(255,255,255,0.4);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* ===== Result View ===== */
+.avacar-result-view {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+  min-height: 520px;
+}
+
+.avacar-result-image-wrapper {
+  position: relative;
+  display: inline-block;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  max-width: 100%;
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+.avacar-result-img {
+  display: block;
+  max-width: 100%;
+  max-height: 380px;
+  width: auto;
+  height: auto;
+  border-radius: 16px;
+  object-fit: contain;
+  transition: transform 0.1s ease-out;
+  transform-origin: center center;
+  cursor: zoom-in;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* ===== Finish Badge ===== */
+.avacar-finish-badge {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(8px);
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.avacar-finish-badge-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.avacar-finish-badge-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+}
+
+/* ===== Image Action Buttons ===== */
+.avacar-image-action-btn {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 5;
+}
+
+.avacar-image-action-btn:hover {
+  transform: scale(1.08);
+  background: rgba(0,0,0,0.7);
+}
+
+.avacar-image-action-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.avacar-retry-btn { top: 12px; left: 12px; }
+.avacar-fullscreen-btn { top: 12px; right: 60px; }
+.avacar-download-btn { top: 12px; right: 12px; }
+
+/* ===== Zoom Hint ===== */
+.avacar-zoom-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  border-radius: 16px;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.avacar-zoom-hint svg {
+  width: 40px;
+  height: 40px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.avacar-zoom-hint span {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.avacar-zoom-hint-visible {
+  animation: zoomHintFadeIn 0.4s ease-out forwards;
+}
+
+.avacar-zoom-hint-fade-out {
+  animation: zoomHintFadeOut 0.5s ease-out forwards;
+}
+
+/* ===== Color Carousel ===== */
+.avacar-color-carousel {
+  width: 100%;
+  animation: fadeInUp 0.4s ease-out forwards;
+  animation-delay: 0.2s;
+  opacity: 0;
+}
+
+.avacar-color-label {
+  text-align: center;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 12px;
+}
+
+.avacar-color-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 8px 0 12px;
+  scrollbar-width: none;
+}
+.avacar-color-strip::-webkit-scrollbar { display: none; }
+
+.avacar-color-thumb {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  opacity: 0.5;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-color: #fff;
+}
+
+.avacar-color-thumb:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
+}
+
+.avacar-color-thumb.active {
+  opacity: 1;
+  transform: scale(1.15);
+  box-shadow: 0 0 0 2px #fff, 0 0 20px rgba(255,255,255,0.2);
+}
+
+.avacar-color-more {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: rgba(68, 204, 255, 0.15);
+  border: 2px solid rgba(68, 204, 255, 0.4);
+  color: #44CCFF;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.avacar-color-more:hover {
+  transform: scale(1.05);
+  border-color: #44CCFF;
+}
+
+.avacar-color-flash {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.1);
+  border-radius: 16px;
+  pointer-events: none;
+  animation: finishFlash 0.3s ease-out;
+}
+
+/* ===== Product Info ===== */
+.avacar-product-line {
+  font-size: 14px;
+  color: rgba(255,255,255,0.3);
+  text-align: center;
+  margin: 16px 0;
+  animation: fadeInUp 0.4s ease-out forwards;
+  animation-delay: 0.3s;
+  opacity: 0;
+}
+
+/* ===== CTA Button ===== */
+.avacar-cta-btn {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  animation: fadeInUp 0.4s ease-out forwards;
+  animation-delay: 0.35s;
+  opacity: 0;
+}
+
+.avacar-cta-btn-border {
+  position: absolute;
+  inset: -2px;
+  border-radius: 50px;
+  overflow: hidden;
+  opacity: 0.6;
+  transition: opacity 0.3s;
+}
+
+.avacar-cta-btn:hover .avacar-cta-btn-border {
+  opacity: 1;
+}
+
+.avacar-cta-btn-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #44CCFF, #46FF81, #44CCFF, #46FF81);
+  background-size: 300% 100%;
+  animation: borderFlow 4s linear infinite;
+}
+
+.avacar-cta-btn:hover .avacar-cta-btn-gradient {
+  animation: borderFlow 1.5s linear infinite;
+}
+
+.avacar-cta-btn button {
+  position: relative;
+  width: 100%;
+  padding: 16px 32px;
+  border-radius: 50px;
+  background: #0a0a0a;
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: all 0.3s;
+}
+
+.avacar-cta-btn:hover button {
+  transform: scale(1.02);
+  box-shadow: 0 0 30px rgba(68,204,255,0.3), 0 0 60px rgba(70,255,129,0.2);
+}
+
+.avacar-cta-btn button svg {
+  width: 20px;
+  height: 20px;
+  animation: iconFloat 2s ease-in-out infinite;
+}
+
+/* ===== Action Button ===== */
+.avacar-action-btn {
+  position: relative;
+  width: 100%;
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+.avacar-action-btn button {
+  position: relative;
+  width: 100%;
+  padding: 16px;
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: all 0.2s;
+}
+
+.avacar-action-btn.primary button {
+  background: #fff;
+  color: #1a1a1a;
+  border: none;
+}
+
+.avacar-action-btn.primary button:hover {
+  background: #f0f0f0;
+  transform: scale(1.01);
+}
+
+.avacar-action-btn.secondary button {
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.avacar-action-btn.secondary button:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.2);
+}
+
+.avacar-action-btn button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== Spinner ===== */
+.avacar-spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* ===== Quote View ===== */
+.avacar-quote-view {
+  position: relative;
+  z-index: 1;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  min-height: 520px;
+}
+
+.avacar-finishes-display {
+  animation: fadeInUp 0.4s ease-out forwards;
+  animation-delay: 0.15s;
+  opacity: 0;
+  margin-bottom: 20px;
+}
+
+.avacar-finishes-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.avacar-finishes-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.avacar-finish-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.avacar-finish-chip:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+.avacar-finish-chip.selected {
+  background: rgba(70, 255, 129, 0.2);
+  border-color: #46FF81;
+}
+
+.avacar-finish-chip-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.avacar-finish-chip-name {
+  font-size: 12px;
+  color: rgba(255,255,255,0.6);
+}
+
+.avacar-finish-chip.selected .avacar-finish-chip-name {
+  color: #fff;
+}
+
+.avacar-finish-chip-check {
+  width: 12px;
+  height: 12px;
+  color: #46FF81;
+  display: none;
+}
+
+.avacar-finish-chip.selected .avacar-finish-chip-check {
+  display: block;
+}
+
+/* ===== Finish Thumbnails ===== */
+.avacar-finishes-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+
+.avacar-finish-thumb {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+  opacity: 0.5;
+  background-color: #fff;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  overflow: hidden;
+  padding: 0;
+}
+
+.avacar-finish-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.avacar-finish-thumb:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
+}
+
+.avacar-finish-thumb.selected {
+  opacity: 1;
+  transform: scale(1.1);
+  border-color: #46FF81;
+  box-shadow: 0 0 0 2px rgba(70, 255, 129, 0.4), 0 0 15px rgba(70, 255, 129, 0.3);
+}
+
+/* ===== Back Button ===== */
+.avacar-back-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.avacar-back-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.avacar-back-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* ===== Vehicle Detected ===== */
+.avacar-vehicle-detected {
+  font-size: 11px;
+  color: #46FF81;
+  margin: 6px 0 0 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 17px;
+}
+
+.avacar-vehicle-detected::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #46FF81;
+}
+
+/* ===== Form ===== */
+.avacar-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.avacar-form-group {
+  animation: fadeInUp 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+.avacar-form-input {
+  width: 100%;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.avacar-form-input:focus {
+  border-color: rgba(68, 204, 255, 0.6);
+  background: rgba(255,255,255,0.08);
+}
+
+.avacar-form-input::placeholder {
+  color: rgba(255,255,255,0.3);
+}
+
+.avacar-form-input.error {
+  border-color: rgba(255, 100, 100, 0.5);
+}
+
+.avacar-form-error {
+  font-size: 12px;
+  color: #ff6464;
+  margin-top: 4px;
+  margin-left: 4px;
+}
+
+.avacar-form-hint {
+  font-size: 12px;
+  color: rgba(255,255,255,0.3);
+  text-align: center;
+  margin-top: 12px;
+}
+
+/* ===== Success View ===== */
+.avacar-success-view {
+  position: relative;
+  z-index: 1;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-height: 520px;
+}
+
+.avacar-success-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 0;
+}
+
+.avacar-success-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #46FF81, #44CCFF);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  animation: successPop 0.5s ease-out, successGlow 2s ease-in-out infinite 0.5s;
+}
+
+.avacar-success-icon svg {
+  width: 40px;
+  height: 40px;
+  color: #000;
+}
+
+.avacar-success-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 8px 0;
+}
+
+.avacar-success-message {
+  font-size: 15px;
+  color: rgba(255,255,255,0.4);
+  margin: 0 0 16px 0;
+}
+
+.avacar-success-finishes {
+  margin-bottom: 24px;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+  text-align: left;
+  width: 100%;
+  max-width: 280px;
+  animation: fadeInUp 0.4s ease-out forwards;
+  animation-delay: 0.2s;
+  opacity: 0;
+}
+
+.avacar-success-finishes-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 8px;
+}
+
+.avacar-success-finishes-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.avacar-success-finish-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.05);
+}
+
+.avacar-success-finish-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+.avacar-success-finish-name {
+  font-size: 14px;
+  color: rgba(255,255,255,0.7);
+}
+
+.avacar-success-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 280px;
+}
+
+.avacar-startover-btn {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: color 0.2s;
+}
+
+.avacar-startover-btn:hover {
+  color: #fff;
+}
+
+.avacar-startover-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ===== Exit Modal ===== */
+.avacar-exit-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000000;
+  padding: 16px;
+}
+
+.avacar-exit-modal-content {
+  position: relative;
+  background: #1a1a1a;
+  border-radius: 24px;
+  padding: 32px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  overflow: hidden;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.avacar-exit-warning-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(255, 179, 71, 0.15);
+  border: 2px solid rgba(255, 179, 71, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  animation: warningPulse 2s ease-in-out infinite;
+}
+
+.avacar-exit-warning-icon svg {
+  width: 32px;
+  height: 32px;
+  color: #ffb347;
+}
+
+.avacar-exit-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 8px 0;
+}
+
+.avacar-exit-message {
+  font-size: 14px;
+  color: rgba(255,255,255,0.4);
+  margin: 0 0 32px 0;
+}
+
+.avacar-exit-actions {
+  display: flex;
+  gap: 16px;
+}
+
+.avacar-exit-back-btn {
+  flex: 1;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.avacar-exit-back-btn:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.3);
+}
+
+.avacar-exit-back-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.avacar-exit-close-btn {
+  flex: 1;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255, 100, 100, 0.15);
+  border: 1px solid rgba(255, 100, 100, 0.3);
+  color: #ff6b6b;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.avacar-exit-close-btn:hover {
+  transform: scale(1.02);
+  background: rgba(255, 100, 100, 0.2);
+}
+
+/* ===== Fullscreen Modal ===== */
+.avacar-fullscreen-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.95);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000000;
+  padding: 16px;
+  cursor: zoom-out;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.avacar-fullscreen-modal img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.avacar-fullscreen-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.avacar-fullscreen-close:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+/* ===== Color Modal ===== */
+.avacar-color-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000000;
+  padding: 16px;
+}
+
+.avacar-color-modal-content {
+  position: relative;
+  background: #1a1a1a;
+  border-radius: 24px;
+  padding: 24px;
+  max-width: 400px;
+  width: 100%;
+  overflow: hidden;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.avacar-color-modal-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 4px 0;
+  text-align: center;
+}
+
+.avacar-color-modal-subtitle {
+  font-size: 14px;
+  color: rgba(255,255,255,0.4);
+  margin: 0 0 24px 0;
+  text-align: center;
+}
+
+.avacar-color-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.avacar-color-modal-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  opacity: 0.7;
+}
+
+.avacar-color-modal-item:hover {
+  opacity: 0.9;
+}
+
+.avacar-color-modal-item.selected {
+  opacity: 1;
+  transform: scale(1.05);
+  box-shadow: 0 0 0 2px #46FF81, 0 0 15px rgba(70, 255, 129, 0.3);
+}
+
+.avacar-color-modal-item.rendered {
+  opacity: 0.3;
+}
+
+.avacar-color-modal-check {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.3);
+  border-radius: 12px;
+  opacity: 0;
+}
+
+.avacar-color-modal-item.selected .avacar-color-modal-check {
+  opacity: 1;
+}
+
+.avacar-color-modal-check svg {
+  width: 20px;
+  height: 20px;
+  color: #fff;
+}
+
+.avacar-color-modal-rendered-check {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avacar-color-modal-rendered-check svg {
+  width: 16px;
+  height: 16px;
+  color: rgba(255,255,255,0.4);
+}
+
+.avacar-color-modal-cancel {
+  width: 100%;
+  padding: 12px;
+  margin-top: 12px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 14px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.avacar-color-modal-cancel:hover {
+  color: #fff;
+}
+
+/* ===== Error State ===== */
+.avacar-error {
+  color: #ef4444;
+  text-align: center;
+  padding: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== File Input ===== */
+.avacar-file-input { display: none; }
+
+/* ===== Product Header ===== */
+.avacar-product-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 8px 0;
+}
+.avacar-product-header-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: contain;
+  background: #ffffff;
+  flex-shrink: 0;
+  padding: 4px;
+}
+.avacar-product-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.avacar-product-header-category {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #46FF81;
+}
+.avacar-product-header-name {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ===== Legacy Compat ===== */
+.avacar-result-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 400px;
+}
+
+.avacar-variant-label {
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.avacar-variant-strip {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 8px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
+  max-width: 100%;
+  flex-wrap: nowrap;
+}
+.avacar-variant-strip::-webkit-scrollbar { height: 4px; }
+.avacar-variant-strip::-webkit-scrollbar-track { background: transparent; }
+.avacar-variant-strip::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+.avacar-variant-thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: 2px solid transparent;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-color: #ffffff;
+  transition: all 0.2s;
+}
+.avacar-variant-thumb:hover { transform: scale(1.05); }
+.avacar-variant-thumb.active {
+  border-color: #46FF81;
+  box-shadow: 0 0 0 2px rgba(70, 255, 129, 0.4);
+}
+
+.avacar-quote-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #fff;
+  color: #1a1a2e;
+  border: none;
+  padding: 14px 32px;
+  margin: 16px 0;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+  max-width: 360px;
+}
+.avacar-quote-btn:hover { background: #f0f0f0; }
+.avacar-briefcase-icon { width: 18px; height: 18px; }
+
+/* ===== Quote Form Legacy ===== */
+.avacar-quote-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: #fff;
+  text-align: center;
+}
+.avacar-quote-subtitle {
+  font-size: 14px;
+  color: rgba(255,255,255,0.7);
+  margin: 0 0 32px 0;
+  text-align: center;
+}
+.avacar-form-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.9);
+}
+.avacar-form-label .required {
+  color: #ef4444;
+  margin-left: 2px;
+}
+.avacar-form-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+.avacar-submit-btn {
+  flex: 1;
+  background: #fff;
+  color: #1a1a2e;
+  border: none;
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.avacar-submit-btn:hover { background: #f0f0f0; }
+.avacar-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.avacar-cancel-btn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.9);
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.avacar-cancel-btn:hover {
+  border-color: rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.05);
+}
+
+/* ===== Retry & Share ===== */
+.avacar-retry-icon { width: 20px; height: 20px; }
+.avacar-share-icon { width: 20px; height: 20px; }
+.avacar-share-btn-overlay {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(4px);
+  border: none;
+  color: #fff;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 5;
+}
+.avacar-share-btn-overlay:hover { background: rgba(0,0,0,0.85); }
+
+.avacar-startover-icon { width: 16px; height: 16px; }
+
+/* ===== Utility Classes ===== */
+.relative { position: relative; }
+.absolute { position: absolute; }
+.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+.overflow-hidden { overflow: hidden; }
+.pointer-events-none { pointer-events: none; }
+.max-w-80 { max-width: 20rem; }
+
+/* ===== Loading Preview ===== */
+.avacar-loading-preview-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  margin: 24px auto;
+  padding: 3px;
+  border-radius: 18px;
+  overflow: hidden;
+}
+.avacar-loading-preview-wrapper::before {
+  content: "";
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 150%;
+  height: 150%;
+  background: conic-gradient(from 0deg, transparent 0deg, transparent 60deg, #44CCFF 90deg, #46FF81 120deg, transparent 150deg, transparent 360deg);
+  animation: avacar-radar-spin 2s linear infinite;
+  transform-origin: center;
+  transform: translate(-50%, -50%) rotate(0deg);
+}
+.avacar-loading-preview-container {
+  position: relative;
+  background: #121212;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.avacar-loading-preview-inner {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.avacar-loading-preview-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 300px;
+  object-fit: contain;
+  border-radius: 16px;
+}
+.avacar-loading-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(135deg, rgba(68, 204, 255, 0.15), rgba(70, 255, 129, 0.15));
+  animation: avacar-overlay-breathe 2s ease-in-out infinite;
+  border-radius: 16px;
+}
+.avacar-loading-scanline {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, transparent, #46FF81, #44CCFF, transparent);
+  animation: avacar-scanline-move 2s ease-in-out infinite;
+  border-radius: 2px;
+  box-shadow: 0 0 20px rgba(70, 255, 129, 0.6), 0 0 40px rgba(68, 204, 255, 0.4);
+}
+.avacar-timer {
+  margin-top: 20px;
+  font-size: 14px;
+  color: rgba(255,255,255,0.6);
+}
