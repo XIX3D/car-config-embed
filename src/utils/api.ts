@@ -5,6 +5,7 @@ export function createApiClient(baseUrl: string) {
     try {
       const res = await fetch(`${baseUrl}/api/products/${productId}`)
       const data = await res.json()
+
       return data.success ? data.product : null
     } catch {
       return null
@@ -13,16 +14,19 @@ export function createApiClient(baseUrl: string) {
 
   const fetchVariants = async (
     productId: string,
-    allowedIds?: string[]
+    allowedIds?: string[],
   ): Promise<Variant[]> => {
     try {
       const res = await fetch(`${baseUrl}/api/variants/product/${productId}`)
       const data = await res.json()
+
       if (!data.success) return []
       let variants = data.variants as Variant[]
+
       if (allowedIds?.length) {
         variants = variants.filter((v) => allowedIds.includes(v.id))
       }
+
       return variants
     } catch {
       return []
@@ -31,9 +35,10 @@ export function createApiClient(baseUrl: string) {
 
   const render = async (
     file: File,
-    products: Array<{ product_id: string; variant_id?: string }>
+    products: Array<{ product_id: string; variant_id?: string }>,
   ): Promise<{ success: boolean; final_image?: string; detected_vehicle?: string; error?: string }> => {
     const formData = new FormData()
+
     formData.append('vehicle_image', file)
     formData.append('products', JSON.stringify(products))
 
@@ -43,6 +48,7 @@ export function createApiClient(baseUrl: string) {
         body: formData,
       })
       const data = await res.json()
+
       if (data.success && data.final_image) {
         return data
       }
@@ -59,6 +65,7 @@ export function createApiClient(baseUrl: string) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request),
       })
+
       return await res.json()
     } catch {
       return { success: false, error: 'Network error. Please try again.' }

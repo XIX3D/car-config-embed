@@ -31,12 +31,15 @@ function mountWidget() {
 async function openPreview(jwt: string, customBrand?: string) {
   if (!jwt) {
     console.error('Avacar: No JWT token provided')
+
     return
   }
 
   const selections = decodeJWT(jwt)
+
   if (!selections) {
     console.error('Avacar: Invalid JWT token')
+
     return
   }
 
@@ -53,6 +56,7 @@ async function openPreview(jwt: string, customBrand?: string) {
       api.fetchProduct(productId),
       api.fetchVariants(productId, allowedVariantIds),
     ])
+
     product = p
     variants = v
   }
@@ -68,7 +72,7 @@ function createZenoButton(
     theme?: ButtonTheme
     size?: ButtonSize
     brand?: string
-  }
+  },
 ) {
   const [theme, setTheme] = createSignal<ButtonTheme>(options?.theme || detectTheme(container))
 
@@ -87,7 +91,7 @@ function createZenoButton(
         onClick={() => openPreview(jwt, options?.brand)}
       />
     ),
-    container
+    container,
   )
 
   onCleanup(cleanup)
@@ -100,7 +104,10 @@ function bindButtons() {
     if (boundButtons.has(button)) return
     boundButtons.add(button)
 
-    const jwt = button.getAttribute('data-jwt')!
+    const jwt = button.getAttribute('data-jwt')
+
+    if (!jwt) return
+
     const customBrand = button.getAttribute('data-brand') || undefined
     const buttonText = button.textContent?.trim() || button.getAttribute('data-text') || 'Preview on Your Car'
     const useDefaultStyle = button.getAttribute('data-styled') !== 'false'
@@ -111,6 +118,7 @@ function bindButtons() {
       const theme = explicitTheme || detectTheme(button)
 
       const wrapper = document.createElement('div')
+
       button.parentNode?.insertBefore(wrapper, button)
       button.style.display = 'none'
 
@@ -123,16 +131,18 @@ function bindButtons() {
             onClick={() => openPreview(jwt, customBrand)}
           />
         ),
-        wrapper
+        wrapper,
       )
 
       if (!explicitTheme) {
         const btn = wrapper.querySelector('.avacar-btn-zeno')
+
         if (btn) {
           btn.setAttribute('data-jwt', jwt)
         }
       } else {
         const btn = wrapper.querySelector('.avacar-btn-zeno')
+
         if (btn) {
           btn.setAttribute('data-theme-locked', 'true')
           btn.setAttribute('data-jwt', jwt)
@@ -149,9 +159,11 @@ function bindButtons() {
 
 function updateAllHoloButtonThemes() {
   const zenoButtons = document.querySelectorAll<HTMLElement>('.avacar-btn-zeno[data-jwt]')
+
   zenoButtons.forEach((btn) => {
     if (btn.getAttribute('data-theme-locked') === 'true') return
     const theme = detectTheme(btn)
+
     btn.classList.remove('light-mode', 'dark-mode')
     btn.classList.add(theme === 'dark' ? 'dark-mode' : 'light-mode')
   })
@@ -164,14 +176,17 @@ function init() {
   const buttonObserver = new MutationObserver(() => {
     bindButtons()
   })
+
   buttonObserver.observe(document.body, { childList: true, subtree: true })
 
   observeThemeChanges(updateAllHoloButtonThemes)
 
   const scripts = document.querySelectorAll<HTMLScriptElement>('script[data-jwt]')
+
   if (scripts.length) {
     const script = scripts[scripts.length - 1]
     const jwt = script.getAttribute('data-jwt')
+
     if (jwt) {
       (window as unknown as Record<string, unknown>).showPreview = () => openPreview(jwt)
     }

@@ -25,8 +25,11 @@ export function ZenoButton(props: ZenoButtonProps) {
   const theme = () => props.theme || 'light'
   const size = () => props.size || 'standard'
 
+  const handleClick = () => props.onClick()
+
   const letters = () => {
     const result: Array<{ type: 'letter' | 'space'; char?: string }> = []
+
     for (const char of text()) {
       if (char === ' ') {
         result.push({ type: 'space' })
@@ -34,13 +37,14 @@ export function ZenoButton(props: ZenoButtonProps) {
         result.push({ type: 'letter', char })
       }
     }
+
     return result
   }
 
   return (
     <div
       class={`avacar-btn-zeno ${theme() === 'dark' ? 'dark-mode' : 'light-mode'} size-${size()}`}
-      onClick={props.onClick}
+      onClick={handleClick}
     >
       <div class="avacar-zeno-bg" />
       <div class="avacar-zeno-inner">

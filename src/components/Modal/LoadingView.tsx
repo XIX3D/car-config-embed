@@ -21,38 +21,48 @@ function createLoadingText(text: string) {
 export function LoadingView(props: LoadingViewProps) {
   const loadingLetters = () => createLoadingText(props.loadingSteps[props.currentStep]?.text || '')
 
+  const handleClose = () => props.onClose()
+
   return (
-    <div class="avacar-loading-view">
-      <div class="avacar-header">
-        <div class="avacar-header-left">
-          <div class="avacar-header-thumb">
+    <div class="relative z-1 p-6 flex flex-col items-center text-center min-h-[520px]">
+      {/* Header */}
+      <div class="flex items-center justify-between mb-1 w-full animate-fadeInUp">
+        <div class="flex items-center gap-3 mx-auto">
+          <div class="w-14 h-14 rounded-xl bg-white flex items-center justify-center overflow-hidden">
             {props.productImgUrl ? (
-              <img src={props.productImgUrl} alt={props.modelName} />
+              <img class="w-11 h-11 rounded-full object-cover" src={props.productImgUrl} alt={props.modelName} />
             ) : (
-              <div style={{ width: '44px', height: '44px', 'border-radius': '50%', background: 'linear-gradient(135deg, #888, #666)' }} />
+              <div class="w-11 h-11 rounded-full bg-gradient-to-br from-gray-400 to-gray-500" />
             )}
           </div>
-          <div class="avacar-header-info">
-            <span class="avacar-header-brand">{props.brandName}</span>
-            <span class="avacar-header-model">{props.modelName}</span>
+          <div class="flex flex-col">
+            <span class="text-[10px] font-medium uppercase tracking-[2px] bg-gradient-to-r from-zeno-cyan to-zeno-green bg-clip-text text-transparent">
+              {props.brandName}
+            </span>
+            <span class="text-xl font-semibold text-white">{props.modelName}</span>
           </div>
         </div>
-        <button class="avacar-close-btn" aria-label="Close" onClick={props.onClose}>
+        <button
+          class="w-10 h-10 rounded-xl bg-transparent border-none text-white/30 text-2xl cursor-pointer flex items-center justify-center transition-all hover:text-white hover:bg-white/5 hover:scale-105 z-10"
+          aria-label="Close"
+          onClick={handleClose}
+        >
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 6L6 18M6 6l12 12" />
           </svg>
         </button>
       </div>
 
-      <h2 class="avacar-title-stylized">See it on Your Car</h2>
+      <h2 class="text-2xl font-semibold m-0 mb-6 text-white animate-fadeInUp">See it on Your Car</h2>
 
+      {/* Image Container */}
       <div class="avacar-image-container generating">
         {props.previewDataUrl && (
           <img src={props.previewDataUrl} alt="Processing" />
         )}
         <div class="avacar-inner-glow" />
-        <div class="avacar-generating-overlay">
-          <div class="avacar-loading-text">
+        <div class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.4)_0%,rgba(0,0,0,0.2)_70%)]">
+          <div class="flex justify-center">
             <For each={loadingLetters()}>
               {(letter) => (
                 <span
@@ -67,9 +77,12 @@ export function LoadingView(props: LoadingViewProps) {
         </div>
       </div>
 
-      <p class="avacar-loading-hint">~30 seconds</p>
+      <p class="mt-4 text-sm text-white/40 animate-pulse">~30 seconds</p>
 
-      <div class="avacar-footer">Powered by <strong>Zeno</strong></div>
+      {/* Footer */}
+      <div class="text-white/40 text-xs text-center py-4 mt-auto">
+        Powered by <strong class="text-white/60 font-semibold">Zeno</strong>
+      </div>
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { createStore } from 'solid-js/store'
+import { createStore, produce } from 'solid-js/store'
 import type { ViewState, RenderResult, Product, Variant, JWTPayload } from '../types'
 import { LOADING_STEPS, LOADING_STEPS_WRAPS, ZOOM } from '../constants'
 
@@ -96,6 +96,7 @@ export function createWidgetStore() {
   const actions = {
     open(selections: JWTPayload, product: Product | null, variants: Variant[], customBrand?: string) {
       const isWraps = !!(selections.wrap_id && !selections.wheel_id)
+
       setState({
         ...initialState,
         isOpen: true,
@@ -137,14 +138,16 @@ export function createWidgetStore() {
 
       const interval = window.setInterval(() => {
         elapsed += 100
-        let total = 0
-        for (let i = 0; i <= state.loadingStep; i++) {
-          total += steps[i].duration
-        }
+        setState(produce((s) => {
+          let total = 0
 
-        if (elapsed >= total && state.loadingStep < steps.length - 1) {
-          setState('loadingStep', state.loadingStep + 1)
-        }
+          for (let i = 0; i <= s.loadingStep; i++) {
+            total += steps[i].duration
+          }
+          if (elapsed >= total && s.loadingStep < steps.length - 1) {
+            s.loadingStep += 1
+          }
+        }))
       }, 100)
 
       setState('loadingInterval', interval)
@@ -158,15 +161,16 @@ export function createWidgetStore() {
     },
 
     setResults(results: RenderResult[], detectedVehicle?: string) {
-      console.log('setResults called with detectedVehicle:', detectedVehicle)
       actions.stopLoading()
 
       const successfulResults = results.filter((r) => r.success)
+
       if (successfulResults.length === 0) {
         setState({
           view: 'upload',
           error: 'All render requests failed. Please try again.',
         })
+
         return
       }
 
@@ -177,7 +181,6 @@ export function createWidgetStore() {
         hasRendered: true,
         detectedVehicle: detectedVehicle || null,
       })
-      console.log('State after setResults:', state.detectedVehicle)
     },
 
     setCurrentIndex(index: number) {
@@ -191,6 +194,7 @@ export function createWidgetStore() {
 
     showQuote() {
       const current = getCurrentResult()
+
       if (current && !state.interestedFinishes.includes(state.currentIndex)) {
         setState('interestedFinishes', [...state.interestedFinishes, state.currentIndex])
       }
@@ -199,6 +203,7 @@ export function createWidgetStore() {
 
     toggleFinishInterest(index: number) {
       const idx = state.interestedFinishes.indexOf(index)
+
       if (idx > -1) {
         setState('interestedFinishes', state.interestedFinishes.filter((_, i) => i !== idx))
       } else {
@@ -228,6 +233,7 @@ export function createWidgetStore() {
 
     setZoom(level: number) {
       const newZoom = Math.max(ZOOM.min, Math.min(ZOOM.max, level))
+
       setState('zoomLevel', newZoom)
       if (newZoom <= ZOOM.min) {
         setState({ panX: 0, panY: 0 })
