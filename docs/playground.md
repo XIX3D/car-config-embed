@@ -2,7 +2,9 @@
 
 Try the AvaCar widget with live code editing. Changes update the preview in real-time.
 
-<Playground />
+<ClientOnly>
+  <Playground />
+</ClientOnly>
 
 ## JWT Decoder
 

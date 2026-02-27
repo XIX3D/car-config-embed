@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import * as monaco from 'monaco-editor'
+import { ref, computed, watch, onMounted, onUnmounted, shallowRef } from 'vue'
+
+type MonacoEditor = typeof import('monaco-editor')
+const monaco = shallowRef<MonacoEditor | null>(null)
 
 const DEMO_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6NDIyLCJtYW51ZmFjdHVyZXJfaWQiOjEsImlhdCI6MTc3MjIxNzYzMSwiZXhwIjoxODAzNzUzNjMxfQ.1if43QRSR3HLZwqvvRAs9mYcQd62yQuBolqP-v_mz78'
 const WIDGET_URL = 'https://github.com/XIX3D/car-config-embed/releases/download/v0.0.1/car-config-embed.iife.js'
@@ -30,7 +32,7 @@ const buttonText = ref('Preview on Your Car')
 const jwt = ref(DEMO_JWT)
 
 const editorContainer = ref<HTMLElement>()
-let editor: monaco.editor.IStandaloneCodeEditor | null = null
+let editor: any = null
 
 const previewKey = ref(0)
 
@@ -70,11 +72,14 @@ watch(code, () => {
   }, 500)
 })
 
-onMounted(() => {
+onMounted(async () => {
   if (editorContainer.value) {
+    const monacoModule = await import('monaco-editor')
+    monaco.value = monacoModule
+
     const isDark = document.documentElement.classList.contains('dark')
 
-    editor = monaco.editor.create(editorContainer.value, {
+    editor = monacoModule.editor.create(editorContainer.value, {
       value: code.value,
       language: 'html',
       theme: isDark ? 'vs-dark' : 'vs',
@@ -93,7 +98,7 @@ onMounted(() => {
 
     const observer = new MutationObserver(() => {
       const isDark = document.documentElement.classList.contains('dark')
-      monaco.editor.setTheme(isDark ? 'vs-dark' : 'vs')
+      monacoModule.editor.setTheme(isDark ? 'vs-dark' : 'vs')
     })
 
     observer.observe(document.documentElement, {
