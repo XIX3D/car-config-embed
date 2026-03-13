@@ -28,7 +28,7 @@ features:
 
 ```html
 <!-- Add the widget script -->
-<script src="https://github.com/XIX3D/car-config-embed/releases/download/v0.0.1/car-config-embed.iife.js"></script>
+<script src="https://github.com/XIX3D/car-config-embed/releases/download/latest/car-config-embed.iife.js"></script>
 
 <!-- Add a preview button -->
 <button

@@ -5,7 +5,7 @@ type MonacoEditor = typeof import('monaco-editor')
 const monaco = shallowRef<MonacoEditor | null>(null)
 
 const DEMO_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6NDIyLCJtYW51ZmFjdHVyZXJfaWQiOjEsImlhdCI6MTc3MjIxNzYzMSwiZXhwIjoxODAzNzUzNjMxfQ.1if43QRSR3HLZwqvvRAs9mYcQd62yQuBolqP-v_mz78'
-const WIDGET_URL = 'https://github.com/XIX3D/car-config-embed/releases/download/v0.0.1/car-config-embed.iife.js'
+const WIDGET_URL = 'https://github.com/XIX3D/car-config-embed/releases/download/latest/car-config-embed.iife.js'
 
 const defaultCode = `<!DOCTYPE html>
 <html>
@@ -35,6 +35,15 @@ const editorContainer = ref<HTMLElement>()
 let editor: any = null
 
 const previewKey = ref(0)
+const showModal = ref(false)
+
+function openModal() {
+  showModal.value = true
+}
+
+function closeModal() {
+  showModal.value = false
+}
 
 const previewHtml = computed(() => {
   return code.value
@@ -185,6 +194,9 @@ function resetCode() {
     <div class="preview-panel">
       <div class="panel-header">
         <span>Live Preview</span>
+        <button class="btn-primary" @click="openModal" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+          Fullscreen
+        </button>
       </div>
       <iframe
         :key="previewKey"
@@ -200,4 +212,65 @@ function resetCode() {
       </button>
     </div>
   </div>
+
+  <Teleport to="body">
+    <div v-if="showModal" class="preview-modal-overlay" @click.self="closeModal">
+      <div class="preview-modal">
+        <button class="preview-modal-close" @click="closeModal">&times;</button>
+        <iframe :srcdoc="previewHtml" class="preview-modal-iframe" />
+      </div>
+    </div>
+  </Teleport>
 </template>
+
+<style scoped>
+.preview-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+
+.preview-modal {
+  position: relative;
+  width: 90vw;
+  height: 90vh;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.preview-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: background 0.2s;
+}
+
+.preview-modal-close:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.preview-modal-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+</style>

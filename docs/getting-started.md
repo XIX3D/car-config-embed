@@ -9,7 +9,7 @@ This guide walks you through integrating the AvaCar widget into your website.
 Add the script to your HTML:
 
 ```html
-<script src="https://github.com/XIX3D/car-config-embed/releases/download/v0.0.1/car-config-embed.iife.js"></script>
+<script src="https://github.com/XIX3D/car-config-embed/releases/download/latest/car-config-embed.iife.js"></script>
 ```
 
 The script auto-initializes and binds to any buttons with `class="avacar-preview"`.
