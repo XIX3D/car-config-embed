@@ -161,6 +161,11 @@ export function UploadView(props: UploadViewProps) {
         </p>
       </div>
 
+      {/* Disclaimer */}
+      <p class="text-[10px] text-white/50 text-center px-4 mt-4">
+        *Renderings are intended as a guide only and are not an exact representation of the wheel style, fitment, finish or vehicle.
+      </p>
+
       {/* Footer */}
       <div class="text-white/40 text-xs text-center py-4 mt-auto">
         Powered by <strong class="text-white/60 font-semibold">Zeno</strong>
