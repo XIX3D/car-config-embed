@@ -21,7 +21,7 @@ export function Modal(props: ModalProps) {
   const [modalStyle, setModalStyle] = createSignal<{ 'max-width'?: string; width?: string }>({})
 
   const productImgUrl = () =>
-    state.product ? props.api.getProductThumbnailUrl(state.product.id) : ''
+    state.product?.reference_image_paths?.[0] || ''
 
   const resizeModalForImage = (imgWidth: number, imgHeight: number) => {
     if (!imgWidth || !imgHeight) return
@@ -75,11 +75,11 @@ export function Modal(props: ModalProps) {
   }
 
   const startVisualization = async (file: File) => {
+    console.log('[DEBUG] startVisualization called', { file, selections: state.selections, variants: state.variants })
     actions.startLoading()
 
-    const productThumbnail = state.product
-      ? props.api.getProductThumbnailUrl(state.product.id)
-      : null
+    const productThumbnail = state.product?.reference_image_paths?.[0] || null
+    const selections = state.selections
 
     const renderRequests = [
       {
@@ -88,88 +88,100 @@ export function Modal(props: ModalProps) {
         hexColor: null,
         referenceImage: productThumbnail,
       },
-      ...state.variants.map((v) => ({
-        label: v.variant_name,
-        variantId: v.id,
-        hexColor: v.hex_color || null,
-        referenceImage: v.reference_image
-          ? props.api.getStorageUrl(v.reference_image)
-          : null,
-      })),
+      ...(state.variants || []).map((v) => {
+        const refImg = v.reference_image_paths?.[0] || v.reference_image
+        return {
+          label: v.variant_name,
+          variantId: v.id,
+          hexColor: v.hex_color || null,
+          referenceImage: refImg || null,
+        }
+      }),
     ]
 
-    const selections = state.selections
+    const initialResults = renderRequests.map((req) => ({
+      label: req.label,
+      variantId: req.variantId,
+      hexColor: req.hexColor,
+      referenceImage: req.referenceImage,
+      success: false,
+      loading: true,
+    }))
+    actions.initResults(initialResults)
 
-    // eslint-disable-next-line solid/reactivity
-    const results = await Promise.all(renderRequests.map(async (req) => {
-      const products = []
+    renderRequests.forEach((req, index) => {
+      const products: Array<{ product_id: string; variant_id?: string }> = []
 
       if (selections?.wrap_id) {
         const p: { product_id: string; variant_id?: string } = { product_id: selections.wrap_id }
-
         if (req.variantId) p.variant_id = req.variantId
         products.push(p)
       }
       if (selections?.wheel_id) {
         const p: { product_id: string; variant_id?: string } = { product_id: selections.wheel_id }
-
         if (req.variantId) p.variant_id = req.variantId
         products.push(p)
       }
 
-      const response = await props.api.render(file, products)
+      props.api.renderStream(file, products, {
+        onStarted: () => console.log(`[SSE:${index}] Render started`),
+        onVehicleDetected: (data) => {
+          const vehicle = `${data.year} ${data.make} ${data.model}`
+          console.log(`[SSE:${index}] Vehicle detected:`, vehicle)
+          actions.setDetectedVehicle(vehicle)
+        },
+        onProgress: (data) => {
+          console.log(`[SSE:${index}] Progress: ${data.step}/${data.total} - ${data.product_name}`)
+        },
+        onStepComplete: () => console.log(`[SSE:${index}] Step complete`),
+        onComplete: (data) => {
+          console.log(`[SSE:${index}] Complete`)
+          actions.updateResult(index, {
+            image: `data:image/png;base64,${data.image_b64}`,
+            success: true,
+            loading: false,
+          })
+        },
+        onError: (msg) => {
+          console.error(`[SSE:${index}] Error:`, msg)
+          actions.updateResult(index, {
+            error: msg,
+            success: false,
+            loading: false,
+          })
+        },
+      })
+    })
 
-      return {
-        label: req.label,
-        variantId: req.variantId,
-        hexColor: req.hexColor,
-        referenceImage: req.referenceImage,
-        image: response.final_image,
-        success: response.success,
-        error: response.error,
-        detectedVehicle: response.detected_vehicle,
-      }
-    }),
-    )
-
-    const firstResult = results[0]
-
-    actions.setResults(
-      results.map((r) => ({
-        label: r.label,
-        variantId: r.variantId,
-        hexColor: r.hexColor,
-        referenceImage: r.referenceImage,
-        image: r.image,
-        success: r.success,
-        error: r.error,
-      })),
-      firstResult?.detectedVehicle,
-    )
-  }
+    }
 
   const handleQuoteSubmit = async (
-    customer: { name: string; email: string; phone?: string; zip_code: string },
-    vehicle: string,
+    customer: { name: string; email: string; phone?: string },
+    _vehicle: string,
   ) => {
-    const current = getCurrentResult()
+    if (!state.product) throw new Error('No product selected')
 
-    if (!current) throw new Error('No visualization available')
+    const productIds: number[] = []
+    if (state.selections?.wheel_id) {
+      productIds.push(parseInt(state.selections.wheel_id, 10))
+    }
+    if (state.selections?.wrap_id) {
+      productIds.push(parseInt(state.selections.wrap_id, 10))
+    }
 
-    const productId = state.selections?.wheel_id || state.selections?.wrap_id
+    if (productIds.length === 0) throw new Error('No product selected')
 
-    if (!productId) throw new Error('No product selected')
-
-    const variantIds = state.interestedFinishes
-      .map((i) => state.galleryResults[i]?.variantId)
-      .filter((id): id is string => !!id)
+    const images = state.interestedFinishes
+      .map((i) => state.galleryResults[i]?.image)
+      .filter((img): img is string => !!img)
 
     const response = await props.api.submitQuote({
-      customer,
-      vehicle,
-      product_id: productId,
-      variant_ids: variantIds,
-      rendered_image: current.image || '',
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+      product_ids: productIds,
+      images,
+      manufacturer_id: state.product.manufacturer_id,
     })
 
     if (!response.success) {

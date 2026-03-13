@@ -10,7 +10,7 @@ import { decodeJWT } from './utils/jwt'
 import { detectTheme, observeThemeChanges } from './utils/theme'
 import type { ButtonTheme, ButtonSize, WidgetConfig } from './types'
 
-const API_URL = 'https://platform.xix3d.com'
+const API_URL = import.meta.env.VITE_API_URL || 'https://api.platform.xix3d.com'
 
 const store = createWidgetStore()
 const api = createApiClient(API_URL)

@@ -1,5 +1,6 @@
 import { Show, For } from 'solid-js'
 import type { RenderResult } from '../../types'
+import { TruncatedTitle } from './TruncatedTitle'
 
 interface SuccessViewProps {
   productImgUrl: string
@@ -37,7 +38,7 @@ export function SuccessView(props: SuccessViewProps) {
             <span class="text-[10px] font-medium uppercase tracking-[2px] bg-gradient-to-r from-zeno-cyan to-zeno-green bg-clip-text text-transparent">
               {props.brandName}
             </span>
-            <span class="text-xl font-semibold text-white">{props.modelName}</span>
+            <TruncatedTitle text={props.modelName} class="text-xl font-semibold text-white" />
           </div>
         </div>
         <button

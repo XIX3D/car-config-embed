@@ -183,6 +183,31 @@ export function createWidgetStore() {
       })
     },
 
+    initResults(results: RenderResult[]) {
+      setState({
+        galleryResults: results,
+        currentIndex: 0,
+      })
+    },
+
+    updateResult(index: number, result: Partial<RenderResult>) {
+      setState('galleryResults', index, (prev) => ({ ...prev, ...result }))
+
+      const originalProduct = state.galleryResults[0]
+      if (state.view === 'loading' && originalProduct?.success && !originalProduct?.loading) {
+        actions.stopLoading()
+        setState({
+          view: 'result',
+          currentIndex: 0,
+          hasRendered: true,
+        })
+      }
+    },
+
+    setDetectedVehicle(vehicle: string) {
+      setState('detectedVehicle', vehicle)
+    },
+
     setCurrentIndex(index: number) {
       setState({
         currentIndex: index,

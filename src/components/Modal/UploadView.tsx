@@ -1,5 +1,6 @@
 import { createSignal } from 'solid-js'
 import { ZENO, VALID_IMAGE_TYPES } from '../../constants'
+import { TruncatedTitle } from './TruncatedTitle'
 
 interface UploadViewProps {
   productImgUrl: string
@@ -13,6 +14,7 @@ interface UploadViewProps {
 
 export function UploadView(props: UploadViewProps) {
   const [isDragover, setIsDragover] = createSignal(false)
+  const [isPasting, setIsPasting] = createSignal(false)
   const [previewUrl, setPreviewUrl] = createSignal<string | null>(null)
   let fileInputRef: HTMLInputElement | undefined
 
@@ -45,8 +47,30 @@ export function UploadView(props: UploadViewProps) {
   const handleDragOver = (e: DragEvent) => { e.preventDefault(); setIsDragover(true) }
   const handleDragLeave = () => setIsDragover(false)
 
+  const handlePaste = (e: ClipboardEvent) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+
+    for (const item of Array.from(items)) {
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        e.preventDefault()
+        const file = item.getAsFile()
+        if (file) {
+          setIsPasting(true)
+          setTimeout(() => setIsPasting(false), 300)
+          handleFile(file)
+          return
+        }
+      }
+    }
+
+    if (e.clipboardData?.types.length) {
+      props.onError('Please paste an image file (JPG, PNG, or WebP)')
+    }
+  }
+
   return (
-    <div class="relative z-1 p-6 flex flex-col items-center text-center min-h-[520px]">
+    <div class="relative z-1 p-6 flex flex-col items-center text-center min-h-[520px]" tabindex="0" onPaste={handlePaste}>
       {/* Header */}
       <div class="flex items-center justify-between mb-1 w-full animate-fadeInUp">
         <div class="flex items-center gap-3 mx-auto">
@@ -61,7 +85,7 @@ export function UploadView(props: UploadViewProps) {
             <span class="text-[10px] font-medium uppercase tracking-[2px] bg-gradient-to-r from-zeno-cyan to-zeno-green bg-clip-text text-transparent">
               {props.brandName}
             </span>
-            <span class="text-xl font-semibold text-white">{props.modelName}</span>
+            <TruncatedTitle text={props.modelName} class="text-xl font-semibold text-white" />
           </div>
         </div>
         <button
@@ -79,7 +103,7 @@ export function UploadView(props: UploadViewProps) {
 
       {/* Upload Box */}
       <div
-        class={`avacar-upload-box ${isDragover() ? 'dragover' : ''} ${previewUrl() ? 'has-file' : ''}`}
+        class={`avacar-upload-box ${isDragover() || isPasting() ? 'dragover' : ''} ${previewUrl() ? 'has-file' : ''}`}
         onClick={handleUploadClick}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -107,7 +131,7 @@ export function UploadView(props: UploadViewProps) {
                 </svg>
               </div>
               <p class="text-lg font-medium text-white m-0 mb-1">Drop your car photo</p>
-              <p class="text-sm text-white/40 m-0">or tap to upload</p>
+              <p class="text-sm text-white/40 m-0">or tap / paste to upload</p>
             </>
           )}
         </div>

@@ -1,5 +1,12 @@
 import { createSignal, For } from 'solid-js'
-import type { RenderResult, Customer } from '../../types'
+import type { RenderResult } from '../../types'
+import { TruncatedTitle } from './TruncatedTitle'
+
+interface CustomerData {
+  name: string
+  email: string
+  phone?: string
+}
 
 interface QuoteViewProps {
   productImgUrl: string
@@ -11,7 +18,7 @@ interface QuoteViewProps {
   onClose: () => void
   onBack: () => void
   onToggleFinish: (index: number) => void
-  onSubmit: (customer: Customer, vehicle: string) => Promise<void>
+  onSubmit: (customer: CustomerData, vehicle: string) => Promise<void>
 }
 
 export function QuoteView(props: QuoteViewProps) {
@@ -20,7 +27,6 @@ export function QuoteView(props: QuoteViewProps) {
   const [email, setEmail] = createSignal('')
   const [phone, setPhone] = createSignal('')
   const [vehicle, setVehicle] = createSignal(getInitialVehicle())
-  const [zipCode, setZipCode] = createSignal('')
   const [isSubmitting, setIsSubmitting] = createSignal(false)
   const [error, setError] = createSignal<string | null>(null)
 
@@ -38,7 +44,6 @@ export function QuoteView(props: QuoteViewProps) {
           name: name(),
           email: email(),
           phone: phone() || undefined,
-          zip_code: zipCode(),
         },
         vehicle(),
       )
@@ -74,7 +79,7 @@ export function QuoteView(props: QuoteViewProps) {
             <span class="text-[10px] font-medium uppercase tracking-[2px] bg-gradient-to-r from-zeno-cyan to-zeno-green bg-clip-text text-transparent">
               {props.brandName}
             </span>
-            <span class="text-xl font-semibold text-white">{props.modelName}</span>
+            <TruncatedTitle text={props.modelName} class="text-xl font-semibold text-white" />
           </div>
         </div>
         <button
@@ -167,18 +172,6 @@ export function QuoteView(props: QuoteViewProps) {
             placeholder="Phone (optional)"
             value={phone()}
             onInput={(e) => setPhone(e.currentTarget.value)}
-          />
-        </div>
-
-        <div class="animate-fadeInUp opacity-0 [animation-delay:0.4s]">
-          <input
-            type="text"
-            name="zip_code"
-            class="w-full p-4 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-franie transition-all outline-none focus:border-zeno-cyan/60 focus:bg-white/[0.08] placeholder:text-white/30"
-            placeholder="Zip Code *"
-            required
-            value={zipCode()}
-            onInput={(e) => setZipCode(e.currentTarget.value)}
           />
         </div>
 
