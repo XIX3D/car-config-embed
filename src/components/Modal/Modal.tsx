@@ -75,7 +75,6 @@ export function Modal(props: ModalProps) {
   }
 
   const startVisualization = async (file: File) => {
-    console.log('[DEBUG] startVisualization called', { file, selections: state.selections, variants: state.variants })
     actions.startLoading()
 
     const productThumbnail = state.product?.reference_image_paths?.[0] || null
@@ -124,18 +123,11 @@ export function Modal(props: ModalProps) {
       }
 
       props.api.renderStream(file, products, {
-        onStarted: () => console.log(`[SSE:${index}] Render started`),
         onVehicleDetected: (data) => {
           const vehicle = `${data.year} ${data.make} ${data.model}`
-          console.log(`[SSE:${index}] Vehicle detected:`, vehicle)
           actions.setDetectedVehicle(vehicle)
         },
-        onProgress: (data) => {
-          console.log(`[SSE:${index}] Progress: ${data.step}/${data.total} - ${data.product_name}`)
-        },
-        onStepComplete: () => console.log(`[SSE:${index}] Step complete`),
         onComplete: (data) => {
-          console.log(`[SSE:${index}] Complete`)
           actions.updateResult(index, {
             image: `data:image/png;base64,${data.image_b64}`,
             success: true,

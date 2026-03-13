@@ -36,9 +36,9 @@ export function ResultView(props: ResultViewProps) {
     const c = current()
 
     if (!c) return 'my-wheel-build.jpg'
-    const brand = props.brandName.replace(/[^a-z0-9]/gi, '')
-    const model = props.modelName.replace(/[^a-z0-9]/gi, '')
-    const finish = c.label.replace(' (Original)', '').replace(/[^a-z0-9]/gi, '')
+    const brand = props.brandName.replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
+    const model = props.modelName.replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
+    const finish = c.label.replace(' (Original)', '').replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
 
     return `${brand}_${model}_${finish}_ZenoRender.jpg`
   }

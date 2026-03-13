@@ -19,7 +19,6 @@ export function createApiClient(baseUrl: string) {
     try {
       const res = await fetch(`${baseUrl}/api/v1/products/${productId}/variants`)
       const data = await res.json()
-      console.log('[DEBUG] fetchVariants response', data)
 
       if (!data.success) return []
       let variants = data.variants as Variant[]
@@ -38,7 +37,6 @@ export function createApiClient(baseUrl: string) {
     file: File,
     products: Array<{ product_id: string; variant_id?: string }>,
   ): Promise<{ success: boolean; final_image?: string; detected_vehicle?: string; error?: string }> => {
-    console.log('[DEBUG] api.render called', { baseUrl, products })
     const formData = new FormData()
 
     formData.append('vehicle_image', file)
