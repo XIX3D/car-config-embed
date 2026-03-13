@@ -10,7 +10,9 @@ export interface Product {
   id: string
   name: string
   category?: string
-  thumbnail_url?: string
+  manufacturer_id: number
+  reference_image_paths?: string[]
+  orthographic_image?: string
 }
 
 export interface Variant {
@@ -18,6 +20,7 @@ export interface Variant {
   variant_name: string
   hex_color?: string
   reference_image?: string
+  reference_image_paths?: string[]
 }
 
 export interface RenderResult {
@@ -28,21 +31,25 @@ export interface RenderResult {
   image?: string
   error?: string
   success: boolean
+  loading?: boolean
 }
 
-export interface Customer {
-  name: string
-  email: string
-  phone?: string
-  zip_code: string
+export interface VehicleInfo {
+  make?: string
+  model?: string
+  year?: string
+  vehicle_type?: VehicleType
 }
 
 export interface QuoteRequest {
-  customer: Customer
-  vehicle: string
-  product_id: string
-  variant_ids: string[]
-  rendered_image: string
+  name: string
+  email: string
+  phone?: string
+  message?: string
+  vehicle_info?: VehicleInfo
+  product_ids: number[]
+  images?: string[]
+  manufacturer_id: number
 }
 
 export interface WidgetConfig {
@@ -60,4 +67,15 @@ export type ButtonSize = 'standard' | 'compact'
 export interface LoadingStep {
   text: string
   duration: number
+}
+
+export type VehicleType = 'sedan' | 'coupe' | 'hatchback' | 'suv' | 'truck' | 'minivan' | 'convertible' | 'wagon'
+
+export interface RenderStreamEvents {
+  onStarted?: () => void
+  onVehicleDetected?: (data: { make: string; model: string; year: string; vehicle_type: VehicleType }) => void
+  onProgress?: (data: { step: number; total: number; product_name: string }) => void
+  onStepComplete?: (data: { image_b64: string }) => void
+  onComplete?: (data: { image_b64: string }) => void
+  onError?: (message: string) => void
 }

@@ -1,5 +1,6 @@
 import { For } from 'solid-js'
 import type { LoadingStep } from '../../types'
+import { TruncatedTitle } from './TruncatedTitle'
 
 interface LoadingViewProps {
   productImgUrl: string
@@ -39,7 +40,7 @@ export function LoadingView(props: LoadingViewProps) {
             <span class="text-[10px] font-medium uppercase tracking-[2px] bg-gradient-to-r from-zeno-cyan to-zeno-green bg-clip-text text-transparent">
               {props.brandName}
             </span>
-            <span class="text-xl font-semibold text-white">{props.modelName}</span>
+            <TruncatedTitle text={props.modelName} class="text-xl font-semibold text-white" />
           </div>
         </div>
         <button

@@ -1,6 +1,7 @@
 import { createSignal, createEffect, For, onMount, onCleanup } from 'solid-js'
 import type { RenderResult } from '../../types'
 import { ZOOM } from '../../constants'
+import { TruncatedTitle } from './TruncatedTitle'
 
 interface ResultViewProps {
   productImgUrl: string
@@ -198,7 +199,7 @@ export function ResultView(props: ResultViewProps) {
             <span class="text-[10px] font-medium uppercase tracking-[2px] bg-gradient-to-r from-zeno-cyan to-zeno-green bg-clip-text text-transparent">
               {props.brandName}
             </span>
-            <span class="text-xl font-semibold text-white">{props.modelName}</span>
+            <TruncatedTitle text={props.modelName} class="text-xl font-semibold text-white" />
           </div>
         </div>
         <button
@@ -251,19 +252,28 @@ export function ResultView(props: ResultViewProps) {
             </svg>
           </button>
 
-          <img
-            ref={imageRef}
-            class="avacar-result-img"
-            src={current()?.image || ''}
-            alt="Preview"
-            style={transformStyle()}
-            onMouseDown={handleMouseDown}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onLoad={handleImageLoad}
-            draggable={false}
-          />
+          {current()?.loading ? (
+            <div class="avacar-result-img flex items-center justify-center bg-black/20 rounded-2xl min-h-[300px]">
+              <div class="flex flex-col items-center gap-3">
+                <div class="w-12 h-12 border-3 border-white/20 border-t-white rounded-full animate-spin" />
+                <span class="text-white/50 text-sm">Rendering...</span>
+              </div>
+            </div>
+          ) : (
+            <img
+              ref={imageRef}
+              class="avacar-result-img"
+              src={current()?.image || ''}
+              alt="Preview"
+              style={transformStyle()}
+              onMouseDown={handleMouseDown}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onLoad={handleImageLoad}
+              draggable={false}
+            />
+          )}
         </div>
 
         {/* Color Carousel */}
@@ -272,10 +282,14 @@ export function ResultView(props: ResultViewProps) {
             <For each={props.results}>
               {(result, i) => (
                 <button
-                  class={`flex-shrink-0 w-14 h-14 rounded-xl cursor-pointer border-none transition-all bg-white ${
-                    i() === props.currentIndex
-                      ? 'opacity-100 scale-[1.15] shadow-[0_0_0_2px_#fff,0_0_20px_rgba(255,255,255,0.2)]'
-                      : 'opacity-50 hover:opacity-80 hover:scale-105'
+                  class={`flex-shrink-0 w-14 h-14 rounded-xl border-none transition-all bg-white relative ${
+                    result.loading
+                      ? 'opacity-30 cursor-wait'
+                      : result.success
+                        ? i() === props.currentIndex
+                          ? 'opacity-100 scale-[1.15] shadow-[0_0_0_2px_#fff,0_0_20px_rgba(255,255,255,0.2)] cursor-pointer'
+                          : 'opacity-50 hover:opacity-80 hover:scale-105 cursor-pointer'
+                        : 'opacity-20 cursor-not-allowed'
                   }`}
                   style={{
                     'background-image': result.referenceImage ? `url(${result.referenceImage})` : undefined,
@@ -284,9 +298,23 @@ export function ResultView(props: ResultViewProps) {
                     'background-repeat': 'no-repeat',
                     'background-position': 'center',
                   }}
-                  title={result.label}
-                  onClick={() => props.onSelectIndex(i())}
-                />
+                  title={result.loading ? `${result.label} (loading...)` : result.label}
+                  onClick={() => result.success && !result.loading && props.onSelectIndex(i())}
+                  disabled={result.loading || !result.success}
+                >
+                  {result.loading && (
+                    <div class="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl">
+                      <div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    </div>
+                  )}
+                  {!result.loading && !result.success && (
+                    <div class="absolute inset-0 flex items-center justify-center bg-black/60 rounded-xl">
+                      <svg class="w-5 h-5 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                      </svg>
+                    </div>
+                  )}
+                </button>
               )}
             </For>
           </div>
