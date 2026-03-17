@@ -160,11 +160,82 @@ export function createApiClient(baseUrl: string) {
     }
   }
 
+  const renderSingleVariant = async (
+    file: File,
+    products: Array<{ product_id: string; variant_id?: string }>,
+    events: RenderStreamEvents,
+  ): Promise<{ success: boolean; image?: string; error?: string }> => {
+    const formData = new FormData()
+    formData.append('vehicle_image', file)
+
+    const productsPayload = products.map(p => ({
+      product_id: parseInt(p.product_id, 10),
+      ...(p.variant_id ? { variant_id: parseInt(p.variant_id, 10) } : {}),
+    }))
+    formData.append('products', JSON.stringify(productsPayload))
+    formData.append('fast_mode', 'true')
+
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/render/chain/stream`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!res.body) throw new Error('No response body')
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let finalImage = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n\n')
+        buffer = lines.pop() || ''
+
+        for (const chunk of lines) {
+          const eventMatch = chunk.match(/^event: (.+)$/m)
+          const dataMatch = chunk.match(/^data: (.+)$/m)
+          if (!eventMatch || !dataMatch) continue
+
+          const event = eventMatch[1]
+          const data = JSON.parse(dataMatch[1])
+
+          switch (event) {
+            case 'started':
+              events.onStarted?.()
+              break
+            case 'progress':
+              events.onProgress?.(data)
+              break
+            case 'complete':
+              finalImage = `data:image/png;base64,${data.image_b64}`
+              events.onComplete?.(data)
+              break
+            case 'error':
+              events.onError?.(data.message)
+              return { success: false, error: data.message }
+          }
+        }
+      }
+
+      return { success: true, image: finalImage }
+    } catch (e) {
+      const error = e instanceof Error ? e.message : 'Unknown error'
+      events.onError?.(error)
+      return { success: false, error }
+    }
+  }
+
   return {
     fetchProduct,
     fetchVariants,
     render,
     renderStream,
+    renderSingleVariant,
     submitQuote,
     getStorageUrl,
   }

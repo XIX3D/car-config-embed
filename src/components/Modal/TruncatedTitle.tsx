@@ -35,7 +35,7 @@ export function TruncatedTitle(props: TruncatedTitleProps) {
     >
       <span
         ref={textRef}
-        class={`block max-w-[180px] truncate ${props.class || ''}`}
+        class={`block max-w-[250px] truncate ${props.class || ''}`}
       >
         {props.text}
       </span>

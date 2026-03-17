@@ -2,6 +2,8 @@ import { createStore, produce } from 'solid-js/store'
 import type { ViewState, RenderResult, Product, Variant, JWTPayload } from '../types'
 import { LOADING_STEPS, LOADING_STEPS_WRAPS, ZOOM } from '../constants'
 
+export type ImageAspect = 'normal' | 'wide' | 'tall' | 'square' | null
+
 export interface WidgetState {
   view: ViewState
   isOpen: boolean
@@ -16,6 +18,7 @@ export interface WidgetState {
   // File handling
   selectedFile: File | null
   previewDataUrl: string | null
+  imageAspect: ImageAspect
 
   // Results
   galleryResults: RenderResult[]
@@ -38,9 +41,17 @@ export interface WidgetState {
   showExitModal: boolean
   showFullscreenModal: boolean
   showShareModal: boolean
+  showRestartModal: boolean
+  showDownloadMenu: boolean
+
+  // Quote view
+  quoteViewIndex: number
 
   // Error
   error: string | null
+
+  // Single re-render
+  rerenderingIndex: number | null
 }
 
 const initialState: WidgetState = {
@@ -55,6 +66,7 @@ const initialState: WidgetState = {
 
   selectedFile: null,
   previewDataUrl: null,
+  imageAspect: null,
 
   galleryResults: [],
   currentIndex: 0,
@@ -73,8 +85,14 @@ const initialState: WidgetState = {
   showExitModal: false,
   showFullscreenModal: false,
   showShareModal: false,
+  showRestartModal: false,
+  showDownloadMenu: false,
+
+  quoteViewIndex: 0,
 
   error: null,
+
+  rerenderingIndex: null,
 }
 
 export function createWidgetStore() {
@@ -124,6 +142,16 @@ export function createWidgetStore() {
         selectedFile: file,
         previewDataUrl: dataUrl,
       })
+    },
+
+    setImageAspect(width: number, height: number) {
+      const ratio = width / height
+      let aspect: ImageAspect = 'normal'
+      if (ratio > 2.2) aspect = 'wide'
+      else if (ratio > 1.4) aspect = 'normal'
+      else if (ratio < 0.9) aspect = 'tall'
+      else aspect = 'square'
+      setState('imageAspect', aspect)
     },
 
     startLoading() {
@@ -253,6 +281,7 @@ export function createWidgetStore() {
         zoomLevel: ZOOM.min,
         panX: 0,
         panY: 0,
+        rerenderingIndex: null,
       })
     },
 
@@ -287,6 +316,27 @@ export function createWidgetStore() {
 
     toggleShareModal(show: boolean) {
       setState('showShareModal', show)
+    },
+
+    toggleRestartModal(show: boolean) {
+      setState('showRestartModal', show)
+    },
+
+    toggleDownloadMenu(show: boolean) {
+      setState('showDownloadMenu', show)
+    },
+
+    setQuoteViewIndex(index: number) {
+      setState('quoteViewIndex', index)
+    },
+
+    setRerenderingIndex(index: number | null) {
+      setState('rerenderingIndex', index)
+    },
+
+    updateSingleResult(index: number, result: Partial<RenderResult>) {
+      setState('galleryResults', index, (prev) => ({ ...prev, ...result }))
+      setState('rerenderingIndex', null)
     },
   }
 

@@ -1,11 +1,12 @@
 import type { LoadingStep } from './types'
 
 export const ZENO = {
-  cyan: '#44CCFF',
-  green: '#46FF81',
+  electric: '#3b82f6',
+  cyan: '#93c5fd',
+  green: '#e0e7ff',
   pink: '#FF44CC',
   dark: '#0a0a0a',
-  card: '#1a1a1a',
+  card: '#0d151f',
 } as const
 
 export const MODAL_ID = 'avacar-embed-modal'

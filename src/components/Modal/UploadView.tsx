@@ -86,7 +86,7 @@ export function UploadView(props: UploadViewProps) {
     >
       {/* Header */}
       <div class="flex items-center justify-between mb-1 w-full animate-fadeInUp">
-        <div class="flex items-center gap-3 mx-auto">
+        <div class="flex items-center gap-3">
           <div class="w-14 h-14 rounded-xl bg-white flex items-center justify-center overflow-hidden">
             {props.productImgUrl ? (
               <img
@@ -98,13 +98,13 @@ export function UploadView(props: UploadViewProps) {
               <div class="w-11 h-11 rounded-full bg-gradient-to-br from-gray-400 to-gray-500" />
             )}
           </div>
-          <div class="flex flex-col">
+          <div class="flex flex-col text-left">
             <span class="text-[10px] font-medium uppercase tracking-[2px] bg-gradient-to-r from-zeno-cyan to-zeno-green bg-clip-text text-transparent">
               {props.brandName}
             </span>
             <TruncatedTitle
               text={props.modelName}
-              class="text-xl font-semibold text-white"
+              class="text-xl font-medium text-white"
             />
           </div>
         </div>
@@ -126,7 +126,7 @@ export function UploadView(props: UploadViewProps) {
         </button>
       </div>
 
-      <h2 class="text-2xl font-semibold m-0 mb-6 text-white animate-fadeInUp">
+      <h2 class="text-2xl font-medium mt-5 mb-6 text-white animate-fadeInUp">
         See it on Your Car
       </h2>
 
@@ -178,13 +178,11 @@ export function UploadView(props: UploadViewProps) {
             <>
               <div class="w-16 h-16 rounded-full bg-white/[0.08] flex items-center justify-center mb-4 transition-all group-hover:bg-white/[0.12] group-hover:scale-110">
                 <svg
-                  class="w-7 h-7 text-white/70 transition-colors group-hover:text-white/90"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
+                  class="w-12 h-9 text-white/70 transition-colors group-hover:text-white/90"
+                  viewBox="0 0 100 74"
+                  fill="currentColor"
                 >
-                  <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <path d="M97.2561 0H2.03685C0.9119 0 0 0.912103 0 2.03685V71.4789C0 72.6037 0.9119 73.5158 2.03685 73.5158H97.2561C98.3809 73.5158 99.293 72.6037 99.293 71.4789V2.03685C99.293 0.912103 98.3811 0 97.2561 0ZM95.2193 4.07371V51.9878L74.0323 35.6788C73.3471 35.151 72.4036 35.1139 71.6787 35.5857L57.7674 44.6407L30.3218 25.8167C29.6717 25.3708 28.8223 25.3401 28.1412 25.7385L4.07371 39.8205V4.07371H95.2193Z" />
                 </svg>
               </div>
               <p class="text-lg font-medium text-white m-0 mb-1">

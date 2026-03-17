@@ -1,4 +1,4 @@
-import { Show, Switch, Match, createEffect, createSignal, onCleanup } from 'solid-js'
+import { Show, Switch, Match, createEffect, createSignal, onCleanup, onMount, For } from 'solid-js'
 import { Portal } from 'solid-js/web'
 import type { WidgetStore } from '../../stores/widget-store'
 import type { ApiClient } from '../../utils/api'
@@ -8,6 +8,7 @@ import { ResultView } from './ResultView'
 import { QuoteView } from './QuoteView'
 import { SuccessView } from './SuccessView'
 import { GlowOrbs } from './GlowOrbs'
+import { AmbientParticles } from './AmbientParticles'
 
 interface ModalProps {
   store: WidgetStore
@@ -60,7 +61,7 @@ export function Modal(props: ModalProps) {
   }
 
   createEffect(() => {
-    if (state.view !== 'result') {
+    if (state.view !== 'result' && state.view !== 'loading') {
       resetModalSize()
     }
   })
@@ -145,8 +146,48 @@ export function Modal(props: ModalProps) {
         },
       })
     })
+  }
 
+  const handleRerender = async (index: number) => {
+    if (!state.selectedFile || state.rerenderingIndex !== null) return
+
+    const result = state.galleryResults[index]
+    if (!result) return
+
+    actions.setRerenderingIndex(index)
+
+    const selections = state.selections
+    const products: Array<{ product_id: string; variant_id?: string }> = []
+
+    if (selections?.wrap_id) {
+      const p: { product_id: string; variant_id?: string } = { product_id: selections.wrap_id }
+      if (result.variantId) p.variant_id = result.variantId
+      products.push(p)
     }
+    if (selections?.wheel_id) {
+      const p: { product_id: string; variant_id?: string } = { product_id: selections.wheel_id }
+      if (result.variantId) p.variant_id = result.variantId
+      products.push(p)
+    }
+
+    props.api.renderSingleVariant(state.selectedFile, products, {
+      onComplete: (data) => {
+        actions.updateSingleResult(index, {
+          image: `data:image/png;base64,${data.image_b64}`,
+          success: true,
+          loading: false,
+        })
+      },
+      onError: (msg) => {
+        console.error(`[Re-render:${index}] Error:`, msg)
+        actions.updateSingleResult(index, {
+          error: msg,
+          success: false,
+          loading: false,
+        })
+      },
+    })
+  }
 
   const handleQuoteSubmit = async (
     customer: { name: string; email: string; phone?: string },
@@ -196,6 +237,43 @@ export function Modal(props: ModalProps) {
     actions.toggleShareModal(true)
   }
 
+  const getFilename = (result: { label: string }) => {
+    const brand = getBrandName().replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
+    const model = getModelName().replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
+    const finish = result.label.replace(' (Original)', '').replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
+    return `${brand}_${model}_${finish}_ZenoRender.jpg`
+  }
+
+  const handleDownloadCurrent = () => {
+    const current = getCurrentResult()
+    if (!current?.image) return
+    const link = document.createElement('a')
+    link.href = current.image
+    link.download = getFilename(current)
+    link.click()
+  }
+
+  const handleDownloadAll = () => {
+    state.galleryResults.forEach((result, index) => {
+      if (result.success && result.image) {
+        setTimeout(() => {
+          const link = document.createElement('a')
+          link.href = result.image!
+          link.download = getFilename(result)
+          link.click()
+        }, index * 200)
+      }
+    })
+  }
+
+  const handleRestart = () => {
+    if (state.hasRendered) {
+      actions.toggleRestartModal(true)
+    } else {
+      actions.resetToUpload()
+    }
+  }
+
   createEffect(() => {
     if (state.isOpen) {
       document.body.style.overflow = 'hidden'
@@ -217,10 +295,11 @@ export function Modal(props: ModalProps) {
         >
           <div
             ref={modalRef}
-            class={`relative bg-zeno-card rounded-[40px] max-w-md w-[92%] max-h-[90vh] overflow-hidden text-white flex flex-col transition-all duration-300 ${state.view === 'result' ? 'avacar-expanded' : ''}`}
+            class={`relative bg-zeno-card rounded-[40px] max-w-md w-[92%] max-h-[90vh] overflow-hidden text-white flex flex-col transition-all duration-300 ${state.view === 'result' || state.view === 'loading' ? 'avacar-expanded' : ''}`}
             style={modalStyle()}
           >
             <GlowOrbs />
+            <AmbientParticles count={12} />
 
             <Switch>
               <Match when={state.view === 'upload'}>
@@ -244,6 +323,7 @@ export function Modal(props: ModalProps) {
                   loadingSteps={getLoadingSteps()}
                   currentStep={state.loadingStep}
                   onClose={handleClose}
+                  onModalResize={resizeModalForImage}
                 />
               </Match>
 
@@ -257,14 +337,19 @@ export function Modal(props: ModalProps) {
                   zoomLevel={state.zoomLevel}
                   panX={state.panX}
                   panY={state.panY}
+                  interestedFinishes={state.interestedFinishes}
                   onClose={handleClose}
-                  onRetry={actions.resetToUpload}
+                  onRetry={handleRestart}
                   onFullscreen={() => actions.toggleFullscreenModal(true)}
                   onQuote={actions.showQuote}
                   onSelectIndex={actions.setCurrentIndex}
                   onZoom={actions.setZoom}
                   onPan={(x, y) => actions.setPan(x, y)}
                   onModalResize={resizeModalForImage}
+                  onToggleInterest={actions.toggleFinishInterest}
+                  onRerender={handleRerender}
+                  rerenderingIndex={state.rerenderingIndex ?? undefined}
+                  onDownloadMenu={() => actions.toggleDownloadMenu(true)}
                 />
               </Match>
 
@@ -276,10 +361,13 @@ export function Modal(props: ModalProps) {
                   results={state.galleryResults}
                   interestedFinishes={state.interestedFinishes}
                   detectedVehicle={state.detectedVehicle}
+                  quoteViewIndex={state.quoteViewIndex}
                   onClose={handleClose}
                   onBack={() => actions.setView('result')}
                   onToggleFinish={actions.toggleFinishInterest}
                   onSubmit={handleQuoteSubmit}
+                  onQuoteViewIndexChange={actions.setQuoteViewIndex}
+                  onFullscreen={() => actions.toggleFullscreenModal(true)}
                 />
               </Match>
 
@@ -313,7 +401,15 @@ export function Modal(props: ModalProps) {
         <Show when={state.showFullscreenModal}>
           <FullscreenModal
             imageUrl={getCurrentResult()?.image || ''}
+            finishes={state.galleryResults}
+            currentIndex={state.currentIndex}
+            interestedIds={state.interestedFinishes}
+            brandName={getBrandName()}
+            modelName={getModelName()}
             onClose={() => actions.toggleFullscreenModal(false)}
+            onIndexChange={actions.setCurrentIndex}
+            onDownload={handleDownloadCurrent}
+            onLike={actions.toggleFinishInterest}
           />
         </Show>
 
@@ -323,6 +419,26 @@ export function Modal(props: ModalProps) {
             brandName={getBrandName()}
             modelName={getModelName()}
             onClose={() => actions.toggleShareModal(false)}
+          />
+        </Show>
+
+        <Show when={state.showRestartModal}>
+          <RestartModal
+            onCancel={() => actions.toggleRestartModal(false)}
+            onConfirm={() => {
+              actions.toggleRestartModal(false)
+              actions.resetToUpload()
+            }}
+          />
+        </Show>
+
+        <Show when={state.showDownloadMenu}>
+          <DownloadMenu
+            currentFinishName={getCurrentResult()?.label.replace(' (Original)', '') || 'Current'}
+            totalCount={state.galleryResults.filter(r => r.success && r.image).length}
+            onDownloadCurrent={handleDownloadCurrent}
+            onDownloadAll={handleDownloadAll}
+            onClose={() => actions.toggleDownloadMenu(false)}
           />
         </Show>
       </Portal>
@@ -339,32 +455,124 @@ function ExitModal(props: { onBack: () => void; onConfirm: () => void }) {
 
   return (
     <div
+      class="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-[1000000] p-3 sm:p-4"
+      onClick={handleOverlayClick}
+    >
+      <div class="relative bg-zeno-card rounded-2xl sm:rounded-3xl p-5 sm:p-8 max-w-sm w-full text-center overflow-hidden animate-fadeInUp">
+        {/* Gradient background */}
+        <div
+          class="absolute inset-0 pointer-events-none"
+          style={{
+            background: `
+              radial-gradient(ellipse 80% 50% at 50% 0%, rgba(147,197,253,0.15) 0%, transparent 60%),
+              radial-gradient(ellipse 80% 50% at 50% 100%, rgba(224,231,255,0.12) 0%, transparent 60%)
+            `,
+          }}
+        />
+
+        <AmbientParticles count={6} />
+
+        {/* Close button */}
+        <button
+          class="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/5 active:bg-white/10 active:scale-95 transition-all z-20"
+          onClick={handleBack}
+          aria-label="Close"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+
+        <div class="relative z-10">
+          {/* Image with X icon */}
+          <div
+            class="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6"
+            style={{ background: 'rgba(239,68,68,0.12)', border: '2px solid rgba(239,68,68,0.25)' }}
+          >
+            <svg
+              class="w-7 h-7 sm:w-8 sm:h-8"
+              style={{ color: '#f87171', animation: 'imageFade 2.5s ease-in-out infinite' }}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+              <line x1="2" y1="2" x2="22" y2="22" stroke-width="2.5" />
+            </svg>
+          </div>
+
+          <h3 class="text-white text-xl sm:text-2xl font-semibold mb-2">Leaving without saving?</h3>
+          <p class="text-white/40 text-sm sm:text-base mb-6 sm:mb-8">Your rendered images will be lost.</p>
+
+          <div class="flex gap-3 sm:gap-4">
+            {/* Go Back button */}
+            <button
+              class="flex-1 py-3 sm:py-4 rounded-2xl text-sm sm:text-base font-medium text-white border flex items-center justify-center gap-2 transition-all bg-white/5 border-white/20 hover:bg-white/10 hover:border-white/30 hover:scale-[1.02] active:scale-[0.97]"
+              onClick={handleBack}
+            >
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+              <span>Go Back</span>
+            </button>
+
+            {/* Leave button */}
+            <button
+              class="flex-1 py-3 sm:py-4 rounded-2xl text-sm sm:text-base font-medium transition-all hover:scale-[1.02] active:scale-[0.97]"
+              style={{
+                background: 'rgba(255,100,100,0.15)',
+                border: '1px solid rgba(255,100,100,0.3)',
+                color: '#ff6b6b',
+              }}
+              onClick={handleConfirm}
+            >
+              Leave
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RestartModal(props: { onCancel: () => void; onConfirm: () => void }) {
+  const handleCancel = () => props.onCancel()
+  const handleConfirm = () => props.onConfirm()
+  const handleOverlayClick = (e: MouseEvent) => {
+    if (e.target === e.currentTarget) handleCancel()
+  }
+
+  return (
+    <div
       class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[1000000] p-4"
       onClick={handleOverlayClick}
     >
       <div class="relative bg-zeno-card rounded-3xl p-8 max-w-[360px] w-full text-center overflow-hidden animate-fadeInUp">
-        <div class="w-16 h-16 rounded-full bg-amber-500/15 border-2 border-amber-500/30 flex items-center justify-center mx-auto mb-6 animate-pulse">
-          <svg class="w-8 h-8 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        <div class="w-16 h-16 rounded-full bg-zeno-electric/15 border-2 border-zeno-electric/30 flex items-center justify-center mx-auto mb-6" style={{ animation: 'refreshSpin 3s ease-in-out infinite' }}>
+          <svg class="w-8 h-8 text-zeno-electric" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 4v6h6M23 20v-6h-6" />
+            <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" />
           </svg>
         </div>
-        <h3 class="text-2xl font-semibold text-white m-0 mb-2">Do you want to save your pictures?</h3>
-        <p class="text-sm text-white/40 m-0 mb-8">Your rendered images will be lost.</p>
+        <h3 class="text-2xl font-semibold text-white m-0 mb-2">Starting over?</h3>
+        <p class="text-sm text-white/40 m-0 mb-8">Your current renders will be lost.</p>
         <div class="flex gap-4">
           <button
             class="flex-1 py-4 rounded-xl bg-white/5 border border-white/20 text-white text-[15px] font-medium cursor-pointer flex items-center justify-center gap-2 transition-all hover:bg-white/10 hover:border-white/30"
-            onClick={handleBack}
+            onClick={handleCancel}
           >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-            Go Back
+            Cancel
           </button>
           <button
-            class="flex-1 py-4 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 text-[15px] font-medium cursor-pointer transition-all hover:scale-[1.02] hover:bg-red-500/20"
+            class="flex-1 py-4 rounded-xl bg-zeno-electric/15 border border-zeno-electric/30 text-zeno-cyan text-[15px] font-medium cursor-pointer transition-all hover:scale-[1.02] hover:bg-zeno-electric/20"
             onClick={handleConfirm}
           >
-            Close Anyway
+            Start Over
           </button>
         </div>
       </div>
@@ -372,17 +580,346 @@ function ExitModal(props: { onBack: () => void; onConfirm: () => void }) {
   )
 }
 
-function FullscreenModal(props: { imageUrl: string; onClose: () => void }) {
+function DownloadMenu(props: {
+  currentFinishName: string
+  totalCount: number
+  onDownloadCurrent: () => void
+  onDownloadAll: () => void
+  onClose: () => void
+}) {
   const handleClose = () => props.onClose()
+  const handleOverlayClick = (e: MouseEvent) => {
+    if (e.target === e.currentTarget) handleClose()
+  }
 
   return (
     <div
-      class="fixed inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center z-[1000000] p-4 cursor-zoom-out animate-fadeIn"
-      onClick={handleClose}
+      class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000000] p-4"
+      onClick={handleOverlayClick}
     >
-      <img class="max-w-full max-h-full object-contain rounded-lg" src={props.imageUrl} alt="Fullscreen view" />
-      <button class="absolute top-4 right-4 w-12 h-12 rounded-xl bg-white/10 border-none text-white text-2xl cursor-pointer flex items-center justify-center transition-colors hover:bg-white/20">
-        &times;
+      <div class="bg-zeno-card rounded-2xl p-5 min-w-[280px] max-w-[340px] shadow-xl animate-fadeInUp">
+        <h3 class="text-lg font-semibold text-white mb-4 text-center">Download Options</h3>
+        <button
+          class="w-full py-3.5 px-4 mb-3 bg-white/5 border border-white/10 text-white rounded-xl text-[15px] font-medium cursor-pointer flex items-center justify-center gap-2.5 transition-all hover:bg-white/10 hover:border-white/20"
+          onClick={() => { props.onDownloadCurrent(); handleClose() }}
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download {props.currentFinishName}
+        </button>
+        <div class="h-px bg-white/10 my-3" />
+        <button
+          class="w-full py-3.5 px-4 bg-white/5 border border-white/10 text-white rounded-xl text-[15px] font-medium cursor-pointer flex items-center justify-center gap-2.5 transition-all hover:bg-white/10 hover:border-white/20"
+          onClick={() => { props.onDownloadAll(); handleClose() }}
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download All ({props.totalCount})
+        </button>
+      </div>
+    </div>
+  )
+}
+
+interface FullscreenModalProps {
+  imageUrl: string
+  finishes: { label: string; image?: string; hexColor?: string | null; referenceImage?: string | null; success: boolean }[]
+  currentIndex: number
+  interestedIds: number[]
+  brandName: string
+  modelName: string
+  onClose: () => void
+  onIndexChange: (index: number) => void
+  onDownload: () => void
+  onLike: (index: number) => void
+}
+
+function FullscreenModal(props: FullscreenModalProps) {
+  const [zoomLevel, setZoomLevel] = createSignal(1)
+  const [panX, setPanX] = createSignal(0)
+  const [panY, setPanY] = createSignal(0)
+  const [isDragging, setIsDragging] = createSignal(false)
+  const [dragStart, setDragStart] = createSignal({ x: 0, y: 0 })
+  const [panStart, setPanStart] = createSignal({ x: 0, y: 0 })
+  let imageRef: HTMLImageElement | undefined
+
+  const currentResult = () => props.finishes[props.currentIndex]
+  const isLiked = (index: number) => props.interestedIds.includes(index)
+
+  const clampPan = (x: number, y: number) => {
+    if (zoomLevel() <= 1 || !imageRef) return { x: 0, y: 0 }
+    const maxPanX = (imageRef.offsetWidth * (zoomLevel() - 1)) / (2 * zoomLevel())
+    const maxPanY = (imageRef.offsetHeight * (zoomLevel() - 1)) / (2 * zoomLevel())
+    return {
+      x: Math.max(-maxPanX, Math.min(maxPanX, x)),
+      y: Math.max(-maxPanY, Math.min(maxPanY, y)),
+    }
+  }
+
+  const handleWheel = (e: WheelEvent) => {
+    e.preventDefault()
+    const delta = e.deltaY > 0 ? -0.25 : 0.25
+    const newZoom = Math.max(1, Math.min(4, zoomLevel() + delta))
+    setZoomLevel(newZoom)
+    if (newZoom <= 1) {
+      setPanX(0)
+      setPanY(0)
+    } else {
+      const clamped = clampPan(panX(), panY())
+      setPanX(clamped.x)
+      setPanY(clamped.y)
+    }
+  }
+
+  const handleMouseDown = (e: MouseEvent) => {
+    if (zoomLevel() <= 1) return
+    setIsDragging(true)
+    setDragStart({ x: e.clientX, y: e.clientY })
+    setPanStart({ x: panX(), y: panY() })
+    e.preventDefault()
+  }
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging()) return
+    const dx = (e.clientX - dragStart().x) / zoomLevel()
+    const dy = (e.clientY - dragStart().y) / zoomLevel()
+    const clamped = clampPan(panStart().x + dx, panStart().y + dy)
+    setPanX(clamped.x)
+    setPanY(clamped.y)
+  }
+
+  const handleMouseUp = () => setIsDragging(false)
+
+  const resetZoom = () => {
+    setZoomLevel(1)
+    setPanX(0)
+    setPanY(0)
+  }
+
+  const handlePrev = () => {
+    const newIndex = props.currentIndex === 0 ? props.finishes.length - 1 : props.currentIndex - 1
+    props.onIndexChange(newIndex)
+    resetZoom()
+  }
+
+  const handleNext = () => {
+    const newIndex = (props.currentIndex + 1) % props.finishes.length
+    props.onIndexChange(newIndex)
+    resetZoom()
+  }
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') props.onClose()
+    else if (e.key === 'ArrowLeft') handlePrev()
+    else if (e.key === 'ArrowRight') handleNext()
+  }
+
+  onMount(() => {
+    document.addEventListener('keydown', handleKeyDown)
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+  })
+
+  onCleanup(() => {
+    document.removeEventListener('keydown', handleKeyDown)
+    document.removeEventListener('mousemove', handleMouseMove)
+    document.removeEventListener('mouseup', handleMouseUp)
+  })
+
+  const handleBackdropClick = (e: MouseEvent) => {
+    if (isDragging()) return
+    if (e.target === e.currentTarget) props.onClose()
+  }
+
+  const getFilename = () => {
+    const c = currentResult()
+    if (!c) return 'render.jpg'
+    const brand = props.brandName.replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
+    const model = props.modelName.replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
+    const finish = c.label.replace(' (Original)', '').replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
+    return `${brand}_${model}_${finish}_ZenoRender.jpg`
+  }
+
+  const handleDownload = () => {
+    const c = currentResult()
+    if (!c?.image) return
+    const link = document.createElement('a')
+    link.href = c.image
+    link.download = getFilename()
+    link.click()
+  }
+
+  return (
+    <div
+      class="fixed inset-0 bg-black/95 backdrop-blur-sm flex flex-col z-[1000000] animate-fadeIn"
+      onClick={handleBackdropClick}
+    >
+      {/* Top bar */}
+      <div class="absolute top-0 left-0 right-0 flex items-center justify-between p-4 z-20">
+        {/* Like button */}
+        <button
+          class="w-12 h-12 rounded-full backdrop-blur-sm flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+          style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={(e) => { e.stopPropagation(); props.onLike(props.currentIndex) }}
+        >
+          {isLiked(props.currentIndex) ? (
+            <svg class="w-6 h-6" style={{ color: '#ff6b6b' }} viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+            </svg>
+          ) : (
+            <svg class="w-6 h-6 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+          )}
+        </button>
+
+        {/* Download button */}
+        <button
+          class="w-12 h-12 rounded-full backdrop-blur-sm flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+          style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={(e) => { e.stopPropagation(); handleDownload() }}
+        >
+          <svg class="w-6 h-6 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Main image area */}
+      <div class="flex-1 flex items-center justify-center relative" onClick={handleBackdropClick}>
+        {/* Navigation arrows */}
+        <Show when={props.finishes.length > 1}>
+          <button
+            class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full backdrop-blur-sm flex items-center justify-center text-white/80 transition-all z-10 hover:scale-110 hover:bg-black/60 active:scale-95"
+            style={{ background: 'rgba(0,0,0,0.4)' }}
+            onClick={(e) => { e.stopPropagation(); handlePrev() }}
+          >
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <button
+            class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full backdrop-blur-sm flex items-center justify-center text-white/80 transition-all z-10 hover:scale-110 hover:bg-black/60 active:scale-95"
+            style={{ background: 'rgba(0,0,0,0.4)' }}
+            onClick={(e) => { e.stopPropagation(); handleNext() }}
+          >
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </Show>
+
+        {/* Image */}
+        <img
+          ref={imageRef}
+          class="max-w-[90vw] max-h-[70vh] object-contain rounded-lg transition-transform duration-100"
+          src={currentResult()?.image || props.imageUrl}
+          alt="Fullscreen view"
+          style={{
+            transform: `scale(${zoomLevel()}) translate(${panX()}px, ${panY()}px)`,
+            cursor: zoomLevel() > 1 ? (isDragging() ? 'grabbing' : 'grab') : 'default',
+          }}
+          onWheel={handleWheel}
+          onMouseDown={handleMouseDown}
+          draggable={false}
+        />
+
+        {/* Reset zoom button */}
+        <Show when={zoomLevel() > 1.05}>
+          <button
+            class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2 transition-colors hover:bg-black/80 z-10"
+            onClick={(e) => { e.stopPropagation(); resetZoom() }}
+          >
+            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+            </svg>
+            <span class="text-white text-sm font-medium">Reset Zoom</span>
+          </button>
+        </Show>
+      </div>
+
+      {/* Bottom bar with swatches */}
+      <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 pt-8 z-20">
+        {/* Finish name */}
+        <p class="text-center text-white/70 text-sm mb-3">
+          {currentResult()?.label.replace(' (Original)', '')}
+        </p>
+
+        {/* Color swatches */}
+        <div class="flex items-center justify-center gap-2 flex-wrap max-h-24 overflow-y-auto scrollbar-hide pb-2">
+          <For each={props.finishes}>
+            {(result, i) => {
+              const isSelected = () => i() === props.currentIndex
+              const isInterested = () => isLiked(i())
+              const hasImage = () => result.success && result.image
+
+              return (
+                <div class="relative">
+                  <button
+                    class={`w-12 h-12 rounded-xl border-2 transition-all ${
+                      hasImage() ? 'cursor-pointer' : 'opacity-30 cursor-not-allowed'
+                    }`}
+                    style={{
+                      'background-image': result.referenceImage ? `url(${result.referenceImage})` : undefined,
+                      'background-color': !result.referenceImage ? (result.hexColor || '#fff') : undefined,
+                      'background-size': 'contain',
+                      'background-repeat': 'no-repeat',
+                      'background-position': 'center',
+                      'border-color': isSelected() ? '#fff' : 'transparent',
+                      transform: isSelected() ? 'scale(1.15)' : 'scale(1)',
+                      'box-shadow': isSelected() ? '0 0 15px rgba(255,255,255,0.3)' : 'none',
+                    }}
+                    onClick={(e) => { e.stopPropagation(); hasImage() && props.onIndexChange(i()); resetZoom() }}
+                    disabled={!hasImage()}
+                  />
+                  {/* Interest indicator */}
+                  <Show when={isInterested() && hasImage()}>
+                    <div
+                      class="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
+                      style={{ background: 'rgba(0,0,0,0.7)' }}
+                    >
+                      <svg class="w-2.5 h-2.5" style={{ color: '#ff6b6b' }} viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                      </svg>
+                    </div>
+                  </Show>
+                  {/* Like button below swatch */}
+                  <Show when={hasImage()}>
+                    <button
+                      class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full flex items-center justify-center transition-all hover:scale-110"
+                      style={{ background: isInterested() ? 'rgba(255,107,107,0.3)' : 'rgba(0,0,0,0.6)' }}
+                      onClick={(e) => { e.stopPropagation(); props.onLike(i()) }}
+                    >
+                      <svg class="w-3 h-3" style={{ color: isInterested() ? '#ff6b6b' : 'rgba(255,255,255,0.6)' }} viewBox="0 0 24 24" fill={isInterested() ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                      </svg>
+                    </button>
+                  </Show>
+                </div>
+              )
+            }}
+          </For>
+        </div>
+      </div>
+
+      {/* Minimize/exit button - bottom right */}
+      <button
+        class="absolute bottom-20 right-4 w-12 h-12 rounded-full backdrop-blur-sm flex items-center justify-center transition-all hover:scale-110 active:scale-95 z-30"
+        style={{ background: 'rgba(0,0,0,0.5)' }}
+        onClick={props.onClose}
+      >
+        <svg class="w-6 h-6 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3" />
+        </svg>
       </button>
     </div>
   )
@@ -457,7 +994,7 @@ function ShareModal(props: {
       class="fixed inset-0 bg-black/75 z-[1000000] flex items-center justify-center backdrop-blur-sm"
       onClick={handleOverlayClick}
     >
-      <div class="bg-zeno-card rounded-2xl p-6 min-w-[320px] max-w-[400px] shadow-[0_8px_32px_rgba(0,0,0,0.6)] animate-fadeInUp">
+      <div class="bg-zeno-card rounded-2xl p-6 min-w-[320px] max-w-[400px] shadow-[0_8px_32px_rgba(0,0,0,0.6)] animate-fadeInUp font-franie">
         <h3 class="m-0 mb-6 text-xl font-semibold text-white text-center">Share Build</h3>
 
         <button class={btnClass} onClick={downloadImage}>
