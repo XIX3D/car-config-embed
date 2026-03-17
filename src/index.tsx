@@ -1,6 +1,6 @@
 import { render } from 'solid-js/web'
 import { createSignal, onCleanup } from 'solid-js'
-import './styles/index.css'
+import widgetStyles from './styles/index.css?inline'
 
 import { Modal } from './components/Modal'
 import { ZenoButton } from './components/ZenoButton'
@@ -16,7 +16,17 @@ const store = createWidgetStore()
 const api = createApiClient(API_URL)
 
 let rootEl: HTMLElement | null = null
+let shadowRoot: ShadowRoot | null = null
 const boundButtons = new WeakSet<Element>()
+
+function injectButtonStyles() {
+  if (document.getElementById('avacar-button-styles')) return
+
+  const styleEl = document.createElement('style')
+  styleEl.id = 'avacar-button-styles'
+  styleEl.textContent = widgetStyles
+  document.head.appendChild(styleEl)
+}
 
 function mountWidget() {
   if (rootEl) return
@@ -25,7 +35,16 @@ function mountWidget() {
   rootEl.id = 'avacar-embed-root'
   document.body.appendChild(rootEl)
 
-  render(() => <Modal store={store} api={api} />, rootEl)
+  shadowRoot = rootEl.attachShadow({ mode: 'open' })
+
+  const styleEl = document.createElement('style')
+  styleEl.textContent = widgetStyles
+  shadowRoot.appendChild(styleEl)
+
+  const mountPoint = document.createElement('div')
+  shadowRoot.appendChild(mountPoint)
+
+  render(() => <Modal store={store} api={api} shadowRoot={shadowRoot!} />, mountPoint)
 }
 
 async function openPreview(jwt: string, customBrand?: string) {
@@ -170,6 +189,7 @@ function updateAllHoloButtonThemes() {
 }
 
 function init() {
+  injectButtonStyles()
   mountWidget()
   bindButtons()
 

@@ -12,6 +12,7 @@ import { GlowOrbs } from './GlowOrbs'
 interface ModalProps {
   store: WidgetStore
   api: ApiClient
+  shadowRoot: ShadowRoot
 }
 
 export function Modal(props: ModalProps) {
@@ -209,7 +210,7 @@ export function Modal(props: ModalProps) {
 
   return (
     <Show when={state.isOpen}>
-      <Portal>
+      <Portal mount={props.shadowRoot}>
         <div
           class="fixed inset-0 w-full h-full bg-black/85 backdrop-blur-sm flex items-center justify-center z-[999999] font-franie font-light"
           onClick={(e) => e.target === e.currentTarget && handleClose()}
