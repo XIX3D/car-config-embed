@@ -14,8 +14,8 @@ export function AmbientParticles(props: AmbientParticlesProps) {
       const staggerDelay = (i / count()) * staggerMultiplier
       return {
         id: i,
-        left: `${leftRange.min + Math.random() * leftRange.max}%`,
-        top: `${topRange.min + Math.random() * topRange.max}%`,
+        left: `${leftRange.min + Math.random() * (leftRange.max - leftRange.min)}%`,
+        top: `${topRange.min + Math.random() * (topRange.max - topRange.min)}%`,
         size: sizeRange.base + Math.random() * sizeRange.variance,
         duration: durationRange.base + Math.random() * durationRange.variance,
         delay: staggerDelay,

@@ -183,16 +183,29 @@ export function ResultView(props: ResultViewProps) {
     props.onPan(0, 0);
   };
 
+  const findNextValidIndex = (startIndex: number, direction: 1 | -1): number => {
+    const len = props.results.length;
+    let index = startIndex;
+
+    for (let i = 0; i < len; i++) {
+      index = (index + direction + len) % len;
+      const result = props.results[index];
+
+      if (result.success && !result.loading && result.image) {
+        return index;
+      }
+    }
+
+    return props.currentIndex;
+  };
+
   const handlePrev = () => {
-    const newIndex =
-      props.currentIndex === 0
-        ? props.results.length - 1
-        : props.currentIndex - 1;
+    const newIndex = findNextValidIndex(props.currentIndex, -1);
     props.onSelectIndex(newIndex);
   };
 
   const handleNext = () => {
-    const newIndex = (props.currentIndex + 1) % props.results.length;
+    const newIndex = findNextValidIndex(props.currentIndex, 1);
     props.onSelectIndex(newIndex);
   };
 
@@ -354,7 +367,11 @@ export function ResultView(props: ResultViewProps) {
             style={{ background: "rgba(0,0,0,0.4)" }}
             onClick={(e) => {
               e.stopPropagation();
-              props.onDownloadMenu ? props.onDownloadMenu() : handleDownload();
+              if (props.onDownloadMenu) {
+                props.onDownloadMenu();
+              } else {
+                handleDownload();
+              }
             }}
             aria-label="Download"
           >

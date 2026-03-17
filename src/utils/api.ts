@@ -170,9 +170,17 @@ export function createApiClient(baseUrl: string) {
         signal,
       })
 
+      if (!res.ok) {
+        throw new Error(`Render request failed (${res.status})`)
+      }
+
       if (!res.body) throw new Error('No response body')
 
       const result = await processSSEStream(res.body.getReader(), events, { detectVehicle: true })
+
+      if (!result.image) {
+        throw new Error('Stream ended before a complete image was received')
+      }
 
       return { success: true, final_image: result.image, detected_vehicle: result.vehicle }
     } catch (e) {
@@ -208,17 +216,27 @@ export function createApiClient(baseUrl: string) {
         signal,
       })
 
+      if (!res.ok) {
+        throw new Error(`Render request failed (${res.status})`)
+      }
+
       if (!res.body) throw new Error('No response body')
 
       const result = await processSSEStream(res.body.getReader(), events, { detectVehicle: false })
+
+      if (!result.image) {
+        throw new Error('Stream ended before a complete image was received')
+      }
 
       return { success: true, image: result.image }
     } catch (e) {
       if (e instanceof Error && e.name === 'AbortError') {
         return { success: false, error: 'Request cancelled' }
       }
+
       const error = e instanceof Error ? e.message : 'Unknown error'
       events.onError?.(error)
+
       return { success: false, error }
     }
   }

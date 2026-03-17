@@ -154,7 +154,8 @@ export function Modal(props: ModalProps) {
     const result = state.galleryResults[index]
     if (!result) return
 
-    actions.setRerenderingIndex(index)
+    const requestId = `${index}-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    actions.setRerenderingIndex(index, requestId)
 
     const selections = state.selections
     const products: Array<{ product_id: string; variant_id?: string }> = []
@@ -176,7 +177,7 @@ export function Modal(props: ModalProps) {
           image: `data:image/png;base64,${data.image_b64}`,
           success: true,
           loading: false,
-        })
+        }, requestId)
       },
       onError: (msg) => {
         console.error(`[Re-render:${index}] Error:`, msg)
@@ -184,7 +185,7 @@ export function Modal(props: ModalProps) {
           error: msg,
           success: false,
           loading: false,
-        })
+        }, requestId)
       },
     })
   }
@@ -254,15 +255,15 @@ export function Modal(props: ModalProps) {
   }
 
   const handleDownloadAll = () => {
-    state.galleryResults.forEach((result, index) => {
-      if (result.success && result.image) {
-        setTimeout(() => {
-          const link = document.createElement('a')
-          link.href = result.image!
-          link.download = getFilename(result)
-          link.click()
-        }, index * 200)
-      }
+    const successfulResults = state.galleryResults.filter(r => r.success && r.image)
+
+    successfulResults.forEach((result) => {
+      const link = document.createElement('a')
+      link.href = result.image!
+      link.download = getFilename(result)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
     })
   }
 
@@ -702,14 +703,30 @@ function FullscreenModal(props: FullscreenModalProps) {
     setPanY(0)
   }
 
+  const findNextValidIndex = (startIndex: number, direction: 1 | -1): number => {
+    const len = props.finishes.length
+    let index = startIndex
+
+    for (let i = 0; i < len; i++) {
+      index = (index + direction + len) % len
+      const result = props.finishes[index]
+
+      if (result.success && result.image) {
+        return index
+      }
+    }
+
+    return props.currentIndex
+  }
+
   const handlePrev = () => {
-    const newIndex = props.currentIndex === 0 ? props.finishes.length - 1 : props.currentIndex - 1
+    const newIndex = findNextValidIndex(props.currentIndex, -1)
     props.onIndexChange(newIndex)
     resetZoom()
   }
 
   const handleNext = () => {
-    const newIndex = (props.currentIndex + 1) % props.finishes.length
+    const newIndex = findNextValidIndex(props.currentIndex, 1)
     props.onIndexChange(newIndex)
     resetZoom()
   }
@@ -818,19 +835,30 @@ function FullscreenModal(props: FullscreenModalProps) {
         </Show>
 
         {/* Image */}
-        <img
-          ref={imageRef}
-          class="max-w-[90vw] max-h-[70vh] object-contain rounded-lg transition-transform duration-100"
-          src={currentResult()?.image || props.imageUrl}
-          alt="Fullscreen view"
-          style={{
-            transform: `scale(${zoomLevel()}) translate(${panX()}px, ${panY()}px)`,
-            cursor: zoomLevel() > 1 ? (isDragging() ? 'grabbing' : 'grab') : 'default',
-          }}
-          onWheel={handleWheel}
-          onMouseDown={handleMouseDown}
-          draggable={false}
-        />
+        <Show when={currentResult()?.image}>
+          <img
+            ref={imageRef}
+            class="max-w-[90vw] max-h-[70vh] object-contain rounded-lg transition-transform duration-100"
+            src={currentResult()?.image}
+            alt="Fullscreen view"
+            style={{
+              transform: `scale(${zoomLevel()}) translate(${panX()}px, ${panY()}px)`,
+              cursor: zoomLevel() > 1 ? (isDragging() ? 'grabbing' : 'grab') : 'default',
+            }}
+            onWheel={handleWheel}
+            onMouseDown={handleMouseDown}
+            draggable={false}
+          />
+        </Show>
+        <Show when={!currentResult()?.image}>
+          <div class="flex flex-col items-center justify-center text-white/50 gap-4">
+            <svg class="w-16 h-16 text-red-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v4M12 16h.01" />
+            </svg>
+            <span class="text-lg">Image unavailable</span>
+          </div>
+        </Show>
 
         {/* Reset zoom button */}
         <Show when={zoomLevel() > 1.05}>

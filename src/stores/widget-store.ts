@@ -52,6 +52,7 @@ export interface WidgetState {
 
   // Single re-render
   rerenderingIndex: number | null
+  rerenderRequestId: string | null
 }
 
 const initialState: WidgetState = {
@@ -93,6 +94,7 @@ const initialState: WidgetState = {
   error: null,
 
   rerenderingIndex: null,
+  rerenderRequestId: null,
 }
 
 export function createWidgetStore() {
@@ -145,11 +147,18 @@ export function createWidgetStore() {
     },
 
     setImageAspect(width: number, height: number) {
+      if (width <= 0 || height <= 0) {
+        setState('imageAspect', null)
+        return
+      }
+
       const ratio = width / height
       let aspect: ImageAspect = 'square'
+
       if (ratio > ASPECT_THRESHOLDS.wide) aspect = 'wide'
       else if (ratio > ASPECT_THRESHOLDS.normal) aspect = 'normal'
       else if (ratio < ASPECT_THRESHOLDS.tall) aspect = 'tall'
+
       setState('imageAspect', aspect)
     },
 
@@ -281,6 +290,7 @@ export function createWidgetStore() {
         panX: 0,
         panY: 0,
         rerenderingIndex: null,
+        rerenderRequestId: null,
       })
     },
 
@@ -329,13 +339,29 @@ export function createWidgetStore() {
       setState('quoteViewIndex', index)
     },
 
-    setRerenderingIndex(index: number | null) {
-      setState('rerenderingIndex', index)
+    setRerenderingIndex(index: number | null, requestId?: string) {
+      setState({
+        rerenderingIndex: index,
+        rerenderRequestId: requestId || null,
+      })
     },
 
-    updateSingleResult(index: number, result: Partial<RenderResult>) {
-      setState('galleryResults', index, (prev) => ({ ...prev, ...result }))
-      setState('rerenderingIndex', null)
+    updateSingleResult(index: number, result: Partial<RenderResult>, requestId?: string) {
+      if (requestId && state.rerenderRequestId !== requestId) {
+        return
+      }
+
+      const updatedResult = { ...result }
+
+      if (result.success) {
+        delete updatedResult.error
+      }
+
+      setState('galleryResults', index, (prev) => ({ ...prev, ...updatedResult }))
+      setState({
+        rerenderingIndex: null,
+        rerenderRequestId: null,
+      })
     },
   }
 

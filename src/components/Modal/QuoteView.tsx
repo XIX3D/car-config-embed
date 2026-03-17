@@ -46,13 +46,31 @@ export function QuoteView(props: QuoteViewProps) {
   const handleClose = () => props.onClose()
   const handleBack = () => props.onBack()
 
+  const findNextValidIndex = (startIndex: number, direction: 1 | -1): number => {
+    const len = props.results.length
+    let index = startIndex
+
+    for (let i = 0; i < len; i++) {
+      index = (index + direction + len) % len
+      const result = props.results[index]
+
+      if (result.success && !result.loading && result.image) {
+        return index
+      }
+    }
+
+    return props.quoteViewIndex
+  }
+
   const handlePrev = () => {
-    const newIndex = props.quoteViewIndex === 0 ? props.results.length - 1 : props.quoteViewIndex - 1
+    const newIndex = findNextValidIndex(props.quoteViewIndex, -1)
+
     props.onQuoteViewIndexChange(newIndex)
   }
 
   const handleNext = () => {
-    const newIndex = (props.quoteViewIndex + 1) % props.results.length
+    const newIndex = findNextValidIndex(props.quoteViewIndex, 1)
+
     props.onQuoteViewIndexChange(newIndex)
   }
 
@@ -183,9 +201,18 @@ export function QuoteView(props: QuoteViewProps) {
               alt={currentResult()?.label}
             />
           </Show>
-          <Show when={!currentResult()?.image}>
+          <Show when={!currentResult()?.image && currentResult()?.loading}>
             <div class="w-full h-48 flex items-center justify-center text-white/40">
               <span>Loading...</span>
+            </div>
+          </Show>
+          <Show when={!currentResult()?.image && !currentResult()?.loading}>
+            <div class="w-full h-48 flex flex-col items-center justify-center text-white/40 gap-2">
+              <svg class="w-8 h-8 text-red-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 8v4M12 16h.01" />
+              </svg>
+              <span class="text-sm">Failed to render</span>
             </div>
           </Show>
         </div>
