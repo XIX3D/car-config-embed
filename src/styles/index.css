@@ -27,6 +27,9 @@
 
 /* ===== Zeno Button Styles ===== */
 .avacar-btn-zeno {
+  all: initial;
+  box-sizing: border-box;
+  font-family: var(--font-franie);
   position: relative;
   display: inline-flex;
   align-items: center;
