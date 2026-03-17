@@ -1,5 +1,70 @@
 import type { Product, Variant, QuoteRequest, RenderStreamEvents } from '../types'
 
+interface SSEStreamResult {
+  image?: string
+  vehicle?: string
+}
+
+interface SSEStreamOptions {
+  detectVehicle?: boolean
+}
+
+async function processSSEStream(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  handlers: Partial<RenderStreamEvents>,
+  options: SSEStreamOptions = {}
+): Promise<SSEStreamResult> {
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let finalImage = ''
+  let detectedVehicle = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n\n')
+    buffer = lines.pop() || ''
+
+    for (const chunk of lines) {
+      const eventMatch = chunk.match(/^event: (.+)$/m)
+      const dataMatch = chunk.match(/^data: (.+)$/m)
+      if (!eventMatch || !dataMatch) continue
+
+      const event = eventMatch[1]
+      const data = JSON.parse(dataMatch[1])
+
+      switch (event) {
+        case 'started':
+          handlers.onStarted?.()
+          break
+        case 'vehicle_detected':
+          if (options.detectVehicle) {
+            detectedVehicle = `${data.year} ${data.make} ${data.model}`
+            handlers.onVehicleDetected?.(data)
+          }
+          break
+        case 'progress':
+          handlers.onProgress?.(data)
+          break
+        case 'step_complete':
+          handlers.onStepComplete?.(data)
+          break
+        case 'complete':
+          finalImage = `data:image/png;base64,${data.image_b64}`
+          handlers.onComplete?.(data)
+          break
+        case 'error':
+          handlers.onError?.(data.message)
+          throw new Error(data.message)
+      }
+    }
+  }
+
+  return { image: finalImage, vehicle: detectedVehicle }
+}
+
 export function createApiClient(baseUrl: string) {
   const fetchProduct = async (productId: string): Promise<Product | null> => {
     try {
@@ -86,6 +151,7 @@ export function createApiClient(baseUrl: string) {
     file: File,
     products: Array<{ product_id: string; variant_id?: string }>,
     events: RenderStreamEvents,
+    signal?: AbortSignal,
   ): Promise<{ success: boolean; final_image?: string; detected_vehicle?: string; error?: string }> => {
     const formData = new FormData()
     formData.append('vehicle_image', file)
@@ -101,59 +167,18 @@ export function createApiClient(baseUrl: string) {
       const res = await fetch(`${baseUrl}/api/v1/render/chain/stream`, {
         method: 'POST',
         body: formData,
+        signal,
       })
 
       if (!res.body) throw new Error('No response body')
 
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      let finalImage = ''
-      let detectedVehicle = ''
+      const result = await processSSEStream(res.body.getReader(), events, { detectVehicle: true })
 
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n\n')
-        buffer = lines.pop() || ''
-
-        for (const chunk of lines) {
-          const eventMatch = chunk.match(/^event: (.+)$/m)
-          const dataMatch = chunk.match(/^data: (.+)$/m)
-          if (!eventMatch || !dataMatch) continue
-
-          const event = eventMatch[1]
-          const data = JSON.parse(dataMatch[1])
-
-          switch (event) {
-            case 'started':
-              events.onStarted?.()
-              break
-            case 'vehicle_detected':
-              detectedVehicle = `${data.year} ${data.make} ${data.model}`
-              events.onVehicleDetected?.(data)
-              break
-            case 'progress':
-              events.onProgress?.(data)
-              break
-            case 'step_complete':
-              events.onStepComplete?.(data)
-              break
-            case 'complete':
-              finalImage = `data:image/png;base64,${data.image_b64}`
-              events.onComplete?.(data)
-              break
-            case 'error':
-              events.onError?.(data.message)
-              return { success: false, error: data.message }
-          }
-        }
-      }
-
-      return { success: true, final_image: finalImage, detected_vehicle: detectedVehicle }
+      return { success: true, final_image: result.image, detected_vehicle: result.vehicle }
     } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') {
+        return { success: false, error: 'Request cancelled' }
+      }
       const error = e instanceof Error ? e.message : 'Unknown error'
       events.onError?.(error)
       return { success: false, error }
@@ -164,6 +189,7 @@ export function createApiClient(baseUrl: string) {
     file: File,
     products: Array<{ product_id: string; variant_id?: string }>,
     events: RenderStreamEvents,
+    signal?: AbortSignal,
   ): Promise<{ success: boolean; image?: string; error?: string }> => {
     const formData = new FormData()
     formData.append('vehicle_image', file)
@@ -179,51 +205,18 @@ export function createApiClient(baseUrl: string) {
       const res = await fetch(`${baseUrl}/api/v1/render/chain/stream`, {
         method: 'POST',
         body: formData,
+        signal,
       })
 
       if (!res.body) throw new Error('No response body')
 
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      let finalImage = ''
+      const result = await processSSEStream(res.body.getReader(), events, { detectVehicle: false })
 
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n\n')
-        buffer = lines.pop() || ''
-
-        for (const chunk of lines) {
-          const eventMatch = chunk.match(/^event: (.+)$/m)
-          const dataMatch = chunk.match(/^data: (.+)$/m)
-          if (!eventMatch || !dataMatch) continue
-
-          const event = eventMatch[1]
-          const data = JSON.parse(dataMatch[1])
-
-          switch (event) {
-            case 'started':
-              events.onStarted?.()
-              break
-            case 'progress':
-              events.onProgress?.(data)
-              break
-            case 'complete':
-              finalImage = `data:image/png;base64,${data.image_b64}`
-              events.onComplete?.(data)
-              break
-            case 'error':
-              events.onError?.(data.message)
-              return { success: false, error: data.message }
-          }
-        }
-      }
-
-      return { success: true, image: finalImage }
+      return { success: true, image: result.image }
     } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') {
+        return { success: false, error: 'Request cancelled' }
+      }
       const error = e instanceof Error ? e.message : 'Unknown error'
       events.onError?.(error)
       return { success: false, error }

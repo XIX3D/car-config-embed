@@ -1,6 +1,28 @@
+function GlowFilters() {
+  return (
+    <svg class="absolute w-0 h-0" aria-hidden="true">
+      <defs>
+        <filter id="blurLg" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="50" />
+        </filter>
+        <filter id="blurMd" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="35" />
+        </filter>
+        <filter id="blurSm" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="25" />
+        </filter>
+        <filter id="blurXs" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="15" />
+        </filter>
+      </defs>
+    </svg>
+  )
+}
+
 export function GlowOrbs() {
   return (
     <div class="absolute inset-0 pointer-events-none overflow-hidden">
+      <GlowFilters />
       {/* Top Ice Glow System */}
       <TopIceGlow />
       {/* Bottom Lavender Glow System */}
@@ -25,12 +47,7 @@ function TopIceGlow() {
         }}
       >
         <svg class="w-full h-full" viewBox="0 0 650 280" fill="none" preserveAspectRatio="xMidYMid slice">
-          <defs>
-            <filter id="iceBlur1" x="-100%" y="-100%" width="300%" height="300%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="50" />
-            </filter>
-          </defs>
-          <ellipse cx="325" cy="50" rx="280" ry="110" fill="#93c5fd" opacity="0.55" filter="url(#iceBlur1)" />
+          <ellipse cx="325" cy="50" rx="280" ry="110" fill="#93c5fd" opacity="0.55" filter="url(#blurLg)" />
         </svg>
       </div>
 
@@ -46,12 +63,7 @@ function TopIceGlow() {
         }}
       >
         <svg class="w-full h-full" viewBox="0 0 320 200" fill="none">
-          <defs>
-            <filter id="iceBlur2" x="-100%" y="-100%" width="300%" height="300%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="35" />
-            </filter>
-          </defs>
-          <ellipse cx="160" cy="50" rx="120" ry="70" fill="#93c5fd" opacity="0.4" filter="url(#iceBlur2)" />
+          <ellipse cx="160" cy="50" rx="120" ry="70" fill="#93c5fd" opacity="0.4" filter="url(#blurMd)" />
         </svg>
       </div>
 
@@ -67,12 +79,7 @@ function TopIceGlow() {
         }}
       >
         <svg class="w-full h-full" viewBox="0 0 320 200" fill="none">
-          <defs>
-            <filter id="iceBlur3" x="-100%" y="-100%" width="300%" height="300%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="35" />
-            </filter>
-          </defs>
-          <ellipse cx="160" cy="50" rx="120" ry="70" fill="#a5b4fc" opacity="0.35" filter="url(#iceBlur3)" />
+          <ellipse cx="160" cy="50" rx="120" ry="70" fill="#a5b4fc" opacity="0.35" filter="url(#blurMd)" />
         </svg>
       </div>
 
@@ -89,12 +96,7 @@ function TopIceGlow() {
         }}
       >
         <svg class="w-full h-full" viewBox="0 0 425 180" fill="none" preserveAspectRatio="xMidYMid slice">
-          <defs>
-            <filter id="topWhiteBlur1" x="-100%" y="-100%" width="300%" height="300%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="25" />
-            </filter>
-          </defs>
-          <ellipse cx="213" cy="45" rx="170" ry="55" fill="white" opacity="0.35" filter="url(#topWhiteBlur1)" />
+          <ellipse cx="213" cy="45" rx="170" ry="55" fill="white" opacity="0.35" filter="url(#blurSm)" />
         </svg>
       </div>
 
@@ -111,12 +113,7 @@ function TopIceGlow() {
         }}
       >
         <svg class="w-full h-full" viewBox="0 0 220 90" fill="none">
-          <defs>
-            <filter id="topWhiteBlur2" x="-100%" y="-100%" width="300%" height="300%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="15" />
-            </filter>
-          </defs>
-          <ellipse cx="110" cy="45" rx="90" ry="35" fill="white" opacity="0.3" filter="url(#topWhiteBlur2)" />
+          <ellipse cx="110" cy="45" rx="90" ry="35" fill="white" opacity="0.3" filter="url(#blurXs)" />
         </svg>
       </div>
 
@@ -189,12 +186,7 @@ function BottomGlowSystem() {
         }}
       >
         <svg class="w-full h-full" viewBox="0 0 650 280" fill="none" preserveAspectRatio="xMidYMid slice">
-          <defs>
-            <filter id="lavenderBlur1" x="-100%" y="-100%" width="300%" height="300%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="50" />
-            </filter>
-          </defs>
-          <ellipse cx="325" cy="230" rx="280" ry="110" fill="#e0e7ff" opacity="0.55" filter="url(#lavenderBlur1)" />
+          <ellipse cx="325" cy="230" rx="280" ry="110" fill="#e0e7ff" opacity="0.55" filter="url(#blurLg)" />
         </svg>
       </div>
 
@@ -210,12 +202,7 @@ function BottomGlowSystem() {
         }}
       >
         <svg class="w-full h-full" viewBox="0 0 320 200" fill="none">
-          <defs>
-            <filter id="lavenderBlur2" x="-100%" y="-100%" width="300%" height="300%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="35" />
-            </filter>
-          </defs>
-          <ellipse cx="160" cy="150" rx="120" ry="70" fill="#c7d2fe" opacity="0.45" filter="url(#lavenderBlur2)" />
+          <ellipse cx="160" cy="150" rx="120" ry="70" fill="#c7d2fe" opacity="0.45" filter="url(#blurMd)" />
         </svg>
       </div>
 
@@ -231,12 +218,7 @@ function BottomGlowSystem() {
         }}
       >
         <svg class="w-full h-full" viewBox="0 0 320 200" fill="none">
-          <defs>
-            <filter id="lavenderBlur3" x="-100%" y="-100%" width="300%" height="300%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="35" />
-            </filter>
-          </defs>
-          <ellipse cx="160" cy="150" rx="120" ry="70" fill="#ddd6fe" opacity="0.4" filter="url(#lavenderBlur3)" />
+          <ellipse cx="160" cy="150" rx="120" ry="70" fill="#ddd6fe" opacity="0.4" filter="url(#blurMd)" />
         </svg>
       </div>
 
@@ -253,12 +235,7 @@ function BottomGlowSystem() {
         }}
       >
         <svg class="w-full h-full" viewBox="0 0 425 180" fill="none" preserveAspectRatio="xMidYMid slice">
-          <defs>
-            <filter id="whiteBlur1" x="-100%" y="-100%" width="300%" height="300%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="25" />
-            </filter>
-          </defs>
-          <ellipse cx="213" cy="140" rx="170" ry="55" fill="white" opacity="0.35" filter="url(#whiteBlur1)" />
+          <ellipse cx="213" cy="140" rx="170" ry="55" fill="white" opacity="0.35" filter="url(#blurSm)" />
         </svg>
       </div>
 
@@ -275,12 +252,7 @@ function BottomGlowSystem() {
         }}
       >
         <svg class="w-full h-full" viewBox="0 0 220 90" fill="none">
-          <defs>
-            <filter id="whiteBlur2" x="-100%" y="-100%" width="300%" height="300%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="15" />
-            </filter>
-          </defs>
-          <ellipse cx="110" cy="65" rx="90" ry="30" fill="white" opacity="0.3" filter="url(#whiteBlur2)" />
+          <ellipse cx="110" cy="65" rx="90" ry="30" fill="white" opacity="0.3" filter="url(#blurXs)" />
         </svg>
       </div>
 

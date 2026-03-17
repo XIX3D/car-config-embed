@@ -1,6 +1,6 @@
 import { createStore, produce } from 'solid-js/store'
 import type { ViewState, RenderResult, Product, Variant, JWTPayload } from '../types'
-import { LOADING_STEPS, LOADING_STEPS_WRAPS, ZOOM } from '../constants'
+import { LOADING_STEPS, LOADING_STEPS_WRAPS, ZOOM, ASPECT_THRESHOLDS } from '../constants'
 
 export type ImageAspect = 'normal' | 'wide' | 'tall' | 'square' | null
 
@@ -146,11 +146,10 @@ export function createWidgetStore() {
 
     setImageAspect(width: number, height: number) {
       const ratio = width / height
-      let aspect: ImageAspect = 'normal'
-      if (ratio > 2.2) aspect = 'wide'
-      else if (ratio > 1.4) aspect = 'normal'
-      else if (ratio < 0.9) aspect = 'tall'
-      else aspect = 'square'
+      let aspect: ImageAspect = 'square'
+      if (ratio > ASPECT_THRESHOLDS.wide) aspect = 'wide'
+      else if (ratio > ASPECT_THRESHOLDS.normal) aspect = 'normal'
+      else if (ratio < ASPECT_THRESHOLDS.tall) aspect = 'tall'
       setState('imageAspect', aspect)
     },
 

@@ -328,7 +328,7 @@ export function ResultView(props: ResultViewProps) {
               {isLiked(props.currentIndex) ? (
                 <svg
                   class="w-5 h-5"
-                  style={{ color: "#ff6b6b" }}
+                  style={{ color: ZENO.heart }}
                   viewBox="0 0 24 24"
                   fill="currentColor"
                 >
@@ -457,7 +457,7 @@ export function ResultView(props: ResultViewProps) {
           </Show>
 
           {/* Reset zoom button */}
-          <Show when={props.zoomLevel > 1.05}>
+          <Show when={props.zoomLevel > ZOOM.resetThreshold}>
             <div class="absolute bottom-3 left-1/2 -translate-x-1/2 z-20">
               <button
                 class="bg-black/70 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2 transition-colors hover:bg-black/80"
@@ -509,7 +509,11 @@ export function ResultView(props: ResultViewProps) {
 
         {/* Color Carousel - v13 with interest indicators and re-render buttons */}
         <div class="w-full animate-fadeInUp opacity-0 [animation-delay:0.2s]">
-          <div class="flex items-center justify-center gap-2.5 sm:gap-3 flex-wrap py-2 pb-3">
+          <div
+            role="listbox"
+            aria-label="Select finish"
+            class="flex items-center justify-center gap-2.5 sm:gap-3 flex-wrap py-2 pb-3"
+          >
             <For each={props.results}>
               {(result, i) => {
                 const isSelected = () => i() === props.currentIndex;
@@ -519,7 +523,11 @@ export function ResultView(props: ResultViewProps) {
                 return (
                   <div class="relative">
                     <button
-                      class={`flex-shrink-0 w-12 h-12 rounded-xl border-none transition-all relative ${
+                      role="option"
+                      aria-selected={isSelected()}
+                      aria-label={result.label}
+                      tabIndex={isSelected() ? 0 : -1}
+                      class={`flex-shrink-0 w-12 h-12 rounded-xl border-none transition-all relative focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none ${
                         result.loading || isRerendering()
                           ? "opacity-30 cursor-wait"
                           : result.success
@@ -557,6 +565,15 @@ export function ResultView(props: ResultViewProps) {
                         !isRerendering() &&
                         props.onSelectIndex(i())
                       }
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowRight') {
+                          e.preventDefault();
+                          props.onSelectIndex(Math.min(i() + 1, props.results.length - 1));
+                        } else if (e.key === 'ArrowLeft') {
+                          e.preventDefault();
+                          props.onSelectIndex(Math.max(i() - 1, 0));
+                        }
+                      }}
                       disabled={
                         result.loading || !result.success || isRerendering()
                       }
@@ -593,7 +610,7 @@ export function ResultView(props: ResultViewProps) {
                       >
                         <svg
                           class="w-3 h-3"
-                          style={{ color: "#ff6b6b" }}
+                          style={{ color: ZENO.heart }}
                           viewBox="0 0 24 24"
                           fill="currentColor"
                         >

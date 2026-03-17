@@ -1,7 +1,7 @@
 import { Show, For } from 'solid-js'
 import type { RenderResult } from '../../types'
 import { TruncatedTitle } from './TruncatedTitle'
-import { ZENO } from '../../constants'
+import { ZENO, CONFETTI_CONFIG, SPARKLE_CONFIG } from '../../constants'
 
 interface SuccessViewProps {
   productImgUrl: string
@@ -15,20 +15,19 @@ interface SuccessViewProps {
 }
 
 function CelebrationEffect() {
-  const confettiColors = [ZENO.electric, ZENO.cyan, ZENO.green, '#ffffff']
-  const confettiCount = 50
+  const { count, colors, durationRange, sizeRange, driftRange, maxDelay } = CONFETTI_CONFIG
 
-  const confettiPieces = Array.from({ length: confettiCount }, (_, i) => ({
+  const confettiPieces = Array.from({ length: count }, (_, i) => ({
     id: i,
-    color: confettiColors[i % confettiColors.length],
+    color: colors[i % colors.length],
     left: Math.random() * 100,
-    delay: Math.random() * 2,
-    duration: 2 + Math.random() * 2,
+    delay: Math.random() * maxDelay,
+    duration: durationRange.base + Math.random() * durationRange.variance,
     rotation: Math.random() * 360,
     rotationEnd: 360 + Math.random() * 720,
-    drift: -50 + Math.random() * 100,
+    drift: driftRange.base + Math.random() * driftRange.variance,
     isCircle: Math.random() > 0.5,
-    size: 4 + Math.random() * 8,
+    size: sizeRange.base + Math.random() * sizeRange.variance,
   }))
 
   return (
@@ -57,12 +56,12 @@ function CelebrationEffect() {
 }
 
 function Sparkles() {
-  const sparkleCount = 8
-  const sparkles = Array.from({ length: sparkleCount }, (_, i) => ({
+  const { count, distanceRange, delayStep } = SPARKLE_CONFIG
+  const sparkles = Array.from({ length: count }, (_, i) => ({
     id: i,
-    angle: (i * 360) / sparkleCount,
-    distance: 50 + Math.random() * 30,
-    delay: i * 0.15,
+    angle: (i * 360) / count,
+    distance: distanceRange.base + Math.random() * distanceRange.variance,
+    delay: i * delayStep,
     color: i % 2 === 0 ? ZENO.cyan : ZENO.green,
   }))
 
