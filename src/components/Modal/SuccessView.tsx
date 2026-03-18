@@ -15,12 +15,13 @@ interface SuccessViewProps {
 }
 
 function CelebrationEffect() {
-  const { count, colors, durationRange, sizeRange, driftRange, maxDelay } =
+  const { count, durationRange, sizeRange, driftRange, maxDelay } =
     CONFETTI_CONFIG;
+  const greenColors = ["#84FF8E", "#5AE065", "#A8FFB0", "#ffffff"];
 
   const confettiPieces = Array.from({ length: count }, (_, i) => ({
     id: i,
-    color: colors[i % colors.length],
+    color: greenColors[i % greenColors.length],
     left: Math.random() * 100,
     delay: Math.random() * maxDelay,
     duration: durationRange.base + Math.random() * durationRange.variance,
@@ -65,7 +66,7 @@ function Sparkles() {
     angle: (i * 360) / count,
     distance: distanceRange.base + Math.random() * distanceRange.variance,
     delay: i * delayStep,
-    color: i % 2 === 0 ? ZENO.cyan : ZENO.green,
+    color: "#84FF8E",
   }));
 
   return (
@@ -108,7 +109,7 @@ function AmbientGlow() {
         left: "50%",
         top: "50%",
         transform: "translate(-50%, -50%)",
-        background: `radial-gradient(circle, ${ZENO.electric}30 0%, transparent 70%)`,
+        background: "radial-gradient(circle, #84FF8E30 0%, transparent 70%)",
         animation: "softPulse 2s ease-in-out infinite",
       }}
     />
@@ -127,7 +128,7 @@ export function SuccessView(props: SuccessViewProps) {
       {/* Celebration Effect */}
       <CelebrationEffect />
 
-      <div class="relative z-10">
+      <div class="relative z-10 w-full">
         <ModalHeader
           brandName={props.brandName}
           modelName={props.modelName}
@@ -145,12 +146,13 @@ export function SuccessView(props: SuccessViewProps) {
           <div
             class="relative w-20 h-20 rounded-full flex items-center justify-center animate-successPop"
             style={{
-              background: `linear-gradient(135deg, ${ZENO.electric}, ${ZENO.cyan})`,
-              "box-shadow": `0 0 30px ${ZENO.electric}60, 0 0 60px ${ZENO.cyan}40`,
+              background: "#84FF8E",
+              "box-shadow": "0 0 30px #84FF8E60, 0 0 60px #84FF8E40",
             }}
           >
             <svg
-              class="w-10 h-10 text-white"
+              class="w-10 h-10"
+              style={{ color: "#262626" }}
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -174,7 +176,7 @@ export function SuccessView(props: SuccessViewProps) {
             <p class="text-xs uppercase tracking-[1px] text-white/40 mb-2">
               Interested in:
             </p>
-            <div class="flex flex-wrap gap-2">
+            <div class="flex flex-col gap-1">
               <For each={selectedResults()}>
                 {(result) => (
                   <div class="flex items-center gap-2 py-1 px-2 rounded-md bg-white/5">
@@ -182,7 +184,7 @@ export function SuccessView(props: SuccessViewProps) {
                       class="w-3 h-3 rounded"
                       style={{ background: result.hexColor || "#ccc" }}
                     />
-                    <span class="text-sm text-white/70">
+                    <span class="text-sm text-white/70 truncate max-w-[200px]">
                       {result.label.replace(" (Original)", "")}
                     </span>
                   </div>

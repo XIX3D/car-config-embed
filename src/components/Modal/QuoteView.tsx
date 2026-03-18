@@ -37,6 +37,24 @@ export function QuoteView(props: QuoteViewProps) {
   const currentResult = () => props.results[props.quoteViewIndex]
   const isLiked = (index: number) => props.interestedFinishes.includes(index)
 
+  const getFilename = () => {
+    const c = currentResult()
+    if (!c) return 'my-wheel-build.jpg'
+    const brand = props.brandName.replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
+    const model = props.modelName.replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
+    const finish = c.label.replace(' (Original)', '').replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
+    return `${brand}_${model}_${finish}_ZenoRender.jpg`
+  }
+
+  const handleDownload = () => {
+    const c = currentResult()
+    if (!c?.image) return
+    const link = document.createElement('a')
+    link.href = c.image
+    link.download = getFilename()
+    link.click()
+  }
+
   createEffect(() => {
     if (props.quoteViewIndex >= props.results.length) {
       props.onQuoteViewIndexChange(0)
@@ -121,10 +139,9 @@ export function QuoteView(props: QuoteViewProps) {
       {/* Image Preview */}
       <div class="animate-fadeInUp opacity-0 [animation-delay:0.1s] mb-3">
         <div
-          class="relative w-full max-h-[35vh] overflow-hidden rounded-xl bg-black/20 cursor-pointer"
+          class="relative w-full max-h-[35vh] overflow-hidden rounded-xl bg-black/20"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
-          onClick={props.onFullscreen}
         >
           {/* Like button on image */}
           <button
@@ -141,6 +158,20 @@ export function QuoteView(props: QuoteViewProps) {
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
               </svg>
             )}
+          </button>
+
+          {/* Download button */}
+          <button
+            class="absolute top-2 right-2 w-9 h-9 rounded-full backdrop-blur-sm flex items-center justify-center transition-all z-10 hover:scale-110 active:scale-95"
+            style={{ background: 'rgba(0,0,0,0.4)' }}
+            onClick={(e) => { e.stopPropagation(); handleDownload() }}
+            aria-label="Download"
+          >
+            <svg class="w-5 h-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
           </button>
 
           {/* Navigation arrows */}
@@ -165,6 +196,18 @@ export function QuoteView(props: QuoteViewProps) {
             </button>
           </Show>
 
+          {/* Fullscreen button */}
+          <button
+            class="absolute bottom-3 right-3 w-9 h-9 rounded-full backdrop-blur-sm flex items-center justify-center transition-all z-10 hover:scale-110 active:scale-95"
+            style={{ background: 'rgba(0,0,0,0.4)' }}
+            onClick={(e) => { e.stopPropagation(); props.onFullscreen() }}
+            aria-label="Fullscreen"
+          >
+            <svg class="w-5 h-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3" />
+            </svg>
+          </button>
+
           <Show when={currentResult()?.image}>
             <img
               class="w-full max-h-[35vh] object-contain"
@@ -188,16 +231,15 @@ export function QuoteView(props: QuoteViewProps) {
           </Show>
         </div>
 
-        {/* Showing: indicator */}
+        {/* Finish indicator */}
         <p class="text-xs text-center mt-2">
-          <span class="text-white/50">Showing: </span>
           <span class="text-zeno-cyan font-medium">{currentResult()?.label.replace(' (Original)', '')}</span>
         </p>
       </div>
 
       {/* WheelFinishSelector - horizontal swatches with like buttons below */}
       <div class="animate-fadeInUp opacity-0 [animation-delay:0.15s] mb-4">
-        <p class="text-xs uppercase tracking-[1px] text-white/50 mb-2 text-center">Select finishes you're interested in</p>
+        <p class="text-xs uppercase tracking-[1px] text-white/50 mb-2 text-center">Interested in</p>
         <div class="flex gap-3 justify-center overflow-x-auto scrollbar-hide py-2 px-1">
           <For each={props.results}>
             {(result, i) => {
