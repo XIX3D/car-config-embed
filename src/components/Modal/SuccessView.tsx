@@ -1,7 +1,7 @@
 import { Show, For } from "solid-js";
 import type { RenderResult } from "../../types";
 import { ModalHeader } from "./ModalHeader";
-import { ZENO, CONFETTI_CONFIG, SPARKLE_CONFIG } from "../../constants";
+import { CONFETTI_CONFIG, SPARKLE_CONFIG } from "../../constants";
 
 interface SuccessViewProps {
   productImgUrl: string;
