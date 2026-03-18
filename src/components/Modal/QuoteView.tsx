@@ -1,6 +1,6 @@
 import { createSignal, For, Show, createEffect } from 'solid-js'
 import type { RenderResult } from '../../types'
-import { TruncatedTitle } from './TruncatedTitle'
+import { ModalHeader } from './ModalHeader'
 
 interface CustomerData {
   name: string
@@ -110,42 +110,13 @@ export function QuoteView(props: QuoteViewProps) {
 
   return (
     <div class="relative z-1 p-6 flex flex-col min-h-[520px] max-h-[90vh] overflow-y-auto scrollbar-hide">
-      {/* Header */}
-      <div class="flex items-center justify-between mb-3 w-full animate-fadeInUp">
-        <button
-          class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 text-white/60 cursor-pointer flex items-center justify-center transition-all hover:text-white hover:bg-white/10 hover:border-white/20 flex-shrink-0"
-          aria-label="Back"
-          onClick={handleBack}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <div class="flex items-center gap-3">
-          <div class="w-12 h-12 rounded-xl bg-white flex items-center justify-center overflow-hidden">
-            {props.productImgUrl ? (
-              <img class="w-9 h-9 rounded-full object-cover" src={props.productImgUrl} alt={props.modelName} />
-            ) : (
-              <div class="w-9 h-9 rounded-full bg-gradient-to-br from-gray-400 to-gray-500" />
-            )}
-          </div>
-          <div class="flex flex-col text-left">
-            <span class="text-[9px] font-medium uppercase tracking-[2px] bg-gradient-to-r from-zeno-cyan to-zeno-green bg-clip-text text-transparent">
-              {props.brandName}
-            </span>
-            <TruncatedTitle text={props.modelName} class="text-lg font-medium text-white" />
-          </div>
-        </div>
-        <button
-          class="w-10 h-10 rounded-xl bg-transparent border-none text-white/30 text-2xl cursor-pointer flex items-center justify-center transition-all hover:text-white hover:bg-white/5 hover:scale-105 z-10"
-          aria-label="Close"
-          onClick={handleClose}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
+      <ModalHeader
+        brandName={props.brandName}
+        modelName={props.modelName}
+        productImgUrl={props.productImgUrl}
+        onClose={handleClose}
+        onBack={handleBack}
+      />
 
       {/* Image Preview */}
       <div class="animate-fadeInUp opacity-0 [animation-delay:0.1s] mb-3">

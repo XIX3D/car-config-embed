@@ -43,6 +43,8 @@ export interface WidgetState {
   showShareModal: boolean
   showRestartModal: boolean
   showDownloadMenu: boolean
+  showRerenderModal: boolean
+  pendingRerenderIndex: number | null
 
   // Quote view
   quoteViewIndex: number
@@ -88,6 +90,8 @@ const initialState: WidgetState = {
   showShareModal: false,
   showRestartModal: false,
   showDownloadMenu: false,
+  showRerenderModal: false,
+  pendingRerenderIndex: null,
 
   quoteViewIndex: 0,
 
@@ -333,6 +337,13 @@ export function createWidgetStore() {
 
     toggleDownloadMenu(show: boolean) {
       setState('showDownloadMenu', show)
+    },
+
+    toggleRerenderModal(show: boolean, index?: number) {
+      setState({
+        showRerenderModal: show,
+        pendingRerenderIndex: show ? (index ?? null) : null,
+      })
     },
 
     setQuoteViewIndex(index: number) {

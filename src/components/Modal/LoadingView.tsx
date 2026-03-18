@@ -1,7 +1,6 @@
 import { For, Show, createEffect } from "solid-js";
 import type { LoadingStep } from "../../types";
-import { TruncatedTitle } from "./TruncatedTitle";
-import { AmbientParticles } from "./AmbientParticles";
+import { ModalHeader } from "./ModalHeader";
 
 interface LoadingViewProps {
   productImgUrl: string;
@@ -23,6 +22,7 @@ function createLoadingText(text: string) {
 
 export function LoadingView(props: LoadingViewProps) {
   let imageRef: HTMLImageElement | undefined;
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
   const loadingLetters = () =>
     createLoadingText(props.loadingSteps[props.currentStep]?.text || "");
   const isLongWait = () => props.currentStep >= props.loadingSteps.length - 2;
@@ -48,58 +48,23 @@ export function LoadingView(props: LoadingViewProps) {
   });
 
   return (
-    <div class="relative z-1 p-6 flex flex-col items-center text-center min-h-[520px]">
-      {/* Header */}
-      <div class="flex items-center justify-between mb-1 w-full animate-fadeInUp">
-        <div class="flex items-center gap-3">
-          <div class="w-14 h-14 rounded-xl bg-white flex items-center justify-center overflow-hidden">
-            <Show
-              when={props.productImgUrl}
-              fallback={
-                <div class="w-11 h-11 rounded-full bg-gradient-to-br from-gray-400 to-gray-500" />
-              }
-            >
-              <img
-                class="w-11 h-11 rounded-full object-cover"
-                src={props.productImgUrl}
-                alt={props.modelName}
-              />
-            </Show>
-          </div>
-          <div class="flex flex-col text-left">
-            <span class="text-[10px] font-medium uppercase tracking-[2px] bg-gradient-to-r from-zeno-cyan to-zeno-green bg-clip-text text-transparent">
-              {props.brandName}
-            </span>
-            <TruncatedTitle
-              text={props.modelName}
-              class="text-xl font-medium text-white"
-            />
-          </div>
-        </div>
-        <button
-          class="w-10 h-10 rounded-xl bg-transparent border-none text-white/30 text-2xl cursor-pointer flex items-center justify-center transition-all hover:text-white hover:bg-white/5 hover:scale-105 z-10"
-          aria-label="Close"
-          onClick={handleClose}
-        >
-          <svg
-            width="30"
-            height="30"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
+    <div class="relative z-1 p-6 flex flex-col gap-6 items-center text-center min-h-[520px]">
+      <ModalHeader
+        brandName={props.brandName}
+        modelName={props.modelName}
+        productImgUrl={props.productImgUrl}
+        onClose={handleClose}
+      />
 
-      <h2 class="text-2xl font-medium mt-5 mb-6 text-white animate-fadeInUp">
+      <h2 class="text-2xl sm:text-4xl font-medium text-white animate-fadeInUp whitespace-nowrap">
         See it on Your Car
       </h2>
 
       {/* Image Container with Generating State */}
-      <div class="relative inline-block rounded-2xl overflow-hidden mb-4 max-w-full animate-fadeInUp">
+      <div
+        class={`relative rounded-2xl overflow-hidden mb-4 animate-fadeInUp ${isMobile ? "w-full" : "inline-block max-w-full"}`}
+        style={{ height: isMobile ? "min(calc(95svh - 380px), 400px)" : undefined }}
+      >
         <Show when={props.previewDataUrl}>
           <img
             ref={imageRef}
@@ -110,11 +75,6 @@ export function LoadingView(props: LoadingViewProps) {
             draggable={false}
           />
         </Show>
-
-        {/* Ambient Particles on the image */}
-        <div class="absolute inset-0 pointer-events-none overflow-hidden">
-          <AmbientParticles count={8} />
-        </div>
 
         {/* Inner glow effect */}
         <div class="avacar-inner-glow" />
@@ -141,22 +101,6 @@ export function LoadingView(props: LoadingViewProps) {
         {isLongWait() ? "This may take a moment..." : "~30 seconds"}
       </p>
 
-      {/* Progress indicator */}
-      <div class="flex gap-1.5 mt-3">
-        <For each={props.loadingSteps}>
-          {(_, i) => (
-            <div
-              class={`w-2 h-2 rounded-full transition-all duration-300 ${
-                i() < props.currentStep
-                  ? "bg-zeno-cyan"
-                  : i() === props.currentStep
-                    ? "bg-zeno-electric animate-pulse"
-                    : "bg-white/20"
-              }`}
-            />
-          )}
-        </For>
-      </div>
 
       {/* Footer */}
       <div class="text-white/40 text-xs text-center py-4 mt-auto">

@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 import { ZENO, VALID_IMAGE_TYPES } from "../../constants";
-import { TruncatedTitle } from "./TruncatedTitle";
+import { ModalHeader } from "./ModalHeader";
 
 interface UploadViewProps {
   productImgUrl: string;
@@ -16,7 +16,12 @@ export function UploadView(props: UploadViewProps) {
   const [isDragover, setIsDragover] = createSignal(false);
   const [isPasting, setIsPasting] = createSignal(false);
   const [previewUrl, setPreviewUrl] = createSignal<string | null>(null);
+  const [objectPos, setObjectPos] = createSignal({ x: 50, y: 50 });
+  const [isPanning, setIsPanning] = createSignal(false);
+  const [panStart, setPanStart] = createSignal({ x: 0, y: 0 });
+  const [posStart, setPosStart] = createSignal({ x: 50, y: 50 });
   let fileInputRef: HTMLInputElement | undefined;
+  let previewRef: HTMLImageElement | undefined;
 
   const handleFile = (file: File) => {
     if (
@@ -49,7 +54,47 @@ export function UploadView(props: UploadViewProps) {
   };
 
   const handleClose = () => props.onClose();
-  const handleUploadClick = () => fileInputRef?.click();
+  const handleUploadClick = () => {
+    if (!previewUrl()) fileInputRef?.click();
+  };
+
+  const handlePreviewMouseDown = (e: MouseEvent) => {
+    e.stopPropagation();
+    setIsPanning(true);
+    setPanStart({ x: e.clientX, y: e.clientY });
+    setPosStart({ x: objectPos().x, y: objectPos().y });
+  };
+
+  const handlePreviewMouseMove = (e: MouseEvent) => {
+    if (!isPanning()) return;
+    const dx = (e.clientX - panStart().x) * 0.5;
+    const dy = (e.clientY - panStart().y) * 0.5;
+    const newX = Math.max(0, Math.min(100, posStart().x - dx));
+    const newY = Math.max(0, Math.min(100, posStart().y - dy));
+    setObjectPos({ x: newX, y: newY });
+  };
+
+  const handlePreviewMouseUp = () => setIsPanning(false);
+
+  const handlePreviewTouchStart = (e: TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    e.stopPropagation();
+    setIsPanning(true);
+    setPanStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+    setPosStart({ x: objectPos().x, y: objectPos().y });
+  };
+
+  const handlePreviewTouchMove = (e: TouchEvent) => {
+    if (!isPanning() || e.touches.length !== 1) return;
+    e.preventDefault();
+    const dx = (e.touches[0].clientX - panStart().x) * 0.5;
+    const dy = (e.touches[0].clientY - panStart().y) * 0.5;
+    const newX = Math.max(0, Math.min(100, posStart().x - dx));
+    const newY = Math.max(0, Math.min(100, posStart().y - dy));
+    setObjectPos({ x: newX, y: newY });
+  };
+
+  const handlePreviewTouchEnd = () => setIsPanning(false);
   const handleDragOver = (e: DragEvent) => {
     e.preventDefault();
     setIsDragover(true);
@@ -80,53 +125,18 @@ export function UploadView(props: UploadViewProps) {
 
   return (
     <div
-      class="relative z-1 p-6 flex flex-col items-center text-center min-h-[520px]"
+      class="relative z-1 p-6 flex flex-col gap-6 items-center text-center min-h-[520px]"
       tabindex="0"
       onPaste={handlePaste}
     >
-      {/* Header */}
-      <div class="flex items-center justify-between mb-1 w-full animate-fadeInUp">
-        <div class="flex items-center gap-3">
-          <div class="w-14 h-14 rounded-xl bg-white flex items-center justify-center overflow-hidden">
-            {props.productImgUrl ? (
-              <img
-                class="w-11 h-11 rounded-full object-cover"
-                src={props.productImgUrl}
-                alt={props.modelName}
-              />
-            ) : (
-              <div class="w-11 h-11 rounded-full bg-gradient-to-br from-gray-400 to-gray-500" />
-            )}
-          </div>
-          <div class="flex flex-col text-left">
-            <span class="text-[10px] font-medium uppercase tracking-[2px] bg-gradient-to-r from-zeno-cyan to-zeno-green bg-clip-text text-transparent">
-              {props.brandName}
-            </span>
-            <TruncatedTitle
-              text={props.modelName}
-              class="text-xl font-medium text-white"
-            />
-          </div>
-        </div>
-        <button
-          class="w-10 h-10 rounded-xl bg-transparent border-none text-white/30 text-2xl cursor-pointer flex items-center justify-center transition-all hover:text-white hover:bg-white/5 hover:scale-105 z-10"
-          aria-label="Close"
-          onClick={handleClose}
-        >
-          <svg
-            width="30"
-            height="30"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
+      <ModalHeader
+        brandName={props.brandName}
+        modelName={props.modelName}
+        productImgUrl={props.productImgUrl}
+        onClose={handleClose}
+      />
 
-      <h2 class="text-2xl font-medium mt-5 mb-6 text-white animate-fadeInUp">
+      <h2 class="text-2xl sm:text-4xl font-medium text-white animate-fadeInUp whitespace-nowrap">
         See it on Your Car
       </h2>
 
@@ -170,21 +180,29 @@ export function UploadView(props: UploadViewProps) {
         <div class="relative z-2 flex flex-col items-center">
           {previewUrl() ? (
             <img
-              class="w-full max-h-[200px] object-contain rounded-xl"
+              ref={previewRef}
+              class="w-full max-h-[200px] object-cover rounded-xl cursor-grab active:cursor-grabbing"
+              style={{ "object-position": `${objectPos().x}% ${objectPos().y}%` }}
               src={previewUrl() || ""}
               alt="Preview"
+              onMouseDown={handlePreviewMouseDown}
+              onMouseMove={handlePreviewMouseMove}
+              onMouseUp={handlePreviewMouseUp}
+              onMouseLeave={handlePreviewMouseUp}
+              onTouchStart={handlePreviewTouchStart}
+              onTouchMove={handlePreviewTouchMove}
+              onTouchEnd={handlePreviewTouchEnd}
+              draggable={false}
             />
           ) : (
             <>
-              <div class="w-16 h-16 rounded-full bg-white/[0.08] flex items-center justify-center mb-4 transition-all group-hover:bg-white/[0.12] group-hover:scale-110">
-                <svg
-                  class="w-12 h-9 text-white/70 transition-colors group-hover:text-white/90"
-                  viewBox="0 0 100 74"
-                  fill="currentColor"
-                >
-                  <path d="M97.2561 0H2.03685C0.9119 0 0 0.912103 0 2.03685V71.4789C0 72.6037 0.9119 73.5158 2.03685 73.5158H97.2561C98.3809 73.5158 99.293 72.6037 99.293 71.4789V2.03685C99.293 0.912103 98.3811 0 97.2561 0ZM95.2193 4.07371V51.9878L74.0323 35.6788C73.3471 35.151 72.4036 35.1139 71.6787 35.5857L57.7674 44.6407L30.3218 25.8167C29.6717 25.3708 28.8223 25.3401 28.1412 25.7385L4.07371 39.8205V4.07371H95.2193Z" />
-                </svg>
-              </div>
+              <svg
+                class="w-12 h-9 text-white/70 transition-colors group-hover:text-white/90 mb-4"
+                viewBox="0 0 100 74"
+                fill="currentColor"
+              >
+                <path d="M97.2561 0H2.03685C0.9119 0 0 0.912103 0 2.03685V71.4789C0 72.6037 0.9119 73.5158 2.03685 73.5158H97.2561C98.3809 73.5158 99.293 72.6037 99.293 71.4789V2.03685C99.293 0.912103 98.3811 0 97.2561 0ZM95.2193 4.07371V51.9878L74.0323 35.6788C73.3471 35.151 72.4036 35.1139 71.6787 35.5857L57.7674 44.6407L30.3218 25.8167C29.6717 25.3708 28.8223 25.3401 28.1412 25.7385L4.07371 39.8205V4.07371H95.2193Z" />
+              </svg>
               <p class="text-lg font-medium text-white m-0 mb-1">
                 Drop your car photo
               </p>
@@ -213,7 +231,7 @@ export function UploadView(props: UploadViewProps) {
       </p>
 
       {/* Footer */}
-      <div class="text-white/40 text-xs text-center py-4 mt-auto">
+      <div class="text-white/40 text-xs text-center pt-4 mt-auto">
         Powered by <strong class="text-white/60 font-semibold">Zeno</strong>
       </div>
     </div>

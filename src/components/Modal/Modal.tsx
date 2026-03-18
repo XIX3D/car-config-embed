@@ -8,7 +8,6 @@ import { ResultView } from './ResultView'
 import { QuoteView } from './QuoteView'
 import { SuccessView } from './SuccessView'
 import { GlowOrbs } from './GlowOrbs'
-import { AmbientParticles } from './AmbientParticles'
 
 interface ModalProps {
   store: WidgetStore
@@ -21,6 +20,9 @@ export function Modal(props: ModalProps) {
   const { state, actions, getLoadingSteps, getBrandName, getModelName, getCurrentResult } = props.store
   let modalRef: HTMLDivElement | undefined
   const [modalStyle, setModalStyle] = createSignal<{ 'max-width'?: string; width?: string }>({})
+  const [triggerZoomAnimation, setTriggerZoomAnimation] = createSignal(false)
+  const [prevView, setPrevView] = createSignal<string | null>(null)
+  const [prevRerenderingIndex, setPrevRerenderingIndex] = createSignal<number | null | undefined>(undefined)
 
   const productImgUrl = () =>
     state.product?.reference_image_paths?.[0] || ''
@@ -28,9 +30,12 @@ export function Modal(props: ModalProps) {
   const resizeModalForImage = (imgWidth: number, imgHeight: number) => {
     if (!imgWidth || !imgHeight) return
 
-    const viewportHeight = window.innerHeight
     const viewportWidth = window.innerWidth
     const isMobile = viewportWidth < 768
+
+    if (isMobile) return
+
+    const viewportHeight = window.innerHeight
     const reservedHeight = 380
     const maxImgHeight = viewportHeight * 0.95 - reservedHeight
     const maxImgWidth = viewportWidth * 0.92
@@ -46,13 +51,12 @@ export function Modal(props: ModalProps) {
 
     const modalPadding = 48
     const neededModalWidth = displayWidth + modalPadding
-    const minWidth = isMobile ? 280 : 480
+    const minWidth = 480
     const maxWidth = viewportWidth * 0.92
     const finalWidth = Math.max(minWidth, Math.min(neededModalWidth, maxWidth))
 
     setModalStyle({
       'max-width': `${finalWidth}px`,
-      width: isMobile ? `${finalWidth}px` : undefined,
     })
   }
 
@@ -64,6 +68,24 @@ export function Modal(props: ModalProps) {
     if (state.view !== 'result' && state.view !== 'loading') {
       resetModalSize()
     }
+  })
+
+  createEffect(() => {
+    const currentView = state.view
+    const currentRerenderingIndex = state.rerenderingIndex
+
+    if (prevView() === 'loading' && currentView === 'result') {
+      setTriggerZoomAnimation(true)
+      setTimeout(() => setTriggerZoomAnimation(false), 1500)
+    }
+
+    if (prevRerenderingIndex() !== null && prevRerenderingIndex() !== undefined && currentRerenderingIndex === null) {
+      setTriggerZoomAnimation(true)
+      setTimeout(() => setTriggerZoomAnimation(false), 1500)
+    }
+
+    setPrevView(currentView)
+    setPrevRerenderingIndex(currentRerenderingIndex)
   })
 
   const handleFileSelect = async (file: File) => {
@@ -296,11 +318,10 @@ export function Modal(props: ModalProps) {
         >
           <div
             ref={modalRef}
-            class={`relative bg-zeno-card rounded-[40px] max-w-md w-[92%] max-h-[90vh] overflow-hidden text-white flex flex-col transition-all duration-300 ${state.view === 'result' || state.view === 'loading' ? 'avacar-expanded' : ''}`}
+            class={`relative bg-zeno-card rounded-[24px] sm:rounded-[40px] max-h-[90vh] overflow-hidden text-white flex flex-col transition-all duration-300 ${state.view === 'result' || state.view === 'loading' ? 'avacar-expanded w-[96%] sm:w-[85%]' : 'w-[96%] sm:w-[92%] max-w-md'}`}
             style={modalStyle()}
           >
             <GlowOrbs />
-            <AmbientParticles count={12} />
 
             <Switch>
               <Match when={state.view === 'upload'}>
@@ -348,9 +369,10 @@ export function Modal(props: ModalProps) {
                   onPan={(x, y) => actions.setPan(x, y)}
                   onModalResize={resizeModalForImage}
                   onToggleInterest={actions.toggleFinishInterest}
-                  onRerender={handleRerender}
+                  onRerender={(index) => actions.toggleRerenderModal(true, index)}
                   rerenderingIndex={state.rerenderingIndex ?? undefined}
                   onDownloadMenu={() => actions.toggleDownloadMenu(true)}
+                  triggerZoomAnimation={triggerZoomAnimation()}
                 />
               </Match>
 
@@ -433,6 +455,17 @@ export function Modal(props: ModalProps) {
           />
         </Show>
 
+        <Show when={state.showRerenderModal}>
+          <RerenderModal
+            onCancel={() => actions.toggleRerenderModal(false)}
+            onConfirm={() => {
+              const index = state.pendingRerenderIndex
+              actions.toggleRerenderModal(false)
+              if (index !== null) handleRerender(index)
+            }}
+          />
+        </Show>
+
         <Show when={state.showDownloadMenu}>
           <DownloadMenu
             currentFinishName={getCurrentResult()?.label.replace(' (Original)', '') || 'Current'}
@@ -470,8 +503,6 @@ function ExitModal(props: { onBack: () => void; onConfirm: () => void }) {
             `,
           }}
         />
-
-        <AmbientParticles count={6} />
 
         {/* Close button */}
         <button
@@ -581,6 +612,46 @@ function RestartModal(props: { onCancel: () => void; onConfirm: () => void }) {
   )
 }
 
+function RerenderModal(props: { onCancel: () => void; onConfirm: () => void }) {
+  const handleCancel = () => props.onCancel()
+  const handleConfirm = () => props.onConfirm()
+  const handleOverlayClick = (e: MouseEvent) => {
+    if (e.target === e.currentTarget) handleCancel()
+  }
+
+  return (
+    <div
+      class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[1000000] p-4"
+      onClick={handleOverlayClick}
+    >
+      <div class="relative bg-zeno-card rounded-3xl p-8 max-w-[360px] w-full text-center overflow-hidden animate-fadeInUp">
+        <div class="w-16 h-16 rounded-full bg-zeno-electric/15 border-2 border-zeno-electric/30 flex items-center justify-center mx-auto mb-6" style={{ animation: 'refreshSpin 3s ease-in-out infinite' }}>
+          <svg class="w-8 h-8 text-zeno-electric" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 4v6h6M23 20v-6h-6" />
+            <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" />
+          </svg>
+        </div>
+        <h3 class="text-2xl font-semibold text-white m-0 mb-2">Re-render this finish?</h3>
+        <p class="text-sm text-white/40 m-0 mb-8">This will generate a new variation of the current image.</p>
+        <div class="flex gap-4">
+          <button
+            class="flex-1 py-4 rounded-xl bg-white/5 border border-white/20 text-white text-[15px] font-medium cursor-pointer flex items-center justify-center gap-2 transition-all hover:bg-white/10 hover:border-white/30"
+            onClick={handleCancel}
+          >
+            Cancel
+          </button>
+          <button
+            class="flex-1 py-4 rounded-xl bg-zeno-electric/15 border border-zeno-electric/30 text-zeno-cyan text-[15px] font-medium cursor-pointer transition-all hover:scale-[1.02] hover:bg-zeno-electric/20"
+            onClick={handleConfirm}
+          >
+            Re-render
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function DownloadMenu(props: {
   currentFinishName: string
   totalCount: number
@@ -648,6 +719,8 @@ function FullscreenModal(props: FullscreenModalProps) {
   const [isDragging, setIsDragging] = createSignal(false)
   const [dragStart, setDragStart] = createSignal({ x: 0, y: 0 })
   const [panStart, setPanStart] = createSignal({ x: 0, y: 0 })
+  const [lastTouchDist, setLastTouchDist] = createSignal(0)
+  const [isTouching, setIsTouching] = createSignal(false)
   let imageRef: HTMLImageElement | undefined
 
   const currentResult = () => props.finishes[props.currentIndex]
@@ -696,6 +769,51 @@ function FullscreenModal(props: FullscreenModalProps) {
   }
 
   const handleMouseUp = () => setIsDragging(false)
+
+  const handleTouchStart = (e: TouchEvent) => {
+    setIsTouching(true)
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      )
+      setLastTouchDist(dist)
+    } else if (e.touches.length === 1 && zoomLevel() > 1) {
+      setIsDragging(true)
+      setDragStart({ x: e.touches[0].clientX, y: e.touches[0].clientY })
+      setPanStart({ x: panX(), y: panY() })
+    }
+  }
+
+  const handleTouchMove = (e: TouchEvent) => {
+    if (e.touches.length === 2) {
+      e.preventDefault()
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      )
+      const scale = dist / lastTouchDist()
+      const newZoom = Math.max(1, Math.min(4, zoomLevel() * scale))
+      setZoomLevel(newZoom)
+      setLastTouchDist(dist)
+      const clamped = clampPan(panX(), panY())
+      setPanX(clamped.x)
+      setPanY(clamped.y)
+    } else if (e.touches.length === 1 && isDragging()) {
+      e.preventDefault()
+      const dx = (e.touches[0].clientX - dragStart().x) / zoomLevel()
+      const dy = (e.touches[0].clientY - dragStart().y) / zoomLevel()
+      const clamped = clampPan(panStart().x + dx, panStart().y + dy)
+      setPanX(clamped.x)
+      setPanY(clamped.y)
+    }
+  }
+
+  const handleTouchEnd = () => {
+    setIsDragging(false)
+    setLastTouchDist(0)
+    setIsTouching(false)
+  }
 
   const resetZoom = () => {
     setZoomLevel(1)
@@ -811,7 +929,7 @@ function FullscreenModal(props: FullscreenModalProps) {
       </div>
 
       {/* Main image area */}
-      <div class="flex-1 flex items-center justify-center relative" onClick={handleBackdropClick}>
+      <div class="flex-1 flex items-center justify-center relative sm:overflow-visible overflow-y-auto" onClick={handleBackdropClick}>
         {/* Navigation arrows */}
         <Show when={props.finishes.length > 1}>
           <button
@@ -838,15 +956,20 @@ function FullscreenModal(props: FullscreenModalProps) {
         <Show when={currentResult()?.image}>
           <img
             ref={imageRef}
-            class="max-w-[90vw] max-h-[70vh] object-contain rounded-lg transition-transform duration-100"
+            class="max-w-[90vw] max-h-[70vh] object-contain rounded-lg"
             src={currentResult()?.image}
             alt="Fullscreen view"
             style={{
               transform: `scale(${zoomLevel()}) translate(${panX()}px, ${panY()}px)`,
               cursor: zoomLevel() > 1 ? (isDragging() ? 'grabbing' : 'grab') : 'default',
+              "touch-action": "none",
+              transition: isTouching() ? 'none' : 'transform 0.1s ease-out',
             }}
             onWheel={handleWheel}
             onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
             draggable={false}
           />
         </Show>

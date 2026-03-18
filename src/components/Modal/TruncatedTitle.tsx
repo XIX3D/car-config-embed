@@ -1,42 +1,39 @@
-import { Show, createSignal } from 'solid-js'
+import { Show, createSignal } from "solid-js";
 
 interface TruncatedTitleProps {
-  text: string
-  class?: string
+  text: string;
+  class?: string;
 }
 
 export function TruncatedTitle(props: TruncatedTitleProps) {
-  let textRef: HTMLSpanElement | undefined
-  const [showTooltip, setShowTooltip] = createSignal(false)
-  const [isTruncated, setIsTruncated] = createSignal(false)
-  let hideTimeout: number | undefined
+  let textRef: HTMLSpanElement | undefined;
+  const [showTooltip, setShowTooltip] = createSignal(false);
+  const [isTruncated, setIsTruncated] = createSignal(false);
+  let hideTimeout: number | undefined;
 
   const checkTruncation = () => {
     if (textRef) {
-      setIsTruncated(textRef.scrollWidth > textRef.clientWidth)
+      setIsTruncated(textRef.scrollWidth > textRef.clientWidth);
     }
-  }
+  };
 
   const handleMouseEnter = () => {
-    clearTimeout(hideTimeout)
-    checkTruncation()
-    if (isTruncated()) setShowTooltip(true)
-  }
+    clearTimeout(hideTimeout);
+    checkTruncation();
+    if (isTruncated()) setShowTooltip(true);
+  };
 
   const handleMouseLeave = () => {
-    hideTimeout = window.setTimeout(() => setShowTooltip(false), 100)
-  }
+    hideTimeout = window.setTimeout(() => setShowTooltip(false), 100);
+  };
 
   return (
     <div
-      class="relative"
+      class="relative w-full"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <span
-        ref={textRef}
-        class={`block max-w-[250px] truncate ${props.class || ''}`}
-      >
+      <span ref={textRef} class={`block truncate ${props.class || ""}`}>
         {props.text}
       </span>
       <Show when={showTooltip()}>
@@ -52,5 +49,5 @@ export function TruncatedTitle(props: TruncatedTitleProps) {
         <div class="absolute left-0 right-0 bottom-full h-2" />
       </Show>
     </div>
-  )
+  );
 }
