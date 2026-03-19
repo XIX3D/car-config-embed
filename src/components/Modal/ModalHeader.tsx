@@ -18,11 +18,11 @@ export function ModalHeader(props: ModalHeaderProps) {
         <Show
           when={props.productImgUrl}
           fallback={
-            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-500" />
+            <div class="w-full h-full rounded-full bg-gradient-to-br from-gray-400 to-gray-500" />
           }
         >
           <img
-            class="w-8 h-8 rounded-full object-cover"
+            class="w-full h-full rounded-full object-cover"
             src={props.productImgUrl}
             alt={props.modelName}
           />
