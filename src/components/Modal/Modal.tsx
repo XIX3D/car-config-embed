@@ -729,7 +729,6 @@ function FullscreenModal(props: FullscreenModalProps) {
   let imageRef: HTMLImageElement | undefined
 
   const currentResult = () => props.finishes[props.currentIndex]
-  const isLiked = (index: number) => props.interestedIds.includes(index)
 
   const clampPan = (x: number, y: number) => {
     if (zoomLevel() <= 1 || !imageRef) return { x: 0, y: 0 }
@@ -999,7 +998,6 @@ function FullscreenModal(props: FullscreenModalProps) {
           <For each={props.finishes}>
             {(result, i) => {
               const isSelected = () => i() === props.currentIndex
-              const isInterested = () => isLiked(i())
               const hasImage = () => result.success && result.image
 
               return (
