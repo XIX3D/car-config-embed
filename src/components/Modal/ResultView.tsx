@@ -564,19 +564,29 @@ export function ResultView(props: ResultViewProps) {
               </div>
             </div>
           ) : (
-            <img
-              ref={imageRef}
-              class={`avacar-result-img ${isAnimatingZoom() ? "zoom-animating" : ""}`}
-              src={current()?.image || ""}
-              alt="Preview"
-              style={transformStyle()}
-              onMouseDown={handleMouseDown}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-              onLoad={handleImageLoad}
-              draggable={false}
-            />
+            <div class="relative">
+              <img
+                ref={imageRef}
+                class={`avacar-result-img ${isAnimatingZoom() ? "zoom-animating" : ""}`}
+                src={current()?.image || ""}
+                alt="Preview"
+                style={transformStyle()}
+                onMouseDown={handleMouseDown}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onLoad={handleImageLoad}
+                draggable={false}
+              />
+              {props.rerenderingIndex === props.currentIndex && (
+                <div class="absolute inset-0 flex items-center justify-center bg-black/40 rounded-2xl">
+                  <div class="flex flex-col items-center gap-3">
+                    <div class="w-12 h-12 border-3 border-white/20 border-t-white rounded-full animate-spin" />
+                    <span class="text-white/50 text-sm">Re-rendering...</span>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
@@ -599,6 +609,7 @@ export function ResultView(props: ResultViewProps) {
                 const isRerendering = () => props.rerenderingIndex === i();
 
                 return (
+                  <Show when={result.loading || result.success}>
                   <div class="relative">
                     <button
                       role="option"
@@ -663,21 +674,6 @@ export function ResultView(props: ResultViewProps) {
                           <div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         </div>
                       )}
-                      {!result.loading &&
-                        !isRerendering() &&
-                        !result.success && (
-                          <div class="absolute inset-0 flex items-center justify-center bg-black/60 rounded-xl">
-                            <svg
-                              class="w-5 h-5 text-red-400"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              stroke-width="2"
-                            >
-                              <path d="M18 6L6 18M6 6l12 12" />
-                            </svg>
-                          </div>
-                        )}
                     </button>
 
                     {/* Interest indicator - heart in corner */}
@@ -699,6 +695,7 @@ export function ResultView(props: ResultViewProps) {
                       </div>
                     </Show>
                   </div>
+                  </Show>
                 );
               }}
             </For>

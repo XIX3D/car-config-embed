@@ -3,13 +3,88 @@
 @import "./animations.css";
 
 @theme {
+  /* Static Tailwind theme colors - these are build-time values */
   --color-zeno-electric: #3b82f6;
   --color-zeno-cyan: #93c5fd;
   --color-zeno-green: #e0e7ff;
   --color-zeno-pink: #FF44CC;
   --color-zeno-dark: #0a0a0a;
   --color-zeno-card: #0d151f;
+  --color-zeno-elevated: #182639;
+  --color-zeno-success: #84FF8E;
+  --color-zeno-error: #ff6b6b;
   --font-franie: 'Franie', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Runtime theme variables - these switch dynamically */
+:host, :root, * {
+  --theme-primary: #3b82f6;
+  --theme-primary-light: #93c5fd;
+  --theme-primary-muted: #e0e7ff;
+  --theme-bg-dark: #0a0a0a;
+  --theme-bg-card: #0d151f;
+  --theme-bg-elevated: #182639;
+  --theme-success: #84FF8E;
+  --theme-error: #ff6b6b;
+}
+
+/* Arctic theme overrides */
+[data-theme="arctic"],
+[data-theme="arctic"] * {
+  --theme-primary: #595959;
+  --theme-primary-light: #FFFFFF;
+  --theme-primary-muted: #373737;
+  --theme-bg-dark: #262626;
+  --theme-bg-card: #373737;
+  --theme-bg-elevated: #595959;
+  --theme-success: #FFFFFF;
+  --theme-error: #ff6b6b;
+}
+
+/* Override Tailwind utility classes for Arctic theme */
+[data-theme="arctic"] .bg-zeno-card { background-color: #373737 !important; }
+[data-theme="arctic"] .bg-zeno-dark { background-color: #262626 !important; }
+[data-theme="arctic"] .bg-zeno-elevated { background-color: #595959 !important; }
+[data-theme="arctic"] .bg-zeno-electric { background-color: #595959 !important; }
+[data-theme="arctic"] .bg-zeno-success { background-color: #FFFFFF !important; }
+[data-theme="arctic"] .text-zeno-electric { color: #595959 !important; }
+[data-theme="arctic"] .text-zeno-cyan { color: #FFFFFF !important; }
+[data-theme="arctic"] .text-zeno-success { color: #FFFFFF !important; }
+[data-theme="arctic"] .text-zeno-dark { color: #262626 !important; }
+[data-theme="arctic"] .border-zeno-electric { border-color: #595959 !important; }
+[data-theme="arctic"] .border-zeno-cyan { border-color: #FFFFFF !important; }
+[data-theme="arctic"] .from-zeno-cyan { --tw-gradient-from: #FFFFFF !important; }
+[data-theme="arctic"] .to-zeno-green { --tw-gradient-to: #373737 !important; }
+
+/* Success view theme overrides */
+.avacar-success-glow {
+  background: radial-gradient(circle, rgba(132, 255, 142, 0.18) 0%, transparent 70%);
+}
+[data-theme="arctic"] .avacar-success-glow {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.18) 0%, transparent 70%);
+}
+
+.avacar-success-check {
+  background: #84FF8E;
+  box-shadow: 0 0 30px rgba(132, 255, 142, 0.38), 0 0 60px rgba(132, 255, 142, 0.25);
+}
+[data-theme="arctic"] .avacar-success-check {
+  background: #FFFFFF;
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.38), 0 0 60px rgba(255, 255, 255, 0.25);
+}
+
+.avacar-success-sparkle {
+  color: #84FF8E;
+}
+[data-theme="arctic"] .avacar-success-sparkle {
+  color: #FFFFFF;
+}
+
+.avacar-confetti-green {
+  background-color: #84FF8E;
+}
+[data-theme="arctic"] .avacar-confetti-green {
+  background-color: #FFFFFF;
 }
 
 /* ===== Animation Utility Classes ===== */
@@ -49,6 +124,9 @@
 .avacar-btn-zeno:hover {
   box-shadow: 0 0 20px rgba(59, 130, 246, 0.4), 0 0 40px rgba(147, 197, 253, 0.3), 0 0 30px rgba(224, 231, 255, 0.2);
 }
+[data-theme="arctic"] .avacar-btn-zeno:hover {
+  box-shadow: 0 0 20px rgba(89, 89, 89, 0.4), 0 0 40px rgba(255, 255, 255, 0.3), 0 0 30px rgba(55, 55, 55, 0.2);
+}
 .avacar-btn-zeno:active { transform: scale(0.98); }
 
 .avacar-zeno-bg {
@@ -58,10 +136,16 @@
   background-size: 300% 100%;
   animation: avacar-ambientPulse 8s linear infinite;
 }
+[data-theme="arctic"] .avacar-zeno-bg {
+  background: linear-gradient(90deg, #595959 0%, #FFFFFF 33%, #373737 66%, #FFFFFF 100%);
+}
 .avacar-btn-zeno:hover .avacar-zeno-bg {
   background: linear-gradient(135deg, #3b82f6 0%, #93c5fd 25%, #e0e7ff 50%, #93c5fd 75%, #3b82f6 100%);
   background-size: 400% 400%;
   animation: avacar-holoWave 2s linear infinite;
+}
+[data-theme="arctic"] .avacar-btn-zeno:hover .avacar-zeno-bg {
+  background: linear-gradient(135deg, #595959 0%, #FFFFFF 25%, #373737 50%, #FFFFFF 75%, #595959 100%);
 }
 
 .avacar-zeno-inner {
@@ -112,6 +196,11 @@
 .avacar-sp-3 svg { width: 3px; height: 3px; fill: #e0e7ff; }
 .avacar-sp-4 { top: -1px; left: -2px; animation: avacar-twinkle4 4s ease-in-out infinite 3s; }
 .avacar-sp-4 svg { width: 4px; height: 4px; fill: #3b82f6; }
+
+[data-theme="arctic"] .avacar-sp-1 svg { fill: #595959; }
+[data-theme="arctic"] .avacar-sp-2 svg { fill: #FFFFFF; }
+[data-theme="arctic"] .avacar-sp-3 svg { fill: #373737; }
+[data-theme="arctic"] .avacar-sp-4 svg { fill: #595959; }
 
 .avacar-btn-zeno:hover .avacar-sp-1 { animation: avacar-sparkleGlow1 0.8s ease-in-out infinite; }
 .avacar-btn-zeno:hover .avacar-sp-2 { animation: avacar-sparkleGlow2 1s ease-in-out infinite 0.15s; }
@@ -174,14 +263,27 @@
   animation-delay: 0.2s;
   opacity: 0;
   overflow: hidden;
+  --dash-color-light: #93c5fd;
+  --dash-color-muted: #e0e7ff;
+}
+[data-theme="arctic"] .avacar-upload-box {
+  background: #595959;
+  --dash-color-light: #9a9a9a;
+  --dash-color-muted: #7a7a7a;
 }
 .avacar-upload-box:hover {
   transform: scale(1.01);
   box-shadow: 0 0 30px rgba(59, 130, 246, 0.25);
 }
+[data-theme="arctic"] .avacar-upload-box:hover {
+  box-shadow: 0 0 30px rgba(89, 89, 89, 0.25);
+}
 .avacar-upload-box.dragover {
   transform: scale(1.02);
   box-shadow: 0 0 40px rgba(147, 197, 253, 0.35);
+}
+[data-theme="arctic"] .avacar-upload-box.dragover {
+  box-shadow: 0 0 40px rgba(255, 255, 255, 0.35);
 }
 .avacar-upload-box.has-file { padding: 8px; }
 
@@ -199,9 +301,12 @@
   inset: 0;
   pointer-events: none;
   border-radius: 16px;
-  background: linear-gradient(135deg, transparent 40%, rgba(59, 130, 246, 0.06) 50%, rgba(147, 197, 253, 0.05) 55%, transparent 60%);
+  background-image: linear-gradient(135deg, transparent 40%, rgba(59, 130, 246, 0.06) 50%, rgba(147, 197, 253, 0.05) 55%, transparent 60%);
   background-size: 200% 200%;
   animation: shimmer 4s ease-in-out infinite;
+}
+[data-theme="arctic"] .avacar-upload-shimmer {
+  background-image: linear-gradient(135deg, transparent 40%, rgba(150, 150, 150, 0.08) 50%, rgba(255, 255, 255, 0.06) 55%, transparent 60%);
 }
 
 /* ===== Image Container (loading state) ===== */

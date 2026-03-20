@@ -8,6 +8,8 @@ import { ResultView } from './ResultView'
 import { QuoteView } from './QuoteView'
 import { SuccessView } from './SuccessView'
 import { GlowOrbs } from './GlowOrbs'
+import { ThemeToggle } from '../Debug/ThemeToggle'
+import { currentTheme } from '../../stores/theme-store'
 
 interface ModalProps {
   store: WidgetStore
@@ -312,6 +314,7 @@ export function Modal(props: ModalProps) {
   return (
     <Show when={state.isOpen}>
       <Portal mount={props.shadowRoot}>
+        <div data-theme={currentTheme()} class="contents">
         <div
           class="fixed inset-0 w-full h-full bg-black/85 backdrop-blur-sm flex items-center justify-center z-[999999] font-franie font-light"
           onClick={(e) => e.target === e.currentTarget && handleClose()}
@@ -475,6 +478,9 @@ export function Modal(props: ModalProps) {
             onClose={() => actions.toggleDownloadMenu(false)}
           />
         </Show>
+
+        <ThemeToggle />
+        </div>
       </Portal>
     </Show>
   )
@@ -522,8 +528,8 @@ function ExitModal(props: { onBack: () => void; onConfirm: () => void }) {
             style={{ background: 'rgba(239,68,68,0.12)', border: '2px solid rgba(239,68,68,0.25)' }}
           >
             <svg
-              class="w-7 h-7 sm:w-8 sm:h-8"
-              style={{ color: '#f87171', animation: 'imageFade 2.5s ease-in-out infinite' }}
+              class="w-7 h-7 sm:w-8 sm:h-8 text-zeno-error"
+              style={{ animation: 'imageFade 2.5s ease-in-out infinite' }}
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -555,11 +561,10 @@ function ExitModal(props: { onBack: () => void; onConfirm: () => void }) {
 
             {/* Leave button */}
             <button
-              class="flex-1 py-3 sm:py-4 rounded-2xl text-sm sm:text-base font-medium transition-all hover:scale-[1.02] active:scale-[0.97]"
+              class="flex-1 py-3 sm:py-4 rounded-2xl text-sm sm:text-base font-medium transition-all hover:scale-[1.02] active:scale-[0.97] text-zeno-error"
               style={{
                 background: 'rgba(255,100,100,0.15)',
                 border: '1px solid rgba(255,100,100,0.3)',
-                color: '#ff6b6b',
               }}
               onClick={handleConfirm}
             >
@@ -896,23 +901,7 @@ function FullscreenModal(props: FullscreenModalProps) {
       onClick={handleBackdropClick}
     >
       {/* Top bar */}
-      <div class="absolute top-0 left-0 right-0 flex items-center justify-between p-4 z-20">
-        {/* Like button */}
-        <button
-          class="w-12 h-12 rounded-full backdrop-blur-sm flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-          style={{ background: 'rgba(0,0,0,0.5)' }}
-          onClick={(e) => { e.stopPropagation(); props.onLike(props.currentIndex) }}
-        >
-          {isLiked(props.currentIndex) ? (
-            <svg class="w-6 h-6" style={{ color: '#ff6b6b' }} viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-            </svg>
-          ) : (
-            <svg class="w-6 h-6 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-            </svg>
-          )}
-        </button>
+      <div class="absolute top-0 left-0 right-0 flex items-center justify-end p-4 z-20">
 
         {/* Download button */}
         <button
@@ -1032,29 +1021,6 @@ function FullscreenModal(props: FullscreenModalProps) {
                     onClick={(e) => { e.stopPropagation(); hasImage() && props.onIndexChange(i()); resetZoom() }}
                     disabled={!hasImage()}
                   />
-                  {/* Interest indicator */}
-                  <Show when={isInterested() && hasImage()}>
-                    <div
-                      class="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
-                      style={{ background: 'rgba(0,0,0,0.7)' }}
-                    >
-                      <svg class="w-2.5 h-2.5" style={{ color: '#ff6b6b' }} viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                      </svg>
-                    </div>
-                  </Show>
-                  {/* Like button below swatch */}
-                  <Show when={hasImage()}>
-                    <button
-                      class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full flex items-center justify-center transition-all hover:scale-110"
-                      style={{ background: isInterested() ? 'rgba(255,107,107,0.3)' : 'rgba(0,0,0,0.6)' }}
-                      onClick={(e) => { e.stopPropagation(); props.onLike(i()) }}
-                    >
-                      <svg class="w-3 h-3" style={{ color: isInterested() ? '#ff6b6b' : 'rgba(255,255,255,0.6)' }} viewBox="0 0 24 24" fill={isInterested() ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                      </svg>
-                    </button>
-                  </Show>
                 </div>
               )
             }}
@@ -1138,7 +1104,7 @@ function ShareModal(props: {
     handleClose()
   }
 
-  const btnClass = 'w-full py-3.5 px-4 mb-2.5 bg-[#2a2a2a] text-white border-none rounded-lg text-[15px] font-medium cursor-pointer flex items-center justify-center gap-2.5 transition-colors hover:bg-[#3a3a3a]'
+  const btnClass = 'w-full py-3.5 px-4 mb-2.5 bg-white/10 text-white border-none rounded-lg text-[15px] font-medium cursor-pointer flex items-center justify-center gap-2.5 transition-colors hover:bg-white/15'
 
   return (
     <div

@@ -1,7 +1,7 @@
 import { Show, For } from "solid-js";
 import type { RenderResult } from "../../types";
 import { ModalHeader } from "./ModalHeader";
-import { CONFETTI_CONFIG, SPARKLE_CONFIG } from "../../constants";
+import { CONFETTI_CONFIG } from "../../constants";
 
 interface SuccessViewProps {
   productImgUrl: string;
@@ -59,57 +59,16 @@ function CelebrationEffect() {
   );
 }
 
-function Sparkles() {
-  const { count, distanceRange, delayStep } = SPARKLE_CONFIG;
-  const sparkles = Array.from({ length: count }, (_, i) => ({
-    id: i,
-    angle: (i * 360) / count,
-    distance: distanceRange.base + Math.random() * distanceRange.variance,
-    delay: i * delayStep,
-    color: "#84FF8E",
-  }));
-
-  return (
-    <div class="absolute inset-0 pointer-events-none">
-      <For each={sparkles}>
-        {(sparkle) => {
-          const x =
-            Math.cos((sparkle.angle * Math.PI) / 180) * sparkle.distance;
-          const y =
-            Math.sin((sparkle.angle * Math.PI) / 180) * sparkle.distance;
-
-          return (
-            <svg
-              class="absolute w-4 h-4"
-              style={{
-                left: `calc(50% + ${x}px - 8px)`,
-                top: `calc(50% + ${y}px - 8px)`,
-                color: sparkle.color,
-                animation: `sparkle 1.5s ease-in-out ${sparkle.delay}s infinite`,
-              }}
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path d="M12 0L14.5 9.5L24 12L14.5 14.5L12 24L9.5 14.5L0 12L9.5 9.5L12 0Z" />
-            </svg>
-          );
-        }}
-      </For>
-    </div>
-  );
-}
-
 function AmbientGlow() {
   return (
     <div
-      class="absolute rounded-full"
+      class="absolute rounded-full avacar-success-glow"
       style={{
         width: "180px",
         height: "180px",
         left: "50%",
         top: "50%",
         transform: "translate(-50%, -50%)",
-        background: "radial-gradient(circle, #84FF8E30 0%, transparent 70%)",
         animation: "softPulse 2s ease-in-out infinite",
       }}
     />
@@ -142,17 +101,9 @@ export function SuccessView(props: SuccessViewProps) {
         {/* Checkmark with ambient glow and sparkles */}
         <div class="relative mb-6">
           <AmbientGlow />
-          <Sparkles />
-          <div
-            class="relative w-20 h-20 rounded-full flex items-center justify-center animate-successPop"
-            style={{
-              background: "#84FF8E",
-              "box-shadow": "0 0 30px #84FF8E60, 0 0 60px #84FF8E40",
-            }}
-          >
+          <div class="relative w-20 h-20 rounded-full flex items-center justify-center animate-successPop avacar-success-check">
             <svg
-              class="w-10 h-10"
-              style={{ color: "#262626" }}
+              class="w-10 h-10 text-zeno-dark"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"

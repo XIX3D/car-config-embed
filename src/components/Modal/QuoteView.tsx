@@ -150,7 +150,7 @@ export function QuoteView(props: QuoteViewProps) {
             onClick={(e) => { e.stopPropagation(); props.onToggleFinish(props.quoteViewIndex) }}
           >
             {isLiked(props.quoteViewIndex) ? (
-              <svg class="w-5 h-5" style={{ color: '#ff6b6b' }} viewBox="0 0 24 24" fill="currentColor">
+              <svg class="w-5 h-5 text-zeno-error" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
               </svg>
             ) : (
@@ -270,8 +270,7 @@ export function QuoteView(props: QuoteViewProps) {
                     title={isLiked(i()) ? 'Remove from quote' : 'Add to quote'}
                   >
                     <svg
-                      class="w-4 h-4"
-                      style={{ color: isLiked(i()) ? '#ff6b6b' : 'rgba(255,255,255,0.4)' }}
+                      class={`w-4 h-4 ${isLiked(i()) ? 'text-zeno-error' : 'text-white/40'}`}
                       viewBox="0 0 24 24"
                       fill={isLiked(i()) ? 'currentColor' : 'none'}
                       stroke="currentColor"

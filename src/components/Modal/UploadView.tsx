@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import { ZENO, VALID_IMAGE_TYPES } from "../../constants";
+import { VALID_IMAGE_TYPES } from "../../constants";
 import { ModalHeader } from "./ModalHeader";
 
 interface UploadViewProps {
@@ -157,9 +157,9 @@ export function UploadView(props: UploadViewProps) {
               x2="100%"
               y2="100%"
             >
-              <stop offset="0%" stop-color={ZENO.cyan} stop-opacity="0.5" />
-              <stop offset="50%" stop-color={ZENO.green} stop-opacity="0.5" />
-              <stop offset="100%" stop-color={ZENO.cyan} stop-opacity="0.5" />
+              <stop offset="0%" style="stop-color: var(--dash-color-light)" stop-opacity="0.5" />
+              <stop offset="50%" style="stop-color: var(--dash-color-muted)" stop-opacity="0.5" />
+              <stop offset="100%" style="stop-color: var(--dash-color-light)" stop-opacity="0.5" />
             </linearGradient>
           </defs>
           <rect
