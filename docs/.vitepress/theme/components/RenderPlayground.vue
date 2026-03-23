@@ -107,7 +107,6 @@ const renderInProgress = ref(false)
 const fullscreenImage = ref<string | null>(null)
 
 const fastMode = ref(true)
-const resolution = ref('2K')
 
 const masterPromptContainer = ref<HTMLElement>()
 const editablePromptContainer = ref<HTMLElement>()
@@ -363,29 +362,6 @@ async function saveCustomPrompt() {
   }
 }
 
-function parseSSEStream(text: string): { event: string; data: string }[] {
-  const events: { event: string; data: string }[] = []
-  let currentEvent = ''
-  let currentData = ''
-
-  for (const line of text.split('\n')) {
-    if (line.startsWith('event: ')) {
-      currentEvent = line.slice(7).trim()
-    } else if (line.startsWith('data: ')) {
-      currentData = line.slice(6).trim()
-    } else if (line === '') {
-      if (currentEvent && currentData) {
-        events.push({ event: currentEvent, data: currentData })
-      }
-      currentEvent = ''
-      currentData = ''
-    }
-  }
-  if (currentEvent && currentData) {
-    events.push({ event: currentEvent, data: currentData })
-  }
-  return events
-}
 
 async function getVehicleBlob(): Promise<Blob | null> {
   if (uploadedFile.value) return uploadedFile.value
@@ -408,17 +384,15 @@ async function renderOne(result: RenderResult, vehicleBlob: Blob, productId: num
 
   const productsPayload = [{
     product_id: productId,
-    ...(variantId ? { variant_id: Number(variantId) } : {})
+    ...(variantId ? { variant_id: parseInt(variantId, 10) } : {})
   }]
   formData.append('products', JSON.stringify(productsPayload))
-  formData.append('fast_mode', String(fastMode.value))
-  formData.append('resolution', resolution.value)
+  formData.append('fast_mode', 'true')
 
   try {
     const res = await fetch(`${apiBaseUrl.value}/api/v1/render/chain/stream`, {
       method: 'POST',
       body: formData,
-      headers: authToken.value ? { 'Authorization': `Bearer ${authToken.value}` } : {},
     })
 
     if (!res.ok) {
@@ -438,26 +412,29 @@ async function renderOne(result: RenderResult, vehicleBlob: Blob, productId: num
       if (done) break
 
       buffer += decoder.decode(value, { stream: true })
-      const events = parseSSEStream(buffer)
+      const chunks = buffer.split('\n\n')
+      buffer = chunks.pop() || ''
 
-      for (const evt of events) {
+      for (const chunk of chunks) {
+        const eventMatch = chunk.match(/^event: (.+)$/m)
+        const dataMatch = chunk.match(/^data: (.+)$/m)
+        if (!eventMatch || !dataMatch) continue
+
         try {
-          const data = JSON.parse(evt.data)
-          result.sseEvents = [...result.sseEvents, { type: evt.event, data, timestamp: Date.now() }]
+          const event = eventMatch[1]
+          const data = JSON.parse(dataMatch[1])
+          result.sseEvents = [...result.sseEvents, { type: event, data, timestamp: Date.now() }]
 
-          if (evt.event === 'complete' && data.image_b64) {
+          if (event === 'complete' && data.image_b64) {
             result.imageUrl = `data:image/png;base64,${data.image_b64}`
             result.elapsed = ((performance.now() - startTime) / 1000).toFixed(1)
             result.loading = false
-          } else if (evt.event === 'error') {
+          } else if (event === 'error') {
             result.error = data.message || 'Render error'
             result.loading = false
           }
         } catch { /* skip */ }
       }
-
-      const lastDoubleNewline = buffer.lastIndexOf('\n\n')
-      if (lastDoubleNewline !== -1) buffer = buffer.slice(lastDoubleNewline + 2)
     }
 
     if (result.loading) {
@@ -668,10 +645,6 @@ onUnmounted(() => {
           <input type="checkbox" v-model="fastMode" />
           <span>Fast</span>
         </label>
-        <select v-model="resolution" class="rp-select-sm">
-          <option>1K</option>
-          <option>2K</option>
-        </select>
         <button class="rp-btn rp-btn-render" :disabled="renderInProgress || !canRender" @click="triggerRender">
           <span v-if="renderInProgress" class="rp-btn-spinner" />
           {{ renderInProgress ? 'Rendering...' : selectedVariantId ? 'Render' : `Render All (${variants.length || 1})` }}
