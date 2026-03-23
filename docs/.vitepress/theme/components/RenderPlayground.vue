@@ -44,11 +44,26 @@ interface TestVehicle {
 }
 
 const BUNDLED_VEHICLES: TestVehicle[] = [
-  { id: 'sedan-front', src: '/test-vehicles/sedan-front-quarter.svg', label: 'Sedan Front 3/4', tag: 'Standard', difficulty: 'normal' },
-  { id: 'sedan-side', src: '/test-vehicles/sedan-side-profile.svg', label: 'Sedan Side Profile', tag: 'Easy', difficulty: 'normal' },
-  { id: 'suv-front', src: '/test-vehicles/suv-front-quarter.svg', label: 'SUV Front 3/4', tag: 'Large wheels', difficulty: 'normal' },
-  { id: 'coupe-low', src: '/test-vehicles/coupe-low-angle.svg', label: 'Coupe Low Angle', tag: 'Tricky', difficulty: 'hard' },
-  { id: 'sedan-rear', src: '/test-vehicles/sedan-rear-quarter.svg', label: 'Sedan Rear 3/4', tag: 'Foreshortened', difficulty: 'hard' },
+  { id: 'ford-gt-front', src: '/test-vehicles/ford-gt-front.jpeg', label: 'Ford GT Front 3/4', tag: 'Standard', difficulty: 'normal' },
+  { id: 'ford-gt-rear', src: '/test-vehicles/ford-gt-rear.jpeg', label: 'Ford GT Rear 3/4', tag: 'Rear', difficulty: 'normal' },
+  { id: 'lambo-urus', src: '/test-vehicles/lambo-urus.jpeg', label: 'Lambo Urus', tag: 'SUV', difficulty: 'normal' },
+  { id: 'ford-gt-closeup', src: '/test-vehicles/ford-gt-closeup.jpeg', label: 'Ford GT Close-up', tag: 'Close-up', difficulty: 'hard' },
+  { id: 'kingpin-mustang', src: '/test-vehicles/kingpin-mustang.jpeg', label: 'Kingpin Mustang', tag: 'Dark', difficulty: 'hard' },
+  { id: 'mclaren', src: '/test-vehicles/mclaren.jpeg', label: 'McLaren', tag: 'Portrait', difficulty: 'hard' },
+  { id: 'subaru', src: '/test-vehicles/subaru.jpg', label: 'Subaru', tag: 'Street', difficulty: 'normal' },
+  { id: 'iphone-1', src: '/test-vehicles/iphone-shot-1.jpg', label: 'iPhone Shot 1', tag: 'Phone', difficulty: 'hard' },
+  { id: 'iphone-2', src: '/test-vehicles/iphone-shot-2.jpg', label: 'iPhone Shot 2', tag: 'Phone', difficulty: 'hard' },
+  { id: 'samsung', src: '/test-vehicles/samsung-shot.jpg', label: 'Samsung Shot', tag: 'Phone', difficulty: 'hard' },
+  { id: 'whatsapp', src: '/test-vehicles/whatsapp-car.jpeg', label: 'WhatsApp Car', tag: 'Casual', difficulty: 'normal' },
+  { id: 'wraps-1', src: '/test-vehicles/wraps-1.jpeg', label: 'Wraps 1', tag: 'Wrap', difficulty: 'normal' },
+  { id: 'wraps-2', src: '/test-vehicles/wraps-2.jpg', label: 'Wraps 2', tag: 'Wrap', difficulty: 'normal' },
+  { id: 'wraps-3', src: '/test-vehicles/wraps-3.jpeg', label: 'Wraps 3', tag: 'Wrap', difficulty: 'normal' },
+  { id: 'wraps-4', src: '/test-vehicles/wraps-4.jpeg', label: 'Wraps 4', tag: 'Wrap', difficulty: 'normal' },
+  { id: 'wraps-5', src: '/test-vehicles/wraps-5.jpeg', label: 'Wraps 5', tag: 'Wrap', difficulty: 'normal' },
+  { id: 'wraps-6', src: '/test-vehicles/wraps-6.jpeg', label: 'Wraps 6', tag: 'Wrap', difficulty: 'normal' },
+  { id: 'wraps-7', src: '/test-vehicles/wraps-7.jpeg', label: 'Wraps 7', tag: 'Wrap', difficulty: 'normal' },
+  { id: 'wraps-8', src: '/test-vehicles/wraps-8.jpeg', label: 'Wraps 8', tag: 'Wrap', difficulty: 'normal' },
+  { id: 'wraps-9', src: '/test-vehicles/wraps-9.jpg', label: 'Wraps 9', tag: 'Wrap', difficulty: 'normal' },
 ]
 
 const apiBaseUrl = ref('https://api.platform.xix3d.com')

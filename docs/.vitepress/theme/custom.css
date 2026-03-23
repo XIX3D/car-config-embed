@@ -418,8 +418,9 @@
 }
 .rp-vehicle-upload input[type="file"] { display: none; }
 .rp-vehicle-upload.rp-dragover {
-  border-color: var(--vp-c-brand-1); background: var(--vp-c-brand-1); opacity: 0.15;
-  box-shadow: 0 0 0 3px var(--vp-c-brand-1);
+  border-color: var(--vp-c-brand-1);
+  background: color-mix(in srgb, var(--vp-c-brand-1) 10%, var(--vp-c-bg-soft));
+  box-shadow: 0 0 0 2px var(--vp-c-brand-1);
 }
 .rp-upload-icon {
   font-size: 1.5rem; color: var(--vp-c-text-3); line-height: 1;
