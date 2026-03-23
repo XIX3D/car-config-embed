@@ -1,6 +1,8 @@
 import { createStore, produce } from 'solid-js/store'
 import type { ViewState, RenderResult, Product, Variant, JWTPayload } from '../types'
-import { LOADING_STEPS, LOADING_STEPS_WRAPS, ZOOM } from '../constants'
+import { LOADING_STEPS, LOADING_STEPS_WRAPS, ZOOM, ASPECT_THRESHOLDS } from '../constants'
+
+export type ImageAspect = 'normal' | 'wide' | 'tall' | 'square' | null
 
 export interface WidgetState {
   view: ViewState
@@ -16,6 +18,7 @@ export interface WidgetState {
   // File handling
   selectedFile: File | null
   previewDataUrl: string | null
+  imageAspect: ImageAspect
 
   // Results
   galleryResults: RenderResult[]
@@ -38,9 +41,20 @@ export interface WidgetState {
   showExitModal: boolean
   showFullscreenModal: boolean
   showShareModal: boolean
+  showRestartModal: boolean
+  showDownloadMenu: boolean
+  showRerenderModal: boolean
+  pendingRerenderIndex: number | null
+
+  // Quote view
+  quoteViewIndex: number
 
   // Error
   error: string | null
+
+  // Single re-render
+  rerenderingIndex: number | null
+  rerenderRequestId: string | null
 }
 
 const initialState: WidgetState = {
@@ -55,6 +69,7 @@ const initialState: WidgetState = {
 
   selectedFile: null,
   previewDataUrl: null,
+  imageAspect: null,
 
   galleryResults: [],
   currentIndex: 0,
@@ -73,8 +88,17 @@ const initialState: WidgetState = {
   showExitModal: false,
   showFullscreenModal: false,
   showShareModal: false,
+  showRestartModal: false,
+  showDownloadMenu: false,
+  showRerenderModal: false,
+  pendingRerenderIndex: null,
+
+  quoteViewIndex: 0,
 
   error: null,
+
+  rerenderingIndex: null,
+  rerenderRequestId: null,
 }
 
 export function createWidgetStore() {
@@ -124,6 +148,22 @@ export function createWidgetStore() {
         selectedFile: file,
         previewDataUrl: dataUrl,
       })
+    },
+
+    setImageAspect(width: number, height: number) {
+      if (width <= 0 || height <= 0) {
+        setState('imageAspect', null)
+        return
+      }
+
+      const ratio = width / height
+      let aspect: ImageAspect = 'square'
+
+      if (ratio > ASPECT_THRESHOLDS.wide) aspect = 'wide'
+      else if (ratio > ASPECT_THRESHOLDS.normal) aspect = 'normal'
+      else if (ratio < ASPECT_THRESHOLDS.tall) aspect = 'tall'
+
+      setState('imageAspect', aspect)
     },
 
     startLoading() {
@@ -253,6 +293,8 @@ export function createWidgetStore() {
         zoomLevel: ZOOM.min,
         panX: 0,
         panY: 0,
+        rerenderingIndex: null,
+        rerenderRequestId: null,
       })
     },
 
@@ -287,6 +329,50 @@ export function createWidgetStore() {
 
     toggleShareModal(show: boolean) {
       setState('showShareModal', show)
+    },
+
+    toggleRestartModal(show: boolean) {
+      setState('showRestartModal', show)
+    },
+
+    toggleDownloadMenu(show: boolean) {
+      setState('showDownloadMenu', show)
+    },
+
+    toggleRerenderModal(show: boolean, index?: number) {
+      setState({
+        showRerenderModal: show,
+        pendingRerenderIndex: show ? (index ?? null) : null,
+      })
+    },
+
+    setQuoteViewIndex(index: number) {
+      setState('quoteViewIndex', index)
+    },
+
+    setRerenderingIndex(index: number | null, requestId?: string) {
+      setState({
+        rerenderingIndex: index,
+        rerenderRequestId: requestId || null,
+      })
+    },
+
+    updateSingleResult(index: number, result: Partial<RenderResult>, requestId?: string) {
+      if (requestId && state.rerenderRequestId !== requestId) {
+        return
+      }
+
+      const updatedResult = { ...result }
+
+      if (result.success) {
+        delete updatedResult.error
+      }
+
+      setState('galleryResults', index, (prev) => ({ ...prev, ...updatedResult }))
+      setState({
+        rerenderingIndex: null,
+        rerenderRequestId: null,
+      })
     },
   }
 
