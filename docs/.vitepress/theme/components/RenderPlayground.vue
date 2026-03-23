@@ -104,7 +104,46 @@ interface RenderResult {
 
 const renderResults = ref<RenderResult[]>([])
 const renderInProgress = ref(false)
-const fullscreenImage = ref<string | null>(null)
+const fullscreenIndex = ref<number>(-1)
+
+const fullscreenImage = computed(() => {
+  if (fullscreenIndex.value < 0) return null
+  return renderResults.value[fullscreenIndex.value]?.imageUrl || null
+})
+
+const fullscreenLabel = computed(() => {
+  if (fullscreenIndex.value < 0) return ''
+  return renderResults.value[fullscreenIndex.value]?.label || ''
+})
+
+function openFullscreen(index: number) {
+  fullscreenIndex.value = index
+}
+
+function closeFullscreen() {
+  fullscreenIndex.value = -1
+}
+
+function fullscreenPrev() {
+  if (fullscreenIndex.value <= 0) return
+  for (let i = fullscreenIndex.value - 1; i >= 0; i--) {
+    if (renderResults.value[i]?.imageUrl) { fullscreenIndex.value = i; return }
+  }
+}
+
+function fullscreenNext() {
+  if (fullscreenIndex.value >= renderResults.value.length - 1) return
+  for (let i = fullscreenIndex.value + 1; i < renderResults.value.length; i++) {
+    if (renderResults.value[i]?.imageUrl) { fullscreenIndex.value = i; return }
+  }
+}
+
+function onFullscreenKeydown(e: KeyboardEvent) {
+  if (fullscreenIndex.value < 0) return
+  if (e.key === 'ArrowLeft') { fullscreenPrev(); e.preventDefault() }
+  else if (e.key === 'ArrowRight') { fullscreenNext(); e.preventDefault() }
+  else if (e.key === 'Escape') { closeFullscreen(); e.preventDefault() }
+}
 
 const fastMode = ref(true)
 
@@ -146,6 +185,21 @@ function pickProduct(p: Product) {
   productSearch.value = ''
   productListOpen.value = false
 }
+
+function prevProduct() {
+  const idx = products.value.findIndex(p => String(p.id) === selectedProductId.value)
+  if (idx > 0) pickProduct(products.value[idx - 1])
+}
+
+function nextProduct() {
+  const idx = products.value.findIndex(p => String(p.id) === selectedProductId.value)
+  if (idx >= 0 && idx < products.value.length - 1) pickProduct(products.value[idx + 1])
+}
+
+const productIndex = computed(() => {
+  if (!selectedProductId.value) return -1
+  return products.value.findIndex(p => String(p.id) === selectedProductId.value)
+})
 
 function productThumb(p: Product): string | null {
   if (p.orthographic_image) return p.orthographic_image
@@ -536,7 +590,13 @@ function initMasterEditor() {
 }
 
 watch(showMasterPrompt, (open) => {
-  if (open) nextTick(() => initMasterEditor())
+  if (open) {
+    nextTick(() => initMasterEditor())
+  } else {
+    masterEditor?.dispose()
+    masterEditor = null
+    masterEditorInitialized = false
+  }
 })
 
 async function initMonaco() {
@@ -586,11 +646,13 @@ function onClickOutside(e: MouseEvent) {
 onMounted(() => {
   document.addEventListener('click', onClickOutside)
   document.addEventListener('paste', onPaste)
+  document.addEventListener('keydown', onFullscreenKeydown)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', onClickOutside)
   document.removeEventListener('paste', onPaste)
+  document.removeEventListener('keydown', onFullscreenKeydown)
   observer?.disconnect()
   masterEditor?.dispose()
   editableEditor?.dispose()
@@ -655,8 +717,17 @@ onUnmounted(() => {
     <!-- STEP 1: PRODUCT -->
     <div class="rp-card rp-card-visible">
       <div class="rp-card-header">
-        <span class="rp-step">1</span>
-        <span>Select Product</span>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span class="rp-step">1</span>
+          <span>Select Product</span>
+          <span v-if="selectedProductId && products.length" class="rp-muted" style="font-size: 0.7rem;">
+            {{ productIndex + 1 }} / {{ products.length }}
+          </span>
+        </div>
+        <div v-if="selectedProductId" class="rp-nav-btns">
+          <button class="rp-btn rp-btn-ghost rp-btn-xs" :disabled="productIndex <= 0" @click="prevProduct">&larr; Prev</button>
+          <button class="rp-btn rp-btn-ghost rp-btn-xs" :disabled="productIndex >= products.length - 1" @click="nextProduct">Next &rarr;</button>
+        </div>
       </div>
       <div class="rp-card-body">
         <div class="rp-product-row">
@@ -818,7 +889,7 @@ onUnmounted(() => {
               <span class="rp-result-label">{{ r.label }}</span>
               <div style="display: flex; align-items: center; gap: 0.3rem;">
                 <span v-if="r.elapsed" class="rp-muted" style="font-size: 0.7rem;">{{ r.elapsed }}s</span>
-                <button v-if="r.imageUrl" class="rp-btn rp-btn-ghost rp-btn-xs" @click="fullscreenImage = r.imageUrl">View</button>
+                <button v-if="r.imageUrl" class="rp-btn rp-btn-ghost rp-btn-xs" @click="openFullscreen(i)">View</button>
               </div>
             </div>
 
@@ -836,7 +907,7 @@ onUnmounted(() => {
             </div>
             <div v-else-if="r.error" class="rp-error">{{ r.error }}</div>
             <div v-else-if="r.imageUrl" class="rp-render-result">
-              <img :src="r.imageUrl" :alt="r.label" @click="fullscreenImage = r.imageUrl" style="cursor: pointer;" />
+              <img :src="r.imageUrl" :alt="r.label" @click="openFullscreen(i)" style="cursor: pointer;" />
             </div>
           </div>
         </div>
@@ -845,11 +916,14 @@ onUnmounted(() => {
 
     <!-- FULLSCREEN MODAL -->
     <Teleport to="body">
-      <div v-if="fullscreenImage" class="rp-fullscreen-overlay" @click.self="fullscreenImage = null">
+      <div v-if="fullscreenImage" class="rp-fullscreen-overlay" @click.self="closeFullscreen">
+        <button class="rp-fs-nav rp-fs-prev" :disabled="fullscreenIndex <= 0" @click="fullscreenPrev">&lsaquo;</button>
         <div class="rp-fullscreen-modal">
-          <button class="rp-fullscreen-close" @click="fullscreenImage = null">&times;</button>
-          <img :src="fullscreenImage" alt="Render result fullscreen" />
+          <button class="rp-fullscreen-close" @click="closeFullscreen">&times;</button>
+          <img :src="fullscreenImage" :alt="fullscreenLabel" />
+          <div class="rp-fs-label">{{ fullscreenLabel }}</div>
         </div>
+        <button class="rp-fs-nav rp-fs-next" :disabled="fullscreenIndex >= renderResults.length - 1" @click="fullscreenNext">&rsaquo;</button>
       </div>
     </Teleport>
     </template>

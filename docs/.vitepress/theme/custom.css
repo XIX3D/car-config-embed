@@ -480,6 +480,24 @@
   transition: background 0.15s;
 }
 .rp-fullscreen-close:hover { background: rgba(255,255,255,0.3); }
+.rp-fs-label {
+  text-align: center; padding: 0.5rem 0 0;
+  color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 500;
+}
+.rp-fs-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  border: none; background: rgba(255,255,255,0.1); color: #fff;
+  width: 48px; height: 48px; border-radius: 50%; font-size: 1.8rem;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s; z-index: 10;
+}
+.rp-fs-nav:hover:not(:disabled) { background: rgba(255,255,255,0.25); }
+.rp-fs-nav:disabled { opacity: 0.2; cursor: default; }
+.rp-fs-prev { left: 1.5rem; }
+.rp-fs-next { right: 1.5rem; }
+
+/* Product nav buttons */
+.rp-nav-btns { display: flex; gap: 0.3rem; }
 
 /* SSE strip */
 .rp-sse-strip {
