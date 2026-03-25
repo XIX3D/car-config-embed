@@ -270,7 +270,7 @@ async function connectApi() {
 
 async function fetchProducts() {
   try {
-    const res = await apiFetch('/api/v1/products?limit=100&category=wheels&manufacturer_id=1')
+    const res = await apiFetch('/api/v1/products?limit=1000&category=wheels&manufacturer_id=1')
     const data = await res.json()
     const all = data.products || data || []
     products.value = all.filter((p: any) => p.manufacturer_id === 1)
