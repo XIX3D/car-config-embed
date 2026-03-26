@@ -51,6 +51,9 @@ async function processSSEStream(
         case 'step_complete':
           handlers.onStepComplete?.(data)
           break
+        case 'debug':
+          handlers.onDebug?.(data)
+          break
         case 'complete':
           finalImage = `data:image/png;base64,${data.image_b64}`
           handlers.onComplete?.(data)
@@ -162,6 +165,7 @@ export function createApiClient(baseUrl: string) {
     }))
     formData.append('products', JSON.stringify(productsPayload))
     formData.append('fast_mode', 'true')
+    formData.append('debug', 'true')
 
     try {
       const res = await fetch(`${baseUrl}/api/v1/render/chain/stream`, {
@@ -208,6 +212,7 @@ export function createApiClient(baseUrl: string) {
     }))
     formData.append('products', JSON.stringify(productsPayload))
     formData.append('fast_mode', 'true')
+    formData.append('debug', 'true')
 
     try {
       const res = await fetch(`${baseUrl}/api/v1/render/chain/stream`, {

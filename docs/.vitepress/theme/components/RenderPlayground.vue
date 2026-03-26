@@ -105,6 +105,38 @@ interface RenderResult {
 const renderResults = ref<RenderResult[]>([])
 const renderInProgress = ref(false)
 const fullscreenIndex = ref<number>(-1)
+const debugModalData = ref<Record<string, any> | null>(null)
+
+function openDebugModal(result: RenderResult) {
+  const evt = result.sseEvents.find(e => e.type === 'debug')
+  if (evt) debugModalData.value = evt.data
+}
+
+function closeDebugModal() {
+  debugModalData.value = null
+}
+
+function getDebugEvent(result: RenderResult) {
+  return result.sseEvents.find(e => e.type === 'debug')
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  return `${(bytes / 1024).toFixed(1)} KB`
+}
+
+function storageUrl(path: string): string {
+  return path
+}
+
+async function copyDebugText() {
+  if (!debugModalData.value?.parts) return
+  const text = debugModalData.value.parts
+    .filter((p: any) => p.type === 'text')
+    .map((p: any) => p.content)
+    .join('\n')
+  await navigator.clipboard.writeText(text)
+}
 
 const fullscreenImage = computed(() => {
   if (fullscreenIndex.value < 0) return null
@@ -442,6 +474,7 @@ async function renderOne(result: RenderResult, vehicleBlob: Blob, productId: num
   }]
   formData.append('products', JSON.stringify(productsPayload))
   formData.append('fast_mode', 'true')
+  formData.append('debug', 'true')
 
   try {
     const res = await fetch(`${apiBaseUrl.value}/api/v1/render/chain/stream`, {
@@ -894,9 +927,12 @@ onUnmounted(() => {
             </div>
 
             <div v-if="r.sseEvents.length" class="rp-sse-strip">
-              <span v-for="(evt, j) in r.sseEvents" :key="j" class="rp-sse-chip" :class="evt.type">
+              <span v-for="(evt, j) in r.sseEvents" :key="j"
+                class="rp-sse-chip" :class="[evt.type, { clickable: evt.type === 'debug' }]"
+                @click="evt.type === 'debug' && openDebugModal(r)">
                 <template v-if="evt.type === 'vehicle_detected'">{{ evt.data.make }} {{ evt.data.model }}</template>
                 <template v-else-if="evt.type === 'error'">{{ evt.data.message }}</template>
+                <template v-else-if="evt.type === 'debug'">debug ▸</template>
                 <template v-else>{{ evt.type }}</template>
               </span>
             </div>
@@ -924,6 +960,41 @@ onUnmounted(() => {
           <div class="rp-fs-label">{{ fullscreenLabel }}</div>
         </div>
         <button class="rp-fs-nav rp-fs-next" :disabled="fullscreenIndex >= renderResults.length - 1" @click="fullscreenNext">&rsaquo;</button>
+      </div>
+    </Teleport>
+
+    <!-- DEBUG MODAL -->
+    <Teleport to="body">
+      <div v-if="debugModalData" class="rp-fullscreen-overlay" @click.self="closeDebugModal" @keydown.escape="closeDebugModal">
+        <div class="rp-debug-modal">
+          <div class="rp-debug-modal-header">
+            <span class="rp-debug-modal-title">Gemini Debug — {{ debugModalData.parts?.length || 0 }} parts</span>
+            <div style="display: flex; gap: 0.5rem;">
+              <button class="rp-btn rp-btn-ghost rp-btn-xs" @click="copyDebugText">Copy text</button>
+              <button class="rp-fullscreen-close" @click="closeDebugModal" style="position: static;">&times;</button>
+            </div>
+          </div>
+          <div class="rp-debug-modal-body">
+            <div v-if="debugModalData.missing_references?.length" class="rp-debug-missing">
+              <span class="rp-debug-missing-label">Missing references ({{ debugModalData.missing_references.length }})</span>
+              <span v-for="(ref, k) in debugModalData.missing_references" :key="k" class="rp-debug-missing-item">{{ ref }}</span>
+            </div>
+            <template v-for="(part, k) in debugModalData.parts" :key="k">
+              <pre v-if="part.type === 'text'" class="rp-debug-prompt">{{ part.content }}</pre>
+              <div v-else-if="part.type === 'image'" class="rp-debug-image-card">
+                <div class="rp-debug-image-preview">
+                  <img v-if="part.source" :src="storageUrl(part.source)" :alt="`Part ${k + 1}`" loading="lazy" />
+                  <div v-else class="rp-debug-image-placeholder">No source</div>
+                </div>
+                <div class="rp-debug-image-meta">
+                  <span class="rp-debug-image-badge">image</span>
+                  <span class="rp-muted">{{ part.mime_type }} · {{ formatBytes(part.size_bytes) }}</span>
+                  <span v-if="part.source" class="rp-debug-source">{{ part.source }}</span>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
       </div>
     </Teleport>
     </template>

@@ -9,6 +9,8 @@ import {
 import type { RenderResult } from "../../types";
 import { ZENO, ZOOM } from "../../constants";
 import { ModalHeader } from "./ModalHeader";
+import { DebugPanel } from "../Debug/DebugPanel";
+import type { DebugData } from "../../types";
 
 const DEBUG = import.meta.env.VITE_DEBUG === "true";
 
@@ -35,6 +37,7 @@ interface ResultViewProps {
   rerenderingIndex?: number;
   onDownloadMenu?: () => void;
   triggerZoomAnimation?: boolean;
+  debugData?: DebugData | null;
 }
 
 export function ResultView(props: ResultViewProps) {
@@ -543,7 +546,7 @@ export function ResultView(props: ResultViewProps) {
             </div>
           </Show>
 
-          {/* Debug animation button */}
+          {/* Debug tools */}
           <Show when={DEBUG}>
             <button
               class="absolute bottom-3 left-3 z-20 bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-full text-white text-xs font-medium transition-colors cursor-pointer"
@@ -554,6 +557,9 @@ export function ResultView(props: ResultViewProps) {
             >
               Test Zoom
             </button>
+            <Show when={props.debugData}>
+              <DebugPanel debugData={props.debugData!} />
+            </Show>
           </Show>
 
           {current()?.loading ? (

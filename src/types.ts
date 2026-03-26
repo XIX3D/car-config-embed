@@ -71,11 +71,31 @@ export interface LoadingStep {
 
 export type VehicleType = 'sedan' | 'coupe' | 'hatchback' | 'suv' | 'truck' | 'minivan' | 'convertible' | 'wagon'
 
+export interface DebugTextPart {
+  type: 'text'
+  content: string
+}
+
+export interface DebugImagePart {
+  type: 'image'
+  mime_type: string
+  size_bytes: number
+  source?: string
+}
+
+export type DebugPart = DebugTextPart | DebugImagePart
+
+export interface DebugData {
+  parts: DebugPart[]
+  missing_references?: string[]
+}
+
 export interface RenderStreamEvents {
   onStarted?: () => void
   onVehicleDetected?: (data: { make: string; model: string; year: string; vehicle_type: VehicleType }) => void
   onProgress?: (data: { step: number; total: number; product_name: string }) => void
   onStepComplete?: (data: { image_b64: string }) => void
+  onDebug?: (data: DebugData) => void
   onComplete?: (data: { image_b64: string }) => void
   onError?: (message: string) => void
 }

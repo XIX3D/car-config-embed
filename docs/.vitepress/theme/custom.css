@@ -517,6 +517,85 @@
 .dark .rp-sse-chip.vehicle_detected { background: #14532d; color: #86efac; }
 .dark .rp-sse-chip.complete { background: #064e3b; color: #6ee7b7; }
 .dark .rp-sse-chip.error { background: #7f1d1d; color: #fca5a5; }
+.rp-sse-chip.debug { background: #fef3c7; color: #92400e; cursor: pointer; }
+.dark .rp-sse-chip.debug { background: #78350f; color: #fde68a; }
+.rp-sse-chip.clickable:hover { opacity: 0.8; }
+
+/* Debug modal */
+.rp-debug-modal {
+  position: relative;
+  width: 90vw; max-width: 900px; max-height: 90vh;
+  background: var(--vp-c-bg); border-radius: 12px;
+  display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  overflow: hidden;
+}
+.rp-debug-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--vp-c-divider);
+  flex-shrink: 0;
+}
+.rp-debug-modal-title {
+  font-size: 0.85rem; font-weight: 600;
+}
+.rp-debug-modal-body {
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.rp-debug-prompt {
+  font-size: 0.8rem; font-family: var(--vp-font-family-mono);
+  white-space: pre-wrap; word-break: break-word;
+  background: var(--vp-c-bg-soft); border: 1px solid var(--vp-c-divider);
+  border-radius: 8px; padding: 0.6rem 0.75rem;
+  margin: 0; line-height: 1.5;
+}
+.rp-debug-image-card {
+  display: flex; align-items: center; gap: 0.75rem;
+  background: var(--vp-c-bg-soft); border: 1px solid var(--vp-c-divider);
+  border-radius: 8px; padding: 0.5rem 0.75rem;
+}
+.rp-debug-image-preview {
+  flex-shrink: 0; width: 80px; height: 80px;
+  border-radius: 6px; overflow: hidden;
+  background: var(--vp-c-bg); border: 1px solid var(--vp-c-divider);
+}
+.rp-debug-image-preview img {
+  width: 100%; height: 100%; object-fit: contain;
+}
+.rp-debug-image-placeholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.6rem; color: var(--vp-c-text-3);
+}
+.rp-debug-image-meta {
+  display: flex; flex-direction: column; gap: 0.25rem;
+  font-size: 0.75rem; font-family: var(--vp-font-family-mono);
+}
+.rp-debug-image-badge {
+  font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
+  background: #f59e0b; color: #fff; padding: 0.1rem 0.4rem; border-radius: 4px;
+  width: fit-content;
+}
+.rp-debug-source { color: #d97706; font-size: 0.7rem; word-break: break-all; }
+.dark .rp-debug-source { color: #fbbf24; }
+.rp-debug-missing {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem;
+  background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px;
+  padding: 0.5rem 0.75rem; margin-bottom: 0.25rem;
+}
+.dark .rp-debug-missing { background: #7f1d1d; border-color: #991b1b; }
+.rp-debug-missing-label {
+  font-size: 0.75rem; font-weight: 600; color: #991b1b; margin-right: 0.25rem;
+}
+.dark .rp-debug-missing-label { color: #fca5a5; }
+.rp-debug-missing-item {
+  font-size: 0.7rem; font-family: var(--vp-font-family-mono);
+  background: rgba(0,0,0,0.08); padding: 0.1rem 0.4rem; border-radius: 4px;
+  color: #991b1b;
+}
+.dark .rp-debug-missing-item { background: rgba(255,255,255,0.08); color: #fca5a5; }
 
 /* Error / Spinner */
 .rp-error {

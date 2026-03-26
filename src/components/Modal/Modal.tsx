@@ -153,6 +153,9 @@ export function Modal(props: ModalProps) {
           const vehicle = `${data.year} ${data.make} ${data.model}`
           actions.setDetectedVehicle(vehicle)
         },
+        onDebug: (data) => {
+          actions.setDebugData(data)
+        },
         onComplete: (data) => {
           actions.updateResult(index, {
             image: `data:image/png;base64,${data.image_b64}`,
@@ -196,6 +199,9 @@ export function Modal(props: ModalProps) {
     }
 
     props.api.renderSingleVariant(state.selectedFile, products, {
+      onDebug: (data) => {
+        actions.setDebugData(data)
+      },
       onComplete: (data) => {
         actions.updateSingleResult(index, {
           image: `data:image/png;base64,${data.image_b64}`,
@@ -376,6 +382,7 @@ export function Modal(props: ModalProps) {
                   rerenderingIndex={state.rerenderingIndex ?? undefined}
                   onDownloadMenu={() => actions.toggleDownloadMenu(true)}
                   triggerZoomAnimation={triggerZoomAnimation()}
+                  debugData={state.debugData}
                 />
               </Match>
 

@@ -1,5 +1,5 @@
 import { createStore, produce } from 'solid-js/store'
-import type { ViewState, RenderResult, Product, Variant, JWTPayload } from '../types'
+import type { ViewState, RenderResult, Product, Variant, JWTPayload, DebugData } from '../types'
 import { LOADING_STEPS, LOADING_STEPS_WRAPS, ZOOM, ASPECT_THRESHOLDS } from '../constants'
 
 export type ImageAspect = 'normal' | 'wide' | 'tall' | 'square' | null
@@ -52,6 +52,9 @@ export interface WidgetState {
   // Error
   error: string | null
 
+  // Debug
+  debugData: DebugData | null
+
   // Single re-render
   rerenderingIndex: number | null
   rerenderRequestId: string | null
@@ -96,6 +99,8 @@ const initialState: WidgetState = {
   quoteViewIndex: 0,
 
   error: null,
+
+  debugData: null,
 
   rerenderingIndex: null,
   rerenderRequestId: null,
@@ -290,6 +295,7 @@ export function createWidgetStore() {
         hasRendered: false,
         interestedFinishes: [],
         error: null,
+        debugData: null,
         zoomLevel: ZOOM.min,
         panX: 0,
         panY: 0,
@@ -313,6 +319,10 @@ export function createWidgetStore() {
 
     setDragging(dragging: boolean) {
       setState('isDragging', dragging)
+    },
+
+    setDebugData(data: DebugData) {
+      setState('debugData', data)
     },
 
     setError(error: string | null) {
