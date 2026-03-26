@@ -148,7 +148,7 @@ export function Modal(props: ModalProps) {
         products.push(p)
       }
 
-      props.api.renderStream(file, products, {
+      props.api.renderStream(file, products, state.product!.manufacturer_id, {
         onVehicleDetected: (data) => {
           const vehicle = `${data.year} ${data.make} ${data.model}`
           actions.setDetectedVehicle(vehicle)
@@ -198,7 +198,7 @@ export function Modal(props: ModalProps) {
       products.push(p)
     }
 
-    props.api.renderSingleVariant(state.selectedFile, products, {
+    props.api.renderSingleVariant(state.selectedFile, products, state.product!.manufacturer_id, {
       onDebug: (data) => {
         actions.setDebugData(data)
       },

@@ -104,11 +104,13 @@ export function createApiClient(baseUrl: string) {
   const render = async (
     file: File,
     products: Array<{ product_id: string; variant_id?: string }>,
+    manufacturerId: number,
   ): Promise<{ success: boolean; final_image?: string; detected_vehicle?: string; error?: string }> => {
     const formData = new FormData()
 
     formData.append('vehicle_image', file)
     formData.append('products', JSON.stringify(products))
+    formData.append('manufacturer_id', String(manufacturerId))
 
     try {
       const res = await fetch(`${baseUrl}/api/v1/render/chain`, {
@@ -153,6 +155,7 @@ export function createApiClient(baseUrl: string) {
   const renderStream = async (
     file: File,
     products: Array<{ product_id: string; variant_id?: string }>,
+    manufacturerId: number,
     events: RenderStreamEvents,
     signal?: AbortSignal,
   ): Promise<{ success: boolean; final_image?: string; detected_vehicle?: string; error?: string }> => {
@@ -164,6 +167,7 @@ export function createApiClient(baseUrl: string) {
       ...(p.variant_id ? { variant_id: parseInt(p.variant_id, 10) } : {}),
     }))
     formData.append('products', JSON.stringify(productsPayload))
+    formData.append('manufacturer_id', String(manufacturerId))
     formData.append('fast_mode', 'true')
     formData.append('debug', 'true')
 
@@ -200,6 +204,7 @@ export function createApiClient(baseUrl: string) {
   const renderSingleVariant = async (
     file: File,
     products: Array<{ product_id: string; variant_id?: string }>,
+    manufacturerId: number,
     events: RenderStreamEvents,
     signal?: AbortSignal,
   ): Promise<{ success: boolean; image?: string; error?: string }> => {
@@ -211,6 +216,7 @@ export function createApiClient(baseUrl: string) {
       ...(p.variant_id ? { variant_id: parseInt(p.variant_id, 10) } : {}),
     }))
     formData.append('products', JSON.stringify(productsPayload))
+    formData.append('manufacturer_id', String(manufacturerId))
     formData.append('fast_mode', 'true')
     formData.append('debug', 'true')
 
