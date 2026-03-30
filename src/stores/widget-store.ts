@@ -1,5 +1,5 @@
 import { createStore, produce } from 'solid-js/store'
-import type { ViewState, RenderResult, Product, Variant, JWTPayload, DebugData } from '../types'
+import type { ViewState, RenderResult, Product, Variant, JWTPayload, DebugData, VehicleInfo } from '../types'
 import { LOADING_STEPS, LOADING_STEPS_WRAPS, ZOOM, ASPECT_THRESHOLDS } from '../constants'
 
 export type ImageAspect = 'normal' | 'wide' | 'tall' | 'square' | null
@@ -24,7 +24,7 @@ export interface WidgetState {
   galleryResults: RenderResult[]
   currentIndex: number
   hasRendered: boolean
-  detectedVehicle: string | null
+  detectedVehicle: VehicleInfo | null
   interestedFinishes: number[]
 
   // Loading
@@ -205,7 +205,7 @@ export function createWidgetStore() {
       }
     },
 
-    setResults(results: RenderResult[], detectedVehicle?: string) {
+    setResults(results: RenderResult[], detectedVehicle?: VehicleInfo) {
       actions.stopLoading()
 
       const successfulResults = results.filter((r) => r.success)
@@ -249,7 +249,7 @@ export function createWidgetStore() {
       }
     },
 
-    setDetectedVehicle(vehicle: string) {
+    setDetectedVehicle(vehicle: VehicleInfo) {
       setState('detectedVehicle', vehicle)
     },
 

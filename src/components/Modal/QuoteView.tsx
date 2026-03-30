@@ -1,5 +1,5 @@
 import { createSignal, For, Show, createEffect } from 'solid-js'
-import type { RenderResult } from '../../types'
+import type { RenderResult, VehicleInfo } from '../../types'
 import { ModalHeader } from './ModalHeader'
 
 interface CustomerData {
@@ -14,7 +14,7 @@ interface QuoteViewProps {
   modelName: string
   results: RenderResult[]
   interestedFinishes: number[]
-  detectedVehicle: string | null
+  detectedVehicle: VehicleInfo | null
   quoteViewIndex: number
   onClose: () => void
   onBack: () => void
@@ -25,7 +25,10 @@ interface QuoteViewProps {
 }
 
 export function QuoteView(props: QuoteViewProps) {
-  const getInitialVehicle = () => props.detectedVehicle || ''
+  const getInitialVehicle = () => {
+    const v = props.detectedVehicle
+    return v ? `${v.year} ${v.make} ${v.model}` : ''
+  }
   const [name, setName] = createSignal('')
   const [email, setEmail] = createSignal('')
   const [phone, setPhone] = createSignal('')

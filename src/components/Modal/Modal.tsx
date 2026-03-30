@@ -150,8 +150,7 @@ export function Modal(props: ModalProps) {
 
       props.api.renderStream(file, products, state.product!.manufacturer_id, {
         onVehicleDetected: (data) => {
-          const vehicle = `${data.year} ${data.make} ${data.model}`
-          actions.setDetectedVehicle(vehicle)
+          actions.setDetectedVehicle(data)
         },
         onDebug: (data) => {
           actions.setDebugData(data)
@@ -244,6 +243,7 @@ export function Modal(props: ModalProps) {
       name: customer.name,
       email: customer.email,
       phone: customer.phone,
+      vehicle_info: state.detectedVehicle ?? undefined,
       product_ids: productIds,
       images,
       manufacturer_id: state.product.manufacturer_id,
