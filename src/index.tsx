@@ -7,6 +7,7 @@ import { ZenoButton } from './components/ZenoButton'
 import { createWidgetStore } from './stores/widget-store'
 import { createApiClient } from './utils/api'
 import { decodeJWT } from './utils/jwt'
+import { createSession } from './utils/session'
 import { detectTheme, observeThemeChanges } from './utils/theme'
 import type { ButtonTheme, ButtonSize, WidgetConfig } from './types'
 
@@ -54,6 +55,33 @@ async function openPreview(jwt: string, customBrand?: string) {
     return
   }
 
+  mountWidget()
+
+  api.setSessionId(createSession())
+
+  const decodeResult = await api.decodeToken(jwt)
+
+  if (decodeResult?.valid) {
+    const product = decodeResult.wheel || decodeResult.wrap
+    const productId = product?.id
+    const variantIds = decodeResult.variant_ids?.map(String) || []
+
+    const selections = {
+      wheel_id: decodeResult.wheel?.id,
+      wrap_id: decodeResult.wrap?.id,
+      variant_ids: variantIds,
+    }
+
+    let variants: Awaited<ReturnType<typeof api.fetchVariants>> = []
+
+    if (productId) {
+      variants = await api.fetchVariants(productId, variantIds, true)
+    }
+
+    store.actions.open(selections, product, variants, customBrand)
+    return
+  }
+
   const selections = decodeJWT(jwt)
 
   if (!selections) {
@@ -61,8 +89,6 @@ async function openPreview(jwt: string, customBrand?: string) {
 
     return
   }
-
-  mountWidget()
 
   const productId = selections.wheel_id || selections.wrap_id
   const allowedVariantIds = selections.variant_ids || []

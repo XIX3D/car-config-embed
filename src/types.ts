@@ -6,21 +6,66 @@ export interface JWTPayload {
   iat?: number
 }
 
+export interface Manufacturer {
+  id: number
+  company_name: string
+}
+
 export interface Product {
   id: string
   name: string
   category?: string
+  sku?: string
   manufacturer_id: number
+  manufacturer?: Manufacturer
   reference_image_paths?: string[]
   orthographic_image?: string
+  centerlock_image?: string
+  finish?: string
+  color_family?: string
+  primary_color_hex?: string
+  status?: string
+  created_at?: string
 }
 
 export interface Variant {
   id: string
+  product_id?: string
   variant_name: string
+  variant_slug?: string
+  variant_type?: string
   hex_color?: string
+  prompt_finish?: string
+  is_default?: boolean
+  is_top_variant?: boolean
+  display_order?: number
   reference_image?: string
   reference_image_paths?: string[]
+  orthographic_image?: string
+  centerlock_image?: string
+}
+
+export interface DecodeTokenResponse {
+  valid: boolean
+  manufacturer_id: number
+  wrap: Product | null
+  wheel: Product | null
+  variant_ids: number[]
+}
+
+export interface VehicleDetectionResult {
+  make: string
+  model: string
+  year: string
+  vehicle_type: VehicleType
+  confidence: number
+}
+
+export interface SimilarProduct {
+  id: string
+  name: string
+  category?: string
+  finish?: string
 }
 
 export interface RenderResult {
@@ -49,6 +94,8 @@ export interface QuoteRequest {
   vehicle_info?: VehicleInfo
   product_ids: number[]
   images?: string[]
+  final_image_url?: string
+  final_image_urls?: string[]
   manufacturer_id: number
 }
 

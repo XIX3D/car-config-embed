@@ -1,4 +1,4 @@
-import type { Product, Variant, QuoteRequest, RenderStreamEvents } from '../types'
+import type { Product, Variant, QuoteRequest, RenderStreamEvents, DecodeTokenResponse, VehicleDetectionResult, SimilarProduct } from '../types'
 
 interface SSEStreamResult {
   image?: string
@@ -69,12 +69,36 @@ async function processSSEStream(
 }
 
 export function createApiClient(baseUrl: string) {
+  let _sessionId: string | null = null
+
+  const setSessionId = (id: string) => { _sessionId = id }
+
+  const sessionHeaders = (): Record<string, string> =>
+    _sessionId ? { 'X-Session-ID': _sessionId } : {}
+
+  const decodeToken = async (token: string): Promise<DecodeTokenResponse | null> => {
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/embed/decode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
+        body: JSON.stringify({ token }),
+      })
+
+      if (!res.ok) return null
+      return await res.json()
+    } catch {
+      return null
+    }
+  }
+
   const fetchProduct = async (productId: string): Promise<Product | null> => {
     try {
-      const res = await fetch(`${baseUrl}/api/v1/products/${productId}`)
+      const res = await fetch(`${baseUrl}/api/v1/products/${productId}`, {
+        headers: sessionHeaders(),
+      })
       const data = await res.json()
 
-      return data.success ? data.product : null
+      return data.product ?? (data.success ? data.product : null)
     } catch {
       return null
     }
@@ -83,13 +107,17 @@ export function createApiClient(baseUrl: string) {
   const fetchVariants = async (
     productId: string,
     allowedIds?: string[],
+    topOnly?: boolean,
   ): Promise<Variant[]> => {
     try {
-      const res = await fetch(`${baseUrl}/api/v1/products/${productId}/variants`)
+      const params = topOnly ? '?top_only=true' : ''
+      const res = await fetch(`${baseUrl}/api/v1/products/${productId}/variants${params}`, {
+        headers: sessionHeaders(),
+      })
       const data = await res.json()
 
-      if (!data.success) return []
-      let variants = data.variants as Variant[]
+      if (!res.ok) return []
+      let variants = (data.variants ?? []) as Variant[]
 
       if (allowedIds?.length) {
         variants = variants.filter((v) => allowedIds.includes(v.id))
@@ -99,6 +127,59 @@ export function createApiClient(baseUrl: string) {
     } catch {
       return []
     }
+  }
+
+  const fetchDefaultVariant = async (productId: string): Promise<Variant | null> => {
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/products/${productId}/variants/default`, {
+        headers: sessionHeaders(),
+      })
+      if (!res.ok) return null
+      const data = await res.json()
+      return data.variant ?? null
+    } catch {
+      return null
+    }
+  }
+
+  const detectVehicle = async (file: File): Promise<VehicleDetectionResult | null> => {
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+
+      const res = await fetch(`${baseUrl}/api/v1/products/detect-vehicle`, {
+        method: 'POST',
+        headers: sessionHeaders(),
+        body: formData,
+      })
+
+      if (!res.ok) return null
+      const data = await res.json()
+      return data.vehicle ?? null
+    } catch {
+      return null
+    }
+  }
+
+  const fetchSimilarProducts = async (productId: string): Promise<SimilarProduct[]> => {
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/products/${productId}/similar`, {
+        headers: sessionHeaders(),
+      })
+      if (!res.ok) return []
+      const data = await res.json()
+      return data.similar ?? []
+    } catch {
+      return []
+    }
+  }
+
+  const getProductThumbnailUrl = (productId: string, width?: number, height?: number): string => {
+    const params = new URLSearchParams()
+    if (width) params.set('width', String(width))
+    if (height) params.set('height', String(height))
+    const qs = params.toString()
+    return `${baseUrl}/api/v1/products/${productId}/thumbnail${qs ? `?${qs}` : ''}`
   }
 
   const render = async (
@@ -115,6 +196,7 @@ export function createApiClient(baseUrl: string) {
     try {
       const res = await fetch(`${baseUrl}/api/v1/render/chain`, {
         method: 'POST',
+        headers: sessionHeaders(),
         body: formData,
       })
 
@@ -139,7 +221,7 @@ export function createApiClient(baseUrl: string) {
     try {
       const res = await fetch(`${baseUrl}/api/v1/quote/request`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
         body: JSON.stringify(request),
       })
 
@@ -151,6 +233,35 @@ export function createApiClient(baseUrl: string) {
 
   const getStorageUrl = (path: string) =>
     `${baseUrl}/storage/${path}`
+
+  const renderSingle = async (
+    file: File,
+    productId: string,
+    opts?: { variantId?: string; manufacturerId?: number; fastMode?: boolean; resolution?: string },
+  ): Promise<{ success: boolean; image?: string; error?: string }> => {
+    const formData = new FormData()
+    formData.append('vehicle_image', file)
+    formData.append('product_id', productId)
+    if (opts?.variantId) formData.append('variant_id', opts.variantId)
+    if (opts?.manufacturerId) formData.append('manufacturer_id', String(opts.manufacturerId))
+    if (opts?.fastMode) formData.append('fast_mode', 'true')
+    if (opts?.resolution) formData.append('resolution', opts.resolution)
+
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/render/single`, {
+        method: 'POST',
+        headers: sessionHeaders(),
+        body: formData,
+      })
+
+      if (!res.ok) throw new Error(`Render failed (${res.status})`)
+
+      const blob = await res.blob()
+      return { success: true, image: URL.createObjectURL(blob) }
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : 'Unknown error' }
+    }
+  }
 
   const renderStream = async (
     file: File,
@@ -174,6 +285,7 @@ export function createApiClient(baseUrl: string) {
     try {
       const res = await fetch(`${baseUrl}/api/v1/render/chain/stream`, {
         method: 'POST',
+        headers: sessionHeaders(),
         body: formData,
         signal,
       })
@@ -223,6 +335,7 @@ export function createApiClient(baseUrl: string) {
     try {
       const res = await fetch(`${baseUrl}/api/v1/render/chain/stream`, {
         method: 'POST',
+        headers: sessionHeaders(),
         body: formData,
         signal,
       })
@@ -253,9 +366,16 @@ export function createApiClient(baseUrl: string) {
   }
 
   return {
+    setSessionId,
+    decodeToken,
     fetchProduct,
     fetchVariants,
+    fetchDefaultVariant,
+    detectVehicle,
+    fetchSimilarProducts,
+    getProductThumbnailUrl,
     render,
+    renderSingle,
     renderStream,
     renderSingleVariant,
     submitQuote,
