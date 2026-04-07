@@ -41,6 +41,19 @@
   --theme-error: #ff6b6b;
 }
 
+/* HRE theme overrides */
+[data-theme="hre"],
+[data-theme="hre"] * {
+  --theme-primary: #c0392b;
+  --theme-primary-light: #ffffff;
+  --theme-primary-muted: #a0a0a0;
+  --theme-bg-dark: #0a0a0a;
+  --theme-bg-card: #141414;
+  --theme-bg-elevated: #1f1f1f;
+  --theme-success: #c0392b;
+  --theme-error: #ff6b6b;
+}
+
 /* Override Tailwind utility classes for Arctic theme */
 [data-theme="arctic"] .bg-zeno-card { background-color: #373737 !important; }
 [data-theme="arctic"] .bg-zeno-dark { background-color: #262626 !important; }
@@ -55,6 +68,21 @@
 [data-theme="arctic"] .border-zeno-cyan { border-color: #FFFFFF !important; }
 [data-theme="arctic"] .from-zeno-cyan { --tw-gradient-from: #FFFFFF !important; }
 [data-theme="arctic"] .to-zeno-green { --tw-gradient-to: #373737 !important; }
+
+/* Override Tailwind utility classes for HRE theme */
+[data-theme="hre"] .bg-zeno-card { background-color: #141414 !important; }
+[data-theme="hre"] .bg-zeno-dark { background-color: #0a0a0a !important; }
+[data-theme="hre"] .bg-zeno-elevated { background-color: #1f1f1f !important; }
+[data-theme="hre"] .bg-zeno-electric { background-color: #c0392b !important; }
+[data-theme="hre"] .bg-zeno-success { background-color: #c0392b !important; }
+[data-theme="hre"] .text-zeno-electric { color: #c0392b !important; }
+[data-theme="hre"] .text-zeno-cyan { color: #ffffff !important; }
+[data-theme="hre"] .text-zeno-success { color: #c0392b !important; }
+[data-theme="hre"] .text-zeno-dark { color: #0a0a0a !important; }
+[data-theme="hre"] .border-zeno-electric { border-color: #c0392b !important; }
+[data-theme="hre"] .border-zeno-cyan { border-color: #ffffff !important; }
+[data-theme="hre"] .from-zeno-cyan { --tw-gradient-from: #ffffff !important; }
+[data-theme="hre"] .to-zeno-green { --tw-gradient-to: #a0a0a0 !important; }
 
 /* Success view theme overrides */
 .avacar-success-glow {
@@ -87,10 +115,25 @@
   background-color: #FFFFFF;
 }
 
+[data-theme="hre"] .avacar-success-glow {
+  background: radial-gradient(circle, rgba(192, 57, 43, 0.18) 0%, transparent 70%);
+}
+[data-theme="hre"] .avacar-success-check {
+  background: #c0392b;
+  box-shadow: 0 0 30px rgba(192, 57, 43, 0.38), 0 0 60px rgba(192, 57, 43, 0.25);
+}
+[data-theme="hre"] .avacar-success-sparkle {
+  color: #c0392b;
+}
+[data-theme="hre"] .avacar-confetti-green {
+  background-color: #c0392b;
+}
+
 /* ===== Animation Utility Classes ===== */
 .animate-fadeInUp { animation: fadeInUp 0.4s ease-out forwards; }
 .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
 .animate-successPop { animation: successPop 0.5s ease-out, successGlow 2s ease-in-out infinite 0.5s; }
+[data-theme="hre"] .animate-successPop { animation: successPop 0.5s ease-out, successGlowHre 2s ease-in-out infinite 0.5s; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
@@ -265,6 +308,34 @@
   background-image: linear-gradient(135deg, transparent 40%, rgba(150, 150, 150, 0.08) 50%, rgba(255, 255, 255, 0.06) 55%, transparent 60%);
 }
 
+[data-theme="hre"] .avacar-upload-box {
+  background: rgba(255,255,255,0.05);
+  border: 1.5px dashed rgba(255,255,255,0.2);
+  --dash-color-light: #c0392b;
+  --dash-color-muted: #a0a0a0;
+}
+[data-theme="hre"] .avacar-upload-box:hover {
+  transform: none;
+  box-shadow: none;
+  background: rgba(192,57,43,0.05);
+  border: 1.5px solid rgba(192,57,43,0.7);
+}
+[data-theme="hre"] .avacar-upload-box.dragover {
+  transform: none;
+  box-shadow: none;
+  background: rgba(192,57,43,0.08);
+  border: 1.5px solid rgba(192,57,43,0.9);
+}
+[data-theme="hre"] .avacar-upload-border {
+  display: none;
+}
+[data-theme="hre"] .avacar-upload-shimmer {
+  display: none;
+}
+[data-theme="hre"] .avacar-upload-box:hover svg {
+  color: #c0392b;
+}
+
 /* ===== Image Container (loading state) ===== */
 .avacar-image-container {
   position: relative;
@@ -290,6 +361,9 @@
   pointer-events: none;
   animation: innerGlowRotate 2s linear infinite;
   border-radius: inherit;
+}
+[data-theme="hre"] .avacar-inner-glow {
+  animation: innerGlowRotateHre 2s linear infinite;
 }
 
 /* ===== Loading Letter Animation ===== */

@@ -711,7 +711,7 @@ export function ResultView(props: ResultViewProps) {
         {/* CTA Button - v13 style */}
         <div class="relative w-full max-w-80 animate-fadeInUp mt-2">
           <button
-            class="relative w-full py-3.5 sm:py-4 rounded-2xl text-[15px] font-medium cursor-pointer flex items-center justify-center gap-3 transition-all bg-white text-zeno-card border-none hover:bg-gray-100 hover:scale-[1.01] active:scale-[0.98]"
+            class="relative w-full py-3.5 sm:py-4 rounded-2xl text-[15px] font-medium cursor-pointer flex items-center justify-center gap-3 transition-all bg-zeno-electric text-white border-none hover:opacity-90 hover:scale-[1.01] active:scale-[0.98]"
             style={{ "box-shadow": "none" }}
             onClick={handleQuote}
           >

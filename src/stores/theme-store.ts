@@ -2,8 +2,9 @@ import { createSignal, createMemo } from 'solid-js'
 import { themes, type ThemeId } from '../config/themes'
 
 const getInitialTheme = (): ThemeId => {
-  const envTheme = import.meta.env.VITE_THEME
-  return envTheme === 'arctic' ? 'arctic' : 'zeno'
+  const envTheme = import.meta.env.VITE_THEME as string
+  if (envTheme in themes) return envTheme as ThemeId
+  return 'zeno'
 }
 
 const [currentTheme, setCurrentTheme] = createSignal<ThemeId>(getInitialTheme())
@@ -24,7 +25,11 @@ export const themeStore = {
   },
 
   toggle() {
-    setCurrentTheme(t => t === 'zeno' ? 'arctic' : 'zeno')
+    const order: ThemeId[] = ['zeno', 'arctic', 'hre']
+    setCurrentTheme(t => {
+      const idx = order.indexOf(t)
+      return order[(idx + 1) % order.length]
+    })
   }
 }
 
