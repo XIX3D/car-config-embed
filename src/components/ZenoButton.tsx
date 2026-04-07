@@ -1,4 +1,3 @@
-import { For } from 'solid-js'
 import type { ButtonTheme, ButtonSize } from '../types'
 
 interface ZenoButtonProps {
@@ -8,65 +7,42 @@ interface ZenoButtonProps {
   onClick: () => void
 }
 
-const StarSvg = () => (
-  <svg viewBox="0 0 24 24">
-    <polygon points="12,2 15,9 22,9 16,14 18,21 12,17 6,21 8,14 2,9 9,9" />
-  </svg>
-)
-
-const MainIconSvg = () => (
-  <svg viewBox="0 0 24 24">
-    <path d="M12 2L9.5 9.5L2 12L9.5 14.5L12 22L14.5 14.5L22 12L14.5 9.5L12 2Z" />
-  </svg>
+const StarPath = () => (
+  <path d="M9 0.5L10.9 7.1L17.5 9L10.9 10.9L9 17.5L7.1 10.9L0.5 9L7.1 7.1L9 0.5Z" fill="white" />
 )
 
 export function ZenoButton(props: ZenoButtonProps) {
   const text = () => props.text || 'Preview on Your Car'
-  const theme = () => props.theme || 'light'
-  const size = () => props.size || 'standard'
-
-  const handleClick = () => props.onClick()
-
-  const letters = () => {
-    const result: Array<{ type: 'letter' | 'space'; char?: string }> = []
-
-    for (const char of text()) {
-      if (char === ' ') {
-        result.push({ type: 'space' })
-      } else {
-        result.push({ type: 'letter', char })
-      }
-    }
-
-    return result
-  }
 
   return (
-    <div
-      class={`avacar-btn-zeno ${theme() === 'dark' ? 'dark-mode' : 'light-mode'} size-${size()}`}
-      onClick={handleClick}
-    >
-      <div class="avacar-zeno-bg" />
-      <div class="avacar-zeno-inner">
-        <div class="avacar-zeno-icon">
-          <span class="avacar-sparkle avacar-sp-1"><StarSvg /></span>
-          <span class="avacar-sparkle avacar-sp-2"><StarSvg /></span>
-          <span class="avacar-sparkle avacar-sp-3"><StarSvg /></span>
-          <span class="avacar-sparkle avacar-sp-4"><StarSvg /></span>
-          <MainIconSvg />
+    <button class="avacar-btn-zeno" onClick={() => props.onClick()}>
+      <div class="avacar-zeno-shimmer" />
+
+      <div class="avacar-zeno-icon-system">
+        <svg class="avacar-star-main" width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <StarPath />
+        </svg>
+
+        <div class="avacar-orbit avacar-orbit-1">
+          <svg class="avacar-star-mini" width="6" height="6" viewBox="0 0 18 18" fill="none">
+            <StarPath />
+          </svg>
         </div>
-        <span class="avacar-zeno-text">
-          <For each={letters()}>
-            {(item) =>
-              item.type === 'space' ? (
-                <span class="avacar-space" />
-              ) : (
-                <span class="avacar-letter">{item.char}</span>
-              )
-            }
-          </For>
-        </span>
+
+        <div class="avacar-orbit avacar-orbit-2">
+          <svg class="avacar-star-mini" width="5" height="5" viewBox="0 0 18 18" fill="none">
+            <StarPath />
+          </svg>
+        </div>
+
+        <div class="avacar-orbit avacar-orbit-3">
+          <svg class="avacar-star-mini" width="4" height="4" viewBox="0 0 18 18" fill="none">
+            <StarPath />
+          </svg>
+        </div>
       </div>
-    </div>
+
+      <span class="avacar-zeno-label">{text()}</span>
+    </button>
   )
 }
