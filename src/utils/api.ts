@@ -107,11 +107,9 @@ export function createApiClient(baseUrl: string) {
   const fetchVariants = async (
     productId: string,
     allowedIds?: string[],
-    topOnly?: boolean,
   ): Promise<Variant[]> => {
     try {
-      const params = topOnly ? '?top_only=true' : ''
-      const res = await fetch(`${baseUrl}/api/v1/products/${productId}/variants${params}`, {
+      const res = await fetch(`${baseUrl}/api/v1/products/${productId}/variants`, {
         headers: sessionHeaders(),
       })
       const data = await res.json()

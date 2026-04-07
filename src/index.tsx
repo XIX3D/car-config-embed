@@ -75,7 +75,7 @@ async function openPreview(jwt: string, customBrand?: string) {
     let variants: Awaited<ReturnType<typeof api.fetchVariants>> = []
 
     if (productId) {
-      variants = await api.fetchVariants(productId, variantIds, true)
+      variants = await api.fetchVariants(productId, variantIds)
     }
 
     store.actions.open(selections, product, variants, customBrand)
@@ -203,15 +203,7 @@ function bindButtons() {
 }
 
 function updateAllHoloButtonThemes() {
-  const zenoButtons = document.querySelectorAll<HTMLElement>('.avacar-btn-zeno[data-jwt]')
-
-  zenoButtons.forEach((btn) => {
-    if (btn.getAttribute('data-theme-locked') === 'true') return
-    const theme = detectTheme(btn)
-
-    btn.classList.remove('light-mode', 'dark-mode')
-    btn.classList.add(theme === 'dark' ? 'dark-mode' : 'light-mode')
-  })
+  // kept for backward compatibility — new button design has no theme variants
 }
 
 function init() {

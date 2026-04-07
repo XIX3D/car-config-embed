@@ -1,5 +1,9 @@
-import { createSignal } from "solid-js";
-import { VALID_IMAGE_TYPES } from "../../constants";
+import { createSignal, Show } from "solid-js";
+import {
+  VALID_IMAGE_TYPES,
+  MAX_FILE_SIZE_MB,
+  MAX_FILE_SIZE_BYTES,
+} from "../../constants";
 import { ModalHeader } from "./ModalHeader";
 
 interface UploadViewProps {
@@ -15,6 +19,7 @@ interface UploadViewProps {
 export function UploadView(props: UploadViewProps) {
   const [isDragover, setIsDragover] = createSignal(false);
   const [isPasting, setIsPasting] = createSignal(false);
+  const [uploadError, setUploadError] = createSignal<string | null>(null);
   const [previewUrl, setPreviewUrl] = createSignal<string | null>(null);
   const [objectPos, setObjectPos] = createSignal({ x: 50, y: 50 });
   const [isPanning, setIsPanning] = createSignal(false);
@@ -36,13 +41,29 @@ export function UploadView(props: UploadViewProps) {
       return;
     }
 
-    const reader = new FileReader();
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setUploadError(`Image must be under ${MAX_FILE_SIZE_MB}MB`);
+      return;
+    }
 
-    reader.onload = (e) => {
-      setPreviewUrl(e.target?.result as string);
+    setUploadError(null);
+
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      if (img.naturalWidth > 3840 || img.naturalHeight > 3840) {
+        setUploadError("Image must be under 4K");
+        return;
+      }
+      setPreviewUrl(URL.createObjectURL(file));
       setTimeout(() => props.onFileSelect(file), 300);
     };
-    reader.readAsDataURL(file);
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      props.onError("Could not read image file");
+    };
+    img.src = url;
   };
 
   const handleDrop = (e: DragEvent) => {
@@ -157,9 +178,21 @@ export function UploadView(props: UploadViewProps) {
               x2="100%"
               y2="100%"
             >
-              <stop offset="0%" style="stop-color: var(--dash-color-light)" stop-opacity="0.5" />
-              <stop offset="50%" style="stop-color: var(--dash-color-muted)" stop-opacity="0.5" />
-              <stop offset="100%" style="stop-color: var(--dash-color-light)" stop-opacity="0.5" />
+              <stop
+                offset="0%"
+                style="stop-color: var(--dash-color-light)"
+                stop-opacity="0.5"
+              />
+              <stop
+                offset="50%"
+                style="stop-color: var(--dash-color-muted)"
+                stop-opacity="0.5"
+              />
+              <stop
+                offset="100%"
+                style="stop-color: var(--dash-color-light)"
+                stop-opacity="0.5"
+              />
             </linearGradient>
           </defs>
           <rect
@@ -182,7 +215,9 @@ export function UploadView(props: UploadViewProps) {
             <img
               ref={previewRef}
               class="w-full max-h-[200px] object-cover rounded-xl cursor-grab active:cursor-grabbing"
-              style={{ "object-position": `${objectPos().x}% ${objectPos().y}%` }}
+              style={{
+                "object-position": `${objectPos().x}% ${objectPos().y}%`,
+              }}
               src={previewUrl() || ""}
               alt="Preview"
               onMouseDown={handlePreviewMouseDown}
@@ -207,6 +242,11 @@ export function UploadView(props: UploadViewProps) {
                 Drop your car photo
               </p>
               <p class="text-sm text-white/40 m-0">or tap / paste to upload</p>
+              <Show when={uploadError()}>
+                <p class="text-xs mt-2 m-0" style={{ color: "#ff6b6b" }}>
+                  {uploadError()}
+                </p>
+              </Show>
             </>
           )}
         </div>

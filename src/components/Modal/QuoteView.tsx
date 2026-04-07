@@ -267,7 +267,7 @@ export function QuoteView(props: QuoteViewProps) {
                   <button
                     type="button"
                     class={`w-7 h-7 rounded-full flex items-center justify-center transition-all hover:scale-110 ${
-                      isLiked(i()) ? 'bg-red-500/20' : 'bg-white/5'
+                      isLiked(i()) ? 'bg-[var(--theme-primary)]/20' : 'bg-white/5'
                     }`}
                     onClick={() => props.onToggleFinish(i())}
                     title={isLiked(i()) ? 'Remove from quote' : 'Add to quote'}
@@ -295,7 +295,7 @@ export function QuoteView(props: QuoteViewProps) {
           <input
             type="text"
             name="name"
-            class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-franie transition-all outline-none focus:border-zeno-cyan/60 focus:bg-white/[0.08] placeholder:text-white/30"
+            class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-franie transition-all outline-none focus:border-[var(--theme-primary)]/60 focus:bg-white/[0.08] placeholder:text-white/30"
             placeholder="Your Name *"
             required
             value={name()}
@@ -307,7 +307,7 @@ export function QuoteView(props: QuoteViewProps) {
           <input
             type="email"
             name="email"
-            class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-franie transition-all outline-none focus:border-zeno-cyan/60 focus:bg-white/[0.08] placeholder:text-white/30"
+            class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-franie transition-all outline-none focus:border-[var(--theme-primary)]/60 focus:bg-white/[0.08] placeholder:text-white/30"
             placeholder="Your Email *"
             required
             value={email()}
@@ -320,7 +320,7 @@ export function QuoteView(props: QuoteViewProps) {
             <input
               type="text"
               name="vehicle"
-              class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-franie transition-all outline-none focus:border-zeno-cyan/60 focus:bg-white/[0.08] placeholder:text-white/30"
+              class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-franie transition-all outline-none focus:border-[var(--theme-primary)]/60 focus:bg-white/[0.08] placeholder:text-white/30"
               placeholder="Your Vehicle *"
               required
               value={vehicle()}
@@ -329,7 +329,7 @@ export function QuoteView(props: QuoteViewProps) {
           </div>
           <Show when={props.detectedVehicle}>
             <p class="text-[11px] text-white/40 mt-1 pl-3.5">
-              Vehicle <span class="text-zeno-cyan/70">(auto-detected)</span>
+              Vehicle <span class="text-[var(--theme-primary-light)]/70">(auto-detected)</span>
             </p>
           </Show>
         </div>
@@ -338,7 +338,7 @@ export function QuoteView(props: QuoteViewProps) {
           <input
             type="tel"
             name="phone"
-            class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-franie transition-all outline-none focus:border-zeno-cyan/60 focus:bg-white/[0.08] placeholder:text-white/30"
+            class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-franie transition-all outline-none focus:border-[var(--theme-primary)]/60 focus:bg-white/[0.08] placeholder:text-white/30"
             placeholder="Phone (optional)"
             value={phone()}
             onInput={(e) => setPhone(e.currentTarget.value)}
@@ -352,7 +352,7 @@ export function QuoteView(props: QuoteViewProps) {
         <div class="relative w-full animate-fadeInUp opacity-0 [animation-delay:0.45s] mt-1">
           <button
             type="submit"
-            class="relative w-full py-3.5 rounded-2xl text-[15px] font-medium cursor-pointer flex items-center justify-center gap-3 transition-all bg-white text-zeno-card border-none hover:bg-gray-100 hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed"
+            class="relative w-full py-3.5 rounded-2xl text-[15px] font-medium cursor-pointer flex items-center justify-center gap-3 transition-all bg-zeno-electric text-white border-none hover:opacity-90 hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isSubmitting() || props.interestedFinishes.length === 0}
           >
             {isSubmitting() ? 'Processing...' : `Submit${props.interestedFinishes.length > 0 ? ` (${props.interestedFinishes.length} selected)` : ''}`}

@@ -511,8 +511,8 @@ function ExitModal(props: { onBack: () => void; onConfirm: () => void }) {
           class="absolute inset-0 pointer-events-none"
           style={{
             background: `
-              radial-gradient(ellipse 80% 50% at 50% 0%, rgba(147,197,253,0.15) 0%, transparent 60%),
-              radial-gradient(ellipse 80% 50% at 50% 100%, rgba(224,231,255,0.12) 0%, transparent 60%)
+              radial-gradient(ellipse 80% 50% at 50% 0%, color-mix(in srgb, var(--theme-primary) 15%, transparent) 0%, transparent 60%),
+              radial-gradient(ellipse 80% 50% at 50% 100%, color-mix(in srgb, var(--theme-primary-muted) 12%, transparent) 0%, transparent 60%)
             `,
           }}
         />
@@ -597,8 +597,8 @@ function RestartModal(props: { onCancel: () => void; onConfirm: () => void }) {
       onClick={handleOverlayClick}
     >
       <div class="relative bg-zeno-card rounded-3xl p-8 max-w-[360px] w-full text-center overflow-hidden animate-fadeInUp">
-        <div class="w-16 h-16 rounded-full bg-zeno-electric/15 border-2 border-zeno-electric/30 flex items-center justify-center mx-auto mb-6" style={{ animation: 'refreshSpin 3s ease-in-out infinite' }}>
-          <svg class="w-8 h-8 text-zeno-electric" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <div class="w-16 h-16 rounded-full bg-[var(--theme-primary)]/15 border-2 border-[var(--theme-primary)]/30 flex items-center justify-center mx-auto mb-6" style={{ animation: 'refreshSpin 3s ease-in-out infinite' }}>
+          <svg class="w-8 h-8 text-[var(--theme-primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M1 4v6h6M23 20v-6h-6" />
             <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" />
           </svg>
@@ -613,7 +613,7 @@ function RestartModal(props: { onCancel: () => void; onConfirm: () => void }) {
             Cancel
           </button>
           <button
-            class="flex-1 py-4 rounded-xl bg-zeno-electric/15 border border-zeno-electric/30 text-zeno-cyan text-[15px] font-medium cursor-pointer transition-all hover:scale-[1.02] hover:bg-zeno-electric/20"
+            class="flex-1 py-4 rounded-xl bg-[var(--theme-primary)]/15 border border-[var(--theme-primary)]/30 text-[var(--theme-primary-light)] text-[15px] font-medium cursor-pointer transition-all hover:scale-[1.02] hover:bg-[var(--theme-primary)]/20"
             onClick={handleConfirm}
           >
             Start Over
@@ -637,8 +637,8 @@ function RerenderModal(props: { onCancel: () => void; onConfirm: () => void }) {
       onClick={handleOverlayClick}
     >
       <div class="relative bg-zeno-card rounded-3xl p-8 max-w-[360px] w-full text-center overflow-hidden animate-fadeInUp">
-        <div class="w-16 h-16 rounded-full bg-zeno-electric/15 border-2 border-zeno-electric/30 flex items-center justify-center mx-auto mb-6" style={{ animation: 'refreshSpin 3s ease-in-out infinite' }}>
-          <svg class="w-8 h-8 text-zeno-electric" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <div class="w-16 h-16 rounded-full bg-[var(--theme-primary)]/15 border-2 border-[var(--theme-primary)]/30 flex items-center justify-center mx-auto mb-6" style={{ animation: 'refreshSpin 3s ease-in-out infinite' }}>
+          <svg class="w-8 h-8 text-[var(--theme-primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M1 4v6h6M23 20v-6h-6" />
             <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" />
           </svg>
@@ -653,7 +653,7 @@ function RerenderModal(props: { onCancel: () => void; onConfirm: () => void }) {
             Cancel
           </button>
           <button
-            class="flex-1 py-4 rounded-xl bg-zeno-electric/15 border border-zeno-electric/30 text-zeno-cyan text-[15px] font-medium cursor-pointer transition-all hover:scale-[1.02] hover:bg-zeno-electric/20"
+            class="flex-1 py-4 rounded-xl bg-[var(--theme-primary)]/15 border border-[var(--theme-primary)]/30 text-[var(--theme-primary-light)] text-[15px] font-medium cursor-pointer transition-all hover:scale-[1.02] hover:bg-[var(--theme-primary)]/20"
             onClick={handleConfirm}
           >
             Re-render
