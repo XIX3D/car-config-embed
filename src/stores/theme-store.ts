@@ -25,7 +25,7 @@ export const themeStore = {
   },
 
   toggle() {
-    const order: ThemeId[] = ['zeno', 'arctic', 'hre']
+    const order: ThemeId[] = ['zeno', 'arctic', 'hre', 'light']
     setCurrentTheme(t => {
       const idx = order.indexOf(t)
       return order[(idx + 1) % order.length]

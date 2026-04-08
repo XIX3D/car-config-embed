@@ -641,7 +641,7 @@ export function ResultView(props: ResultViewProps) {
                         "background-position": "center",
                         transform: isSelected() ? "scale(1.1)" : "scale(1)",
                         "box-shadow": isSelected()
-                          ? "0 0 0 2px #fff, 0 0 20px rgba(255,255,255,0.2)"
+                          ? "0 0 0 2px var(--theme-primary), 0 0 20px rgba(192,57,43,0.2)"
                           : "none",
                         opacity: isSelected()
                           ? 1

@@ -29,6 +29,16 @@ export const themes = {
     success: '#c0392b',
     error: '#ff6b6b',
   },
+  light: {
+    primary: '#c0392b',
+    primaryLight: '#333333',
+    primaryMuted: '#d0d0d0',
+    bgDark: '#f5f5f5',
+    bgCard: '#ffffff',
+    bgElevated: '#f0f0f0',
+    success: '#c0392b',
+    error: '#e74c3c',
+  },
 } as const
 
 export type ThemeId = keyof typeof themes
