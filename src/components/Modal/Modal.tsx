@@ -22,9 +22,6 @@ export function Modal(props: ModalProps) {
   const { state, actions, getLoadingSteps, getBrandName, getModelName, getCurrentResult } = props.store
   let modalRef: HTMLDivElement | undefined
   const [modalStyle, setModalStyle] = createSignal<{ 'max-width'?: string; width?: string }>({})
-  const [triggerZoomAnimation, setTriggerZoomAnimation] = createSignal(false)
-  const [prevView, setPrevView] = createSignal<string | null>(null)
-  const [prevRerenderingIndex, setPrevRerenderingIndex] = createSignal<number | null | undefined>(undefined)
 
   const productImgUrl = () =>
     state.product?.reference_image_paths?.[0] || ''
@@ -72,23 +69,6 @@ export function Modal(props: ModalProps) {
     }
   })
 
-  createEffect(() => {
-    const currentView = state.view
-    const currentRerenderingIndex = state.rerenderingIndex
-
-    if (prevView() === 'loading' && currentView === 'result') {
-      setTriggerZoomAnimation(true)
-      setTimeout(() => setTriggerZoomAnimation(false), 1500)
-    }
-
-    if (prevRerenderingIndex() !== null && prevRerenderingIndex() !== undefined && currentRerenderingIndex === null) {
-      setTriggerZoomAnimation(true)
-      setTimeout(() => setTriggerZoomAnimation(false), 1500)
-    }
-
-    setPrevView(currentView)
-    setPrevRerenderingIndex(currentRerenderingIndex)
-  })
 
   const handleFileSelect = async (file: File) => {
     const reader = new FileReader()
@@ -284,19 +264,6 @@ export function Modal(props: ModalProps) {
     link.click()
   }
 
-  const handleDownloadAll = () => {
-    const successfulResults = state.galleryResults.filter(r => r.success && r.image)
-
-    successfulResults.forEach((result) => {
-      const link = document.createElement('a')
-      link.href = result.image!
-      link.download = getFilename(result)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    })
-  }
-
   const handleRestart = () => {
     if (state.hasRendered) {
       actions.toggleRestartModal(true)
@@ -380,8 +347,7 @@ export function Modal(props: ModalProps) {
                   onToggleInterest={actions.toggleFinishInterest}
                   onRerender={(index) => actions.toggleRerenderModal(true, index)}
                   rerenderingIndex={state.rerenderingIndex ?? undefined}
-                  onDownloadMenu={() => actions.toggleDownloadMenu(true)}
-                  triggerZoomAnimation={triggerZoomAnimation()}
+                  triggerZoomAnimation={false}
                   debugData={state.debugData}
                 />
               </Match>
@@ -476,15 +442,6 @@ export function Modal(props: ModalProps) {
           />
         </Show>
 
-        <Show when={state.showDownloadMenu}>
-          <DownloadMenu
-            currentFinishName={getCurrentResult()?.label.replace(' (Original)', '') || 'Current'}
-            totalCount={state.galleryResults.filter(r => r.success && r.image).length}
-            onDownloadCurrent={handleDownloadCurrent}
-            onDownloadAll={handleDownloadAll}
-            onClose={() => actions.toggleDownloadMenu(false)}
-          />
-        </Show>
 
         <ThemeToggle />
         </div>
@@ -597,6 +554,15 @@ function RestartModal(props: { onCancel: () => void; onConfirm: () => void }) {
       onClick={handleOverlayClick}
     >
       <div class="relative bg-zeno-card rounded-3xl p-8 max-w-[360px] w-full text-center overflow-hidden animate-fadeInUp">
+        <button
+          class="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/5 active:bg-white/10 active:scale-95 transition-all z-20"
+          onClick={handleCancel}
+          aria-label="Close"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
         <div class="w-16 h-16 rounded-full bg-[var(--theme-primary)]/15 border-2 border-[var(--theme-primary)]/30 flex items-center justify-center mx-auto mb-6" style={{ animation: 'refreshSpin 3s ease-in-out infinite' }}>
           <svg class="w-8 h-8 text-[var(--theme-primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M1 4v6h6M23 20v-6h-6" />
@@ -664,52 +630,6 @@ function RerenderModal(props: { onCancel: () => void; onConfirm: () => void }) {
   )
 }
 
-function DownloadMenu(props: {
-  currentFinishName: string
-  totalCount: number
-  onDownloadCurrent: () => void
-  onDownloadAll: () => void
-  onClose: () => void
-}) {
-  const handleClose = () => props.onClose()
-  const handleOverlayClick = (e: MouseEvent) => {
-    if (e.target === e.currentTarget) handleClose()
-  }
-
-  return (
-    <div
-      class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000000] p-4"
-      onClick={handleOverlayClick}
-    >
-      <div class="bg-zeno-card rounded-2xl p-5 min-w-[280px] max-w-[340px] shadow-xl animate-fadeInUp">
-        <h3 class="text-lg font-semibold text-white mb-4 text-center">Download Options</h3>
-        <button
-          class="w-full py-3.5 px-4 mb-3 bg-white/5 border border-white/10 text-white rounded-xl text-[15px] font-medium cursor-pointer flex items-center justify-center gap-2.5 transition-all hover:bg-white/10 hover:border-white/20"
-          onClick={() => { props.onDownloadCurrent(); handleClose() }}
-        >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          Download {props.currentFinishName}
-        </button>
-        <div class="h-px bg-white/10 my-3" />
-        <button
-          class="w-full py-3.5 px-4 bg-white/5 border border-white/10 text-white rounded-xl text-[15px] font-medium cursor-pointer flex items-center justify-center gap-2.5 transition-all hover:bg-white/10 hover:border-white/20"
-          onClick={() => { props.onDownloadAll(); handleClose() }}
-        >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          Download All ({props.totalCount})
-        </button>
-      </div>
-    </div>
-  )
-}
 
 interface FullscreenModalProps {
   imageUrl: string
@@ -883,24 +803,6 @@ function FullscreenModal(props: FullscreenModalProps) {
     if (e.target === e.currentTarget) props.onClose()
   }
 
-  const getFilename = () => {
-    const c = currentResult()
-    if (!c) return 'render.jpg'
-    const brand = props.brandName.replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
-    const model = props.modelName.replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
-    const finish = c.label.replace(' (Original)', '').replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
-    return `${brand}_${model}_${finish}_ZenoRender.jpg`
-  }
-
-  const handleDownload = () => {
-    const c = currentResult()
-    if (!c?.image) return
-    const link = document.createElement('a')
-    link.href = c.image
-    link.download = getFilename()
-    link.click()
-  }
-
   return (
     <div
       class="fixed inset-0 bg-black/95 backdrop-blur-sm flex flex-col z-[1000000] animate-fadeIn"
@@ -913,7 +815,7 @@ function FullscreenModal(props: FullscreenModalProps) {
         <button
           class="w-12 h-12 rounded-full backdrop-blur-sm flex items-center justify-center transition-all hover:scale-110 active:scale-95"
           style={{ background: 'rgba(0,0,0,0.5)' }}
-          onClick={(e) => { e.stopPropagation(); handleDownload() }}
+          onClick={(e) => { e.stopPropagation(); props.onDownload() }}
         >
           <svg class="w-6 h-6 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
@@ -1043,6 +945,7 @@ function FullscreenModal(props: FullscreenModalProps) {
           <path d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3" />
         </svg>
       </button>
+
     </div>
   )
 }

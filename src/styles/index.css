@@ -274,6 +274,13 @@
   transform: scale(1.01);
   box-shadow: 0 0 30px rgba(59, 130, 246, 0.25);
 }
+.avacar-upload-box svg {
+  color: rgba(255,255,255,0.7);
+  transition: color 0.2s ease;
+}
+.avacar-upload-box:hover svg {
+  color: var(--theme-primary);
+}
 [data-theme="arctic"] .avacar-upload-box:hover {
   box-shadow: 0 0 30px rgba(89, 89, 89, 0.25);
 }
@@ -331,9 +338,6 @@
 }
 [data-theme="hre"] .avacar-upload-shimmer {
   display: none;
-}
-[data-theme="hre"] .avacar-upload-box:hover svg {
-  color: #c0392b;
 }
 
 /* ===== Light Theme ===== */
@@ -460,7 +464,7 @@
 [data-theme="light"] .avacar-upload-border { display: none; }
 [data-theme="light"] .avacar-upload-shimmer { display: none; }
 [data-theme="light"] .avacar-upload-box svg { color: rgba(0,0,0,0.35); }
-[data-theme="light"] .avacar-upload-box:hover svg { color: #c0392b; }
+[data-theme="light"] .avacar-upload-box:hover svg { color: var(--theme-primary); }
 
 /* --- J. Success View --- */
 [data-theme="light"] .avacar-success-glow {

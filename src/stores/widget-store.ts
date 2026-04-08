@@ -42,7 +42,6 @@ export interface WidgetState {
   showFullscreenModal: boolean
   showShareModal: boolean
   showRestartModal: boolean
-  showDownloadMenu: boolean
   showRerenderModal: boolean
   pendingRerenderIndex: number | null
 
@@ -92,7 +91,6 @@ const initialState: WidgetState = {
   showFullscreenModal: false,
   showShareModal: false,
   showRestartModal: false,
-  showDownloadMenu: false,
   showRerenderModal: false,
   pendingRerenderIndex: null,
 
@@ -343,10 +341,6 @@ export function createWidgetStore() {
 
     toggleRestartModal(show: boolean) {
       setState('showRestartModal', show)
-    },
-
-    toggleDownloadMenu(show: boolean) {
-      setState('showDownloadMenu', show)
     },
 
     toggleRerenderModal(show: boolean, index?: number) {

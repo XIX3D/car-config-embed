@@ -232,7 +232,7 @@ export function UploadView(props: UploadViewProps) {
           ) : (
             <>
               <svg
-                class="w-12 h-9 text-white/70 transition-colors group-hover:text-white/90 mb-4"
+                class="w-12 h-9 mb-4"
                 viewBox="0 0 100 74"
                 fill="currentColor"
               >

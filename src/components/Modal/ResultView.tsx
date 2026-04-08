@@ -35,7 +35,6 @@ interface ResultViewProps {
   onToggleInterest?: (index: number) => void;
   onRerender?: (index: number) => void;
   rerenderingIndex?: number;
-  onDownloadMenu?: () => void;
   triggerZoomAnimation?: boolean;
   debugData?: DebugData | null;
 }
@@ -330,7 +329,7 @@ export function ResultView(props: ResultViewProps) {
   const canNavigate = () => props.results.length > 1;
 
   return (
-    <div class="relative z-1 flex flex-col items-center p-6 min-h-[520px]">
+    <div class="relative z-1 flex flex-col items-center pt-6 pb-4 px-6 min-h-[520px]">
       <ModalHeader
         brandName={props.brandName}
         modelName={props.modelName}
@@ -418,11 +417,7 @@ export function ResultView(props: ResultViewProps) {
             style={{ background: "rgba(0,0,0,0.4)" }}
             onClick={(e) => {
               e.stopPropagation();
-              if (props.onDownloadMenu) {
-                props.onDownloadMenu();
-              } else {
-                handleDownload();
-              }
+              handleDownload();
             }}
             aria-label="Download"
           >
@@ -564,7 +559,7 @@ export function ResultView(props: ResultViewProps) {
 
           {current()?.loading ? (
             <div class="avacar-result-img flex items-center justify-center bg-black/20 rounded-2xl min-h-[300px]">
-              <div class="flex flex-col items-center gap-3">
+              <div class="flex flex-col items-center gap-2">
                 <div class="w-12 h-12 border-3 border-white/20 border-t-white rounded-full animate-spin" />
                 <span class="text-white/50 text-sm">Rendering...</span>
               </div>
@@ -598,7 +593,7 @@ export function ResultView(props: ResultViewProps) {
 
         {/* Finish name */}
         <p class="text-center text-white/60 text-[10px] sm:text-xs uppercase tracking-widest mb-2 sm:mb-3">
-          {current()?.label.replace(" (Original)", "")}
+          {props.currentIndex === 0 ? "Stock" : current()?.label}
         </p>
 
         {/* Color Carousel - v13 with interest indicators and re-render buttons */}
@@ -616,91 +611,93 @@ export function ResultView(props: ResultViewProps) {
 
                 return (
                   <Show when={result.loading || result.success}>
-                  <div class="relative">
-                    <button
-                      role="option"
-                      aria-selected={isSelected()}
-                      aria-label={result.label}
-                      tabIndex={isSelected() ? 0 : -1}
-                      class={`flex-shrink-0 w-12 h-12 rounded-xl border-none transition-all relative focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none ${
-                        result.loading || isRerendering()
-                          ? "opacity-30 cursor-wait"
-                          : result.success
-                            ? "cursor-pointer"
-                            : "opacity-20 cursor-not-allowed"
-                      }`}
-                      style={{
-                        "background-image": result.referenceImage
-                          ? `url(${result.referenceImage})`
-                          : undefined,
-                        "background-color": !result.referenceImage
-                          ? result.hexColor || "#fff"
-                          : undefined,
-                        "background-size": "contain",
-                        "background-repeat": "no-repeat",
-                        "background-position": "center",
-                        transform: isSelected() ? "scale(1.1)" : "scale(1)",
-                        "box-shadow": isSelected()
-                          ? "0 0 0 2px var(--theme-primary), 0 0 20px rgba(192,57,43,0.2)"
-                          : "none",
-                        opacity: isSelected()
-                          ? 1
-                          : isInterested()
-                            ? 0.85
-                            : 0.55,
-                      }}
-                      title={
-                        result.loading
-                          ? `${result.label} (loading...)`
-                          : result.label
-                      }
-                      onClick={() =>
-                        result.success &&
-                        !result.loading &&
-                        !isRerendering() &&
-                        props.onSelectIndex(i())
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === "ArrowRight") {
-                          e.preventDefault();
-                          props.onSelectIndex(
-                            Math.min(i() + 1, props.results.length - 1),
-                          );
-                        } else if (e.key === "ArrowLeft") {
-                          e.preventDefault();
-                          props.onSelectIndex(Math.max(i() - 1, 0));
+                    <div class="relative">
+                      <button
+                        role="option"
+                        aria-selected={isSelected()}
+                        aria-label={result.label}
+                        tabIndex={isSelected() ? 0 : -1}
+                        class={`flex-shrink-0 w-12 h-12 rounded-xl border-none transition-all relative focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none ${
+                          result.loading || isRerendering()
+                            ? "opacity-30 cursor-wait"
+                            : result.success
+                              ? "cursor-pointer"
+                              : "opacity-20 cursor-not-allowed"
+                        }`}
+                        style={{
+                          "background-image": result.referenceImage
+                            ? `url(${result.referenceImage})`
+                            : undefined,
+                          "background-color": !result.referenceImage
+                            ? result.hexColor || "#fff"
+                            : undefined,
+                          "background-size": "contain",
+                          "background-repeat": "no-repeat",
+                          "background-position": "center",
+                          transform: isSelected() ? "scale(1.1)" : "scale(1)",
+                          "box-shadow": isSelected()
+                            ? "0 0 0 2px var(--theme-primary), 0 0 20px rgba(192,57,43,0.2)"
+                            : "none",
+                          opacity: isSelected()
+                            ? 1
+                            : isInterested()
+                              ? 0.85
+                              : 0.55,
+                        }}
+                        title={
+                          result.loading
+                            ? `${result.label} (loading...)`
+                            : result.label
                         }
-                      }}
-                      disabled={
-                        result.loading || !result.success || isRerendering()
-                      }
-                    >
-                      {(result.loading || isRerendering()) && (
-                        <div class="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl">
-                          <div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        </div>
-                      )}
-                    </button>
-
-                    {/* Interest indicator - heart in corner */}
-                    <Show
-                      when={isInterested() && !result.loading && result.success}
-                    >
-                      <div
-                        class="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
-                        style={{ background: "rgba(0,0,0,0.6)" }}
+                        onClick={() =>
+                          result.success &&
+                          !result.loading &&
+                          !isRerendering() &&
+                          props.onSelectIndex(i())
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "ArrowRight") {
+                            e.preventDefault();
+                            props.onSelectIndex(
+                              Math.min(i() + 1, props.results.length - 1),
+                            );
+                          } else if (e.key === "ArrowLeft") {
+                            e.preventDefault();
+                            props.onSelectIndex(Math.max(i() - 1, 0));
+                          }
+                        }}
+                        disabled={
+                          result.loading || !result.success || isRerendering()
+                        }
                       >
-                        <svg
-                          class="w-3 h-3"
-                          style={{ color: ZENO.heart }}
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
+                        {(result.loading || isRerendering()) && (
+                          <div class="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl">
+                            <div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          </div>
+                        )}
+                      </button>
+
+                      {/* Interest indicator - heart in corner */}
+                      <Show
+                        when={
+                          isInterested() && !result.loading && result.success
+                        }
+                      >
+                        <div
+                          class="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                          style={{ background: "rgba(0,0,0,0.6)" }}
                         >
-                          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                        </svg>
-                      </div>
-                    </Show>
-                  </div>
+                          <svg
+                            class="w-3 h-3"
+                            style={{ color: ZENO.heart }}
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                          >
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                          </svg>
+                        </div>
+                      </Show>
+                    </div>
                   </Show>
                 );
               }}
@@ -711,19 +708,12 @@ export function ResultView(props: ResultViewProps) {
         {/* CTA Button - v13 style */}
         <div class="relative w-full max-w-80 animate-fadeInUp mt-2">
           <button
-            class="relative w-full py-3.5 sm:py-4 rounded-2xl text-[15px] font-medium cursor-pointer flex items-center justify-center gap-3 transition-all bg-zeno-electric text-white border-none hover:opacity-90 hover:scale-[1.01] active:scale-[0.98]"
+            class="relative w-full py-3.5 sm:py-4 rounded-2xl text-[1.2rem] font-medium cursor-pointer flex items-center justify-center gap-3 transition-all bg-zeno-electric text-white border-none hover:opacity-90 hover:scale-[1.01] active:scale-[0.98]"
             style={{ "box-shadow": "none" }}
             onClick={handleQuote}
           >
-            <svg
-              class="w-5 h-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <line x1="12" y1="1" x2="12" y2="23" />
-              <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+            <svg class="w-5 h-5" viewBox="0 0 36 36" fill="currentColor">
+              <path d="M28.81 23.209c0-7.672-14.144-7.171-14.144-11.803c0-2.242 2.145-3.337 4.633-3.337c4.184 0 4.929 2.688 6.824 2.688c1.342 0 1.988-.845 1.988-1.792c0-2.201-3.337-3.867-6.537-4.444V2.397a2.398 2.398 0 1 0-4.798 0v2.199c-3.489.794-6.49 3.214-6.49 7.159c0 7.369 14.142 7.071 14.142 12.247c0 1.793-1.941 3.586-5.129 3.586c-4.781 0-6.374-3.236-8.316-3.236c-.946 0-1.792.796-1.792 1.996c0 1.906 3.195 4.2 7.588 4.841l-.003.015v2.397a2.401 2.401 0 0 0 4.8 0v-2.397c0-.028-.014-.05-.016-.075c3.953-.738 7.25-3.315 7.25-7.92z" />
             </svg>
             <span>
               {props.interestedFinishes && props.interestedFinishes.length > 0
@@ -735,7 +725,7 @@ export function ResultView(props: ResultViewProps) {
       </div>
 
       {/* Footer */}
-      <div class="text-white/40 text-xs text-center py-4 mt-auto">
+      <div class="text-white/40 text-xs text-center pt-4 mt-auto">
         Powered by <strong class="text-white/60 font-semibold">Zeno</strong>
       </div>
     </div>
