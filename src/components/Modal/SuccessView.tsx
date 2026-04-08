@@ -80,7 +80,6 @@ export function SuccessView(props: SuccessViewProps) {
     props.interestedFinishes.map((i) => props.results[i]).filter(Boolean);
 
   const handleClose = () => props.onClose();
-  const handleShare = () => props.onShare();
 
   return (
     <div class="relative z-1 p-6 flex flex-col gap-6 items-center text-center min-h-[520px] overflow-hidden">
