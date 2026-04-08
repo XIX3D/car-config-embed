@@ -4,7 +4,7 @@ import { themes, type ThemeId } from '../config/themes'
 const getInitialTheme = (): ThemeId => {
   const envTheme = import.meta.env.VITE_THEME as string
   if (envTheme in themes) return envTheme as ThemeId
-  return 'zeno'
+  return 'light'
 }
 
 const [currentTheme, setCurrentTheme] = createSignal<ThemeId>(getInitialTheme())
