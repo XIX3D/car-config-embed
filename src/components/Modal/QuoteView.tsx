@@ -295,7 +295,7 @@ export function QuoteView(props: QuoteViewProps) {
           <input
             type="text"
             name="name"
-            class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-franie transition-all outline-none focus:border-[var(--theme-primary)]/60 focus:bg-white/[0.08] placeholder:text-white/30"
+            class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-dinpro transition-all outline-none focus:border-[var(--theme-primary)]/60 focus:bg-white/[0.08] placeholder:text-white/30"
             placeholder="Your Name *"
             required
             value={name()}
@@ -307,7 +307,7 @@ export function QuoteView(props: QuoteViewProps) {
           <input
             type="email"
             name="email"
-            class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-franie transition-all outline-none focus:border-[var(--theme-primary)]/60 focus:bg-white/[0.08] placeholder:text-white/30"
+            class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-dinpro transition-all outline-none focus:border-[var(--theme-primary)]/60 focus:bg-white/[0.08] placeholder:text-white/30"
             placeholder="Your Email *"
             required
             value={email()}
@@ -320,7 +320,7 @@ export function QuoteView(props: QuoteViewProps) {
             <input
               type="text"
               name="vehicle"
-              class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-franie transition-all outline-none focus:border-[var(--theme-primary)]/60 focus:bg-white/[0.08] placeholder:text-white/30"
+              class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-dinpro transition-all outline-none focus:border-[var(--theme-primary)]/60 focus:bg-white/[0.08] placeholder:text-white/30"
               placeholder="Your Vehicle *"
               required
               value={vehicle()}
@@ -338,7 +338,7 @@ export function QuoteView(props: QuoteViewProps) {
           <input
             type="tel"
             name="phone"
-            class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-franie transition-all outline-none focus:border-[var(--theme-primary)]/60 focus:bg-white/[0.08] placeholder:text-white/30"
+            class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-dinpro transition-all outline-none focus:border-[var(--theme-primary)]/60 focus:bg-white/[0.08] placeholder:text-white/30"
             placeholder="Phone (optional)"
             value={phone()}
             onInput={(e) => setPhone(e.currentTarget.value)}

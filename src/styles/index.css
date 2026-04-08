@@ -13,7 +13,7 @@
   --color-zeno-elevated: #182639;
   --color-zeno-success: #84FF8E;
   --color-zeno-error: #ff6b6b;
-  --font-franie: 'Franie', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-dinpro: 'DINPro', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 /* Runtime theme variables - these switch dynamically */

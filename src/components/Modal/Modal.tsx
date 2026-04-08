@@ -322,7 +322,7 @@ export function Modal(props: ModalProps) {
       <Portal mount={props.shadowRoot}>
         <div data-theme={currentTheme()} class="contents">
         <div
-          class="fixed inset-0 w-full h-full bg-black/85 backdrop-blur-sm flex items-center justify-center z-[999999] font-franie font-light"
+          class="fixed inset-0 w-full h-full bg-black/85 backdrop-blur-sm flex items-center justify-center z-[999999] font-dinpro font-light"
           onClick={(e) => e.target === e.currentTarget && handleClose()}
         >
           <div
@@ -1116,7 +1116,7 @@ function ShareModal(props: {
       class="fixed inset-0 bg-black/75 z-[1000000] flex items-center justify-center backdrop-blur-sm"
       onClick={handleOverlayClick}
     >
-      <div class="bg-zeno-card rounded-2xl p-6 min-w-[320px] max-w-[400px] shadow-[0_8px_32px_rgba(0,0,0,0.6)] animate-fadeInUp font-franie">
+      <div class="bg-zeno-card rounded-2xl p-6 min-w-[320px] max-w-[400px] shadow-[0_8px_32px_rgba(0,0,0,0.6)] animate-fadeInUp font-dinpro">
         <h3 class="m-0 mb-6 text-xl font-semibold text-white text-center">Share Build</h3>
 
         <button class={btnClass} onClick={downloadImage}>
