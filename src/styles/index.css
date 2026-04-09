@@ -13,7 +13,7 @@
   --color-zeno-elevated: #182639;
   --color-zeno-success: #84FF8E;
   --color-zeno-error: #ff6b6b;
-  --font-franie: 'Franie', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-dinpro: 'DINPro', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 /* Runtime theme variables - these switch dynamically */
@@ -274,6 +274,13 @@
   transform: scale(1.01);
   box-shadow: 0 0 30px rgba(59, 130, 246, 0.25);
 }
+.avacar-upload-box svg {
+  color: rgba(255,255,255,0.7);
+  transition: color 0.2s ease;
+}
+.avacar-upload-box:hover svg {
+  color: var(--theme-primary);
+}
 [data-theme="arctic"] .avacar-upload-box:hover {
   box-shadow: 0 0 30px rgba(89, 89, 89, 0.25);
 }
@@ -332,9 +339,166 @@
 [data-theme="hre"] .avacar-upload-shimmer {
   display: none;
 }
-[data-theme="hre"] .avacar-upload-box:hover svg {
-  color: #c0392b;
+
+/* ===== Light Theme ===== */
+
+/* --- A. CSS Variables --- */
+[data-theme="light"],
+[data-theme="light"] * {
+  --theme-primary: #c0392b;
+  --theme-primary-light: #333333;
+  --theme-primary-muted: #d0d0d0;
+  --theme-bg-dark: #f5f5f5;
+  --theme-bg-card: #ffffff;
+  --theme-bg-elevated: #f0f0f0;
+  --theme-success: #c0392b;
+  --theme-error: #e74c3c;
 }
+
+/* --- B. Semantic Tailwind Class Overrides --- */
+[data-theme="light"] .bg-zeno-card { background-color: #ffffff !important; box-shadow: 0 0 0 1px #e4e4e4; }
+[data-theme="light"] .bg-zeno-dark { background-color: #f5f5f5 !important; }
+[data-theme="light"] .bg-zeno-elevated { background-color: #f0f0f0 !important; }
+[data-theme="light"] .bg-zeno-electric { background-color: #c0392b !important; }
+[data-theme="light"] .bg-zeno-success { background-color: #c0392b !important; }
+[data-theme="light"] .text-zeno-electric { color: #c0392b !important; }
+[data-theme="light"] .text-zeno-cyan { color: #333333 !important; }
+[data-theme="light"] .text-zeno-success { color: #c0392b !important; }
+[data-theme="light"] .text-zeno-dark { color: #f5f5f5 !important; }
+[data-theme="light"] .border-zeno-electric { border-color: #c0392b !important; }
+[data-theme="light"] .border-zeno-cyan { border-color: #333333 !important; }
+[data-theme="light"] .from-zeno-cyan { --tw-gradient-from: #c0392b !important; }
+[data-theme="light"] .to-zeno-green { --tw-gradient-to: #d0d0d0 !important; }
+
+/* --- C. Text Color Inversions --- */
+/* NOTE: text-white/80 NOT inverted — exclusively on dark image overlays */
+[data-theme="light"] .text-white { color: #111111 !important; }
+[data-theme="light"] .text-white\/70 { color: rgba(0,0,0,0.6) !important; }
+[data-theme="light"] .text-white\/60 { color: #888888 !important; }
+[data-theme="light"] .text-white\/50 { color: #999999 !important; }
+[data-theme="light"] .text-white\/40 { color: rgba(0,0,0,0.4) !important; }
+[data-theme="light"] .text-white\/35 { color: rgba(0,0,0,0.35) !important; }
+[data-theme="light"] .text-white\/30 { color: rgba(0,0,0,0.25) !important; }
+[data-theme="light"] .text-white\/25 { color: rgba(0,0,0,0.2) !important; }
+[data-theme="light"] .hover\:text-white:hover { color: #111111 !important; }
+/* Keep white text on primary-colored buttons */
+[data-theme="light"] .bg-zeno-electric .text-white { color: #ffffff !important; }
+[data-theme="light"] .bg-zeno-electric.text-white { color: #ffffff !important; }
+
+/* --- D. Background Inversions --- */
+[data-theme="light"] .bg-white\/5 { background-color: rgba(0,0,0,0.03) !important; }
+[data-theme="light"] .bg-white\/10 { background-color: rgba(0,0,0,0.06) !important; }
+[data-theme="light"] .bg-white\/15 { background-color: rgba(0,0,0,0.08) !important; }
+[data-theme="light"] .bg-white\/\[0\.08\] { background-color: rgba(0,0,0,0.05) !important; }
+[data-theme="light"] .hover\:bg-white\/5:hover { background-color: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .hover\:bg-white\/10:hover { background-color: rgba(0,0,0,0.06) !important; }
+[data-theme="light"] .hover\:bg-white\/15:hover { background-color: rgba(0,0,0,0.08) !important; }
+[data-theme="light"] .active\:bg-white\/10:active { background-color: rgba(0,0,0,0.06) !important; }
+[data-theme="light"] .active\:bg-white\/15:active { background-color: rgba(0,0,0,0.08) !important; }
+[data-theme="light"] .focus\:bg-white\/\[0\.08\]:focus { background-color: rgba(0,0,0,0.05) !important; }
+
+/* --- E. Border Inversions --- */
+[data-theme="light"] .border-white { border-color: #c0392b !important; }
+[data-theme="light"] .border-white\/8 { border-color: rgba(0,0,0,0.06) !important; }
+[data-theme="light"] .border-white\/10 { border-color: #e0e0e0 !important; }
+[data-theme="light"] .border-white\/15 { border-color: rgba(0,0,0,0.12) !important; }
+[data-theme="light"] .border-white\/20 { border-color: rgba(0,0,0,0.15) !important; }
+[data-theme="light"] .border-white\/30 { border-color: rgba(0,0,0,0.2) !important; }
+[data-theme="light"] .hover\:border-white\/20:hover { border-color: rgba(0,0,0,0.15) !important; }
+[data-theme="light"] .hover\:border-white\/30:hover { border-color: rgba(0,0,0,0.2) !important; }
+
+/* --- F. Placeholder Inversion --- */
+[data-theme="light"] .placeholder\:text-white\/30::placeholder { color: rgba(0,0,0,0.35) !important; }
+
+/* --- G. Dark Overlay Exemptions (keep white text on dark bg) --- */
+[data-theme="light"] .avacar-loading-letter { color: #fff !important; }
+[data-theme="light"] .bg-black\/70 .text-white { color: #fff !important; }
+[data-theme="light"] .bg-black\/70 span { color: #fff !important; }
+/* Nav arrows on image overlays use text-white/70 — restore white */
+[data-theme="light"] .backdrop-blur-sm.text-white\/70 { color: rgba(255,255,255,0.7) !important; }
+[data-theme="light"] .bg-black\/40 .text-white { color: #fff !important; }
+[data-theme="light"] .bg-black\/40 .text-white\/50 { color: rgba(255,255,255,0.5) !important; }
+[data-theme="light"] .bg-black\/40 .border-white\/30 { border-color: rgba(255,255,255,0.3) !important; }
+[data-theme="light"] .bg-black\/40 .border-t-white { border-top-color: #fff !important; }
+[data-theme="light"] .bg-black\/20 .text-white\/50 { color: rgba(255,255,255,0.5) !important; }
+[data-theme="light"] .bg-black\/20 .border-white\/30 { border-color: rgba(255,255,255,0.3) !important; }
+[data-theme="light"] .bg-black\/20 .border-t-white { border-top-color: #fff !important; }
+/* Fullscreen modal: keep entire dark context */
+[data-theme="light"] .bg-black\/95 .text-white { color: #fff !important; }
+[data-theme="light"] .bg-black\/95 .text-white\/80 { color: rgba(255,255,255,0.8) !important; }
+[data-theme="light"] .bg-black\/95 .text-white\/70 { color: rgba(255,255,255,0.7) !important; }
+[data-theme="light"] .bg-black\/95 .text-white\/50 { color: rgba(255,255,255,0.5) !important; }
+[data-theme="light"] .bg-black\/95 .text-white\/40 { color: rgba(255,255,255,0.4) !important; }
+[data-theme="light"] .bg-black\/95 .border-white\/10 { border-color: rgba(255,255,255,0.1) !important; }
+[data-theme="light"] .bg-black\/95 .border-white\/20 { border-color: rgba(255,255,255,0.2) !important; }
+[data-theme="light"] .bg-black\/95 .bg-white\/5 { background-color: rgba(255,255,255,0.05) !important; }
+[data-theme="light"] .bg-black\/95 .hover\:bg-white\/10:hover { background-color: rgba(255,255,255,0.1) !important; }
+[data-theme="light"] .bg-black\/95 .hover\:text-white:hover { color: #fff !important; }
+/* Tooltip on dark bg */
+[data-theme="light"] .bg-black\/90 { color: #fff; }
+[data-theme="light"] .bg-black\/90 .text-white { color: #fff !important; }
+
+/* --- H. Modal Overlay Opacity (lighter for light theme) --- */
+[data-theme="light"] > .bg-black\/85 { background-color: rgba(0,0,0,0.40) !important; }
+[data-theme="light"] > .bg-black\/80 { background-color: rgba(0,0,0,0.35) !important; }
+
+/* --- I. Upload Box --- */
+[data-theme="light"] .avacar-upload-box {
+  background: rgba(0,0,0,0.03);
+  border: 1.5px dashed rgba(0,0,0,0.15);
+  --dash-color-light: #c0392b;
+  --dash-color-muted: #d0d0d0;
+}
+[data-theme="light"] .avacar-upload-box:hover {
+  transform: none;
+  box-shadow: none;
+  background: rgba(192,57,43,0.04);
+  border: 1.5px solid rgba(192,57,43,0.7);
+}
+[data-theme="light"] .avacar-upload-box.dragover {
+  transform: none;
+  box-shadow: none;
+  background: rgba(192,57,43,0.06);
+  border: 1.5px solid rgba(192,57,43,0.9);
+}
+[data-theme="light"] .avacar-upload-border { display: none; }
+[data-theme="light"] .avacar-upload-shimmer { display: none; }
+[data-theme="light"] .avacar-upload-box svg { color: rgba(0,0,0,0.35); }
+[data-theme="light"] .avacar-upload-box:hover svg { color: var(--theme-primary); }
+
+/* --- J. Success View --- */
+[data-theme="light"] .avacar-success-glow {
+  background: radial-gradient(circle, rgba(192, 57, 43, 0.12) 0%, transparent 70%);
+}
+[data-theme="light"] .avacar-success-check {
+  background: #c0392b;
+  box-shadow: 0 0 25px rgba(192, 57, 43, 0.3), 0 0 50px rgba(192, 57, 43, 0.15);
+}
+[data-theme="light"] .avacar-success-sparkle { color: #c0392b; }
+[data-theme="light"] .avacar-confetti-green { background-color: #c0392b; }
+
+/* --- K. Glow Animations (reuse HRE keyframes) --- */
+[data-theme="light"] .avacar-inner-glow { animation: innerGlowRotateHre 2s linear infinite; }
+[data-theme="light"] .animate-successPop { animation: successPop 0.5s ease-out, successGlowHre 2s ease-in-out infinite 0.5s; }
+
+/* --- L. Form Inputs --- */
+[data-theme="light"] input[type="text"],
+[data-theme="light"] input[type="email"],
+[data-theme="light"] input[type="tel"] {
+  background: #ffffff !important;
+  border-color: #e0e0e0 !important;
+  color: #111111 !important;
+}
+[data-theme="light"] input:focus {
+  border-color: #c0392b !important;
+  box-shadow: 0 0 0 3px rgba(192,57,43,0.12) !important;
+  background: #ffffff !important;
+}
+[data-theme="light"] input::placeholder {
+  color: rgba(0,0,0,0.35) !important;
+}
+
+/* ===== End Light Theme ===== */
 
 /* ===== Image Container (loading state) ===== */
 .avacar-image-container {

@@ -4,7 +4,7 @@ import { themes, type ThemeId } from '../config/themes'
 const getInitialTheme = (): ThemeId => {
   const envTheme = import.meta.env.VITE_THEME as string
   if (envTheme in themes) return envTheme as ThemeId
-  return 'zeno'
+  return 'light'
 }
 
 const [currentTheme, setCurrentTheme] = createSignal<ThemeId>(getInitialTheme())
@@ -25,7 +25,7 @@ export const themeStore = {
   },
 
   toggle() {
-    const order: ThemeId[] = ['zeno', 'arctic', 'hre']
+    const order: ThemeId[] = ['zeno', 'arctic', 'hre', 'light']
     setCurrentTheme(t => {
       const idx = order.indexOf(t)
       return order[(idx + 1) % order.length]

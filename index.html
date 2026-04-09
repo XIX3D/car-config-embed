@@ -132,36 +132,15 @@
     </style>
   </head>
   <body>
-    <h1>🚗 Car Config Embed Widget Test</h1>
+    <h1>Car Config Embed Widget Test</h1>
 
     <div class="test-grid">
-      <!-- HRE P101SC - Real JWT -->
       <div class="test-card dark" data-theme="dark">
-        <h2>HRE P101SC (Real JWT)</h2>
-        <p>Actual wheel product from production</p>
+        <h2>HRE Wheel 552 (Dark)</h2>
+        <p>HRE Performance Wheels - wheel_id 552</p>
         <div class="button-container">
-          <button class="avacar-preview" data-button-theme="dark" data-size="compact" data-brand="HRE" data-jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtYW51ZmFjdHVyZXJfaWQiOjgsIndoZWVsX2lkIjo1NTksImlhdCI6MTc3MzA3OTcyMCwiZXhwIjoxODA0NjE1NzIwfQ.zGnkETqSFKJBNGzF6m0C0tumz_TVs9iLdAUK76FY3rA">Preview On Your Car</button>
-        </div>
-      </div>
-
-
-      <!-- HRE Light Theme -->
-      <div class="test-card">
-        <h2>HRE P101SC (Light Theme)</h2>
-        <p>Same JWT but with light theme</p>
-        <div class="button-container">
-          <button class="avacar-preview" data-button-theme="light" data-brand="HRE" data-jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6NDIyLCJtYW51ZmFjdHVyZXJfaWQiOjEsImlhdCI6MTc3MjIxNzYzMSwiZXhwIjoxODAzNzUzNjMxfQ.1if43QRSR3HLZwqvvRAs9mYcQd62yQuBolqP-v_mz78">Preview On Your Car</button>
-        </div>
-      </div>
-
-      <!-- HRE Light Theme -->
-      <div class="test-card">
-        <h2>HRE P103SC (Light Theme)</h2>
-        <p>Same JWT but with light theme</p>
-        <div class="button-container">
-          <!-- AvaCar Embed Widget -->
           <button class="avacar-preview"
-            data-jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6NDY0LCJtYW51ZmFjdHVyZXJfaWQiOjEsImlhdCI6MTc3MjQ2OTc1NywiZXhwIjoxODA0MDA1NzU3fQ.vMm9CC5y3_wWRDYG564GpJlZewzNURtt141SokCZwsQ"
+            data-jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6NTUyLCJtYW51ZmFjdHVyZXJfaWQiOjEsImlhdCI6MTc3MjQ2OTc2NSwiZXhwIjoxODA0MDA1NzY1fQ.4JfY5kTMVjYXLruXslN6VUu8rkQYw7OK0z89BQsbeTI"
             data-button-theme="dark"
             data-brand="HRE Performance Wheels">
             Preview On Your Car
@@ -169,131 +148,40 @@
         </div>
       </div>
 
-
-
-      <!-- Compact Light -->
       <div class="test-card">
-        <h2>Light Theme (Compact)</h2>
-        <p>Compact size with light theme</p>
-        <div class="button-container">
-          <button class="avacar-preview" data-jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6NDIyLCJtYW51ZmFjdHVyZXJfaWQiOjEsImlhdCI6MTc3MjIxNzYzMSwiZXhwIjoxODAzNzUzNjMxfQ.1if43QRSR3HLZwqvvRAs9mYcQd62yQuBolqP-v_mz78" data-button-theme="light" data-size="compact">
-            Preview
-          </button>
+        <h2>Test a Token</h2>
+        <p>Paste a JWT token and click the button to test it</p>
+        <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+          <input id="token-input" type="text" placeholder="Paste JWT token here..." style="flex: 1; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: monospace;">
+          <button onclick="loadToken()" style="padding: 10px 20px; background: #333; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; white-space: nowrap;">Load</button>
         </div>
-      </div>
-
-      <!-- Compact Dark -->
-      <div class="test-card dark" data-theme="dark">
-        <h2>Dark Theme (Compact)</h2>
-        <p>Compact size with dark theme</p>
-        <div class="button-container">
-          <button class="avacar-preview" data-jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6NDIyLCJtYW51ZmFjdHVyZXJfaWQiOjEsImlhdCI6MTc3MjIxNzYzMSwiZXhwIjoxODAzNzUzNjMxfQ.1if43QRSR3HLZwqvvRAs9mYcQd62yQuBolqP-v_mz78" data-button-theme="dark" data-size="compact">
-            Preview
-          </button>
-        </div>
-      </div>
-
-      <!-- Auto Theme Detection -->
-      <div class="test-card">
-        <h2>Auto Theme Detection</h2>
-        <p>No explicit theme - detects from parent</p>
-        <div class="button-container">
-          <button class="avacar-preview" data-jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6NDIyLCJtYW51ZmFjdHVyZXJfaWQiOjEsImlhdCI6MTc3MjIxNzYzMSwiZXhwIjoxODAzNzUzNjMxfQ.1if43QRSR3HLZwqvvRAs9mYcQd62yQuBolqP-v_mz78">
-            Preview on Your Car
-          </button>
-        </div>
-      </div>
-
-      <!-- Unstyled Custom -->
-      <div class="test-card">
-        <h2>Unstyled (Custom Button)</h2>
-        <p>Using <code>data-styled="false"</code> for custom styling</p>
-        <div class="button-container">
-          <button class="avacar-preview" data-jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6NDIyLCJtYW51ZmFjdHVyZXJfaWQiOjEsImlhdCI6MTc3MjIxNzYzMSwiZXhwIjoxODAzNzUzNjMxfQ.1if43QRSR3HLZwqvvRAs9mYcQd62yQuBolqP-v_mz78" data-styled="false" style="padding: 14px 28px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 14px;">
-            🎨 Custom Styled Button
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Programmatic API Section -->
-    <div class="api-section">
-      <h2>🔧 Programmatic API</h2>
-      <p>Test the JavaScript API directly</p>
-
-      <div class="api-buttons">
-        <button class="api-btn primary" onclick="openHRE()">
-          Open HRE P101SC
-        </button>
-        <button class="api-btn secondary" onclick="addDynamicButton()">
-          Add Dynamic Button
-        </button>
-        <button class="api-btn secondary" onclick="clearDynamicButtons()">
-          Clear Dynamic Buttons
-        </button>
-      </div>
-
-      <div id="dynamic-buttons" class="dynamic-container"></div>
-
-      <div class="info-box">
-        <strong>Available API:</strong><br>
-        <code>AvaCar.open(jwt, brand?)</code> - Open modal programmatically<br>
-        <code>AvaCar.bindButtons()</code> - Bind all .avacar-preview buttons<br>
-        <code>AvaCar.updateThemes()</code> - Refresh button themes<br>
-        <code>AvaCar.createButton(container, jwt, options?)</code> - Create button in container
+        <div id="token-button-container" class="button-container"></div>
       </div>
     </div>
 
     <script type="module" src="/src/index.tsx"></script>
     <script>
-      // Real JWTs from production
-      const TEST_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3aGVlbF9pZCI6NDIyLCJtYW51ZmFjdHVyZXJfaWQiOjEsImlhdCI6MTc3MjIxNzYzMSwiZXhwIjoxODAzNzUzNjMxfQ.1if43QRSR3HLZwqvvRAs9mYcQd62yQuBolqP-v_mz78';
+      function loadToken() {
+        const jwt = document.getElementById('token-input').value.trim();
+        if (!jwt) return;
 
-      let buttonCount = 0;
+        const container = document.getElementById('token-button-container');
+        container.innerHTML = '';
 
-      function openHRE() {
-        if (window.AvaCar) {
-          window.AvaCar.open(TEST_JWT, 'HRE WHEELS');
-        } else {
-          alert('AvaCar not loaded yet');
-        }
-      }
-
-      function openBrixton() {
-        if (window.AvaCar) {
-          window.AvaCar.open(TEST_JWT, 'BRIXTON');
-        } else {
-          alert('AvaCar not loaded yet');
-        }
-      }
-
-      function addDynamicButton() {
-        buttonCount++;
-        const container = document.getElementById('dynamic-buttons');
         const btn = document.createElement('button');
         btn.className = 'avacar-preview';
-        btn.setAttribute('data-jwt', buttonCount % 2 === 0 ? TEST_JWT : TEST_JWT);
-        btn.setAttribute('data-brand', buttonCount % 2 === 0 ? 'BRIXTON' : 'HRE');
-        btn.setAttribute('data-text', 'Dynamic #' + buttonCount);
-        btn.textContent = 'Dynamic #' + buttonCount;
+        btn.setAttribute('data-jwt', jwt);
+        btn.setAttribute('data-button-theme', 'light');
+        btn.setAttribute('data-brand', 'Test');
+        btn.textContent = 'Preview On Your Car';
         container.appendChild(btn);
 
-        // Rebind to pick up new button
         if (window.AvaCar) {
           window.AvaCar.bindButtons();
         }
       }
 
-      function clearDynamicButtons() {
-        document.getElementById('dynamic-buttons').innerHTML = '';
-        buttonCount = 0;
-      }
-
-      // Make functions global
-      window.openHRE = openHRE;
-      window.openBrixton = openBrixton;
-      window.addDynamicButton = addDynamicButton;
-      window.clearDynamicButtons = clearDynamicButtons;
+      window.loadToken = loadToken;
     </script>
   </body>
 </html>

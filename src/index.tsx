@@ -159,10 +159,12 @@ function bindButtons() {
     const size = (button.getAttribute('data-size') as ButtonSize) || 'standard'
     const explicitTheme = button.getAttribute('data-button-theme') as ButtonTheme | null
 
+    let wrapper: HTMLDivElement | null = null
+
     if (useDefaultStyle) {
       const theme = explicitTheme || detectTheme(button)
 
-      const wrapper = document.createElement('div')
+      wrapper = document.createElement('div')
 
       button.parentNode?.insertBefore(wrapper, button)
       button.style.display = 'none'
@@ -199,6 +201,26 @@ function bindButtons() {
         openPreview(jwt, customBrand)
       })
     }
+
+    if (!decodeJWT(jwt)) {
+      if (useDefaultStyle && wrapper) {
+        wrapper.style.display = 'none'
+      } else {
+        button.style.display = 'none'
+      }
+      return
+    }
+
+    api.validateToken(jwt).then((result) => {
+      if (!result) return
+      if (result.valid && !result.is_active) {
+        if (useDefaultStyle && wrapper) {
+          wrapper.style.display = 'none'
+        } else {
+          button.style.display = 'none'
+        }
+      }
+    }).catch(() => {})
   })
 }
 
@@ -209,6 +231,7 @@ function updateAllHoloButtonThemes() {
 function init() {
   injectButtonStyles()
   mountWidget()
+  api.setSessionId(createSession())
   bindButtons()
 
   const buttonObserver = new MutationObserver(() => {
