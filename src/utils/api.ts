@@ -1,4 +1,4 @@
-import type { Product, Variant, QuoteRequest, RenderStreamEvents, DecodeTokenResponse, VehicleDetectionResult, SimilarProduct } from '../types'
+import type { Product, Variant, QuoteRequest, RenderStreamEvents, DecodeTokenResponse, ValidateTokenResponse, VehicleDetectionResult, SimilarProduct } from '../types'
 
 interface SSEStreamResult {
   image?: string
@@ -81,6 +81,21 @@ export function createApiClient(baseUrl: string) {
       const res = await fetch(`${baseUrl}/api/v1/embed/decode`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
+        body: JSON.stringify({ token }),
+      })
+
+      if (!res.ok) return null
+      return await res.json()
+    } catch {
+      return null
+    }
+  }
+
+  const validateToken = async (token: string): Promise<ValidateTokenResponse | null> => {
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/embed/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token }),
       })
 
@@ -366,6 +381,7 @@ export function createApiClient(baseUrl: string) {
   return {
     setSessionId,
     decodeToken,
+    validateToken,
     fetchProduct,
     fetchVariants,
     fetchDefaultVariant,

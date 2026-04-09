@@ -53,6 +53,15 @@ export interface DecodeTokenResponse {
   variant_ids: number[]
 }
 
+export interface ValidateTokenResponse {
+  valid: boolean
+  is_active?: boolean
+  manufacturer_id?: number
+  wrap_id?: number | null
+  wheel_id?: number | null
+  error?: string
+}
+
 export interface VehicleDetectionResult {
   make: string
   model: string
