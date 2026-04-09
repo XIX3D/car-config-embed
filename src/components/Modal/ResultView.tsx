@@ -564,6 +564,16 @@ export function ResultView(props: ResultViewProps) {
                 <span class="text-white/50 text-sm">Rendering...</span>
               </div>
             </div>
+          ) : !current()?.success ? (
+            <div class="avacar-result-img flex flex-col items-center justify-center bg-black/20 rounded-2xl min-h-[300px] gap-3">
+              <span class="text-white/50 text-sm">Failed to render</span>
+              <button
+                class="px-4 py-2 rounded-xl bg-white/10 text-white/70 text-sm hover:bg-white/20 transition-colors cursor-pointer border-none"
+                onClick={() => props.onRerender?.(props.currentIndex)}
+              >
+                Retry
+              </button>
+            </div>
           ) : (
             <div class="relative">
               <img
@@ -610,7 +620,6 @@ export function ResultView(props: ResultViewProps) {
                 const isRerendering = () => props.rerenderingIndex === i();
 
                 return (
-                  <Show when={result.loading || result.success}>
                     <div class="relative">
                       <button
                         role="option"
@@ -649,12 +658,14 @@ export function ResultView(props: ResultViewProps) {
                             ? `${result.label} (loading...)`
                             : result.label
                         }
-                        onClick={() =>
-                          result.success &&
-                          !result.loading &&
-                          !isRerendering() &&
+                        onClick={() => {
+                          if (result.loading || isRerendering()) return
+                          if (!result.success) {
+                            props.onRerender?.(i())
+                            return
+                          }
                           props.onSelectIndex(i())
-                        }
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === "ArrowRight") {
                             e.preventDefault();
@@ -666,13 +677,19 @@ export function ResultView(props: ResultViewProps) {
                             props.onSelectIndex(Math.max(i() - 1, 0));
                           }
                         }}
-                        disabled={
-                          result.loading || !result.success || isRerendering()
-                        }
+                        disabled={result.loading || isRerendering()}
                       >
                         {(result.loading || isRerendering()) && (
                           <div class="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl">
                             <div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          </div>
+                        )}
+                        {!result.loading && !result.success && !isRerendering() && (
+                          <div class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
+                            <svg class="w-5 h-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M1 4v6h6M23 20v-6h-6" />
+                              <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" />
+                            </svg>
                           </div>
                         )}
                       </button>
@@ -698,7 +715,6 @@ export function ResultView(props: ResultViewProps) {
                         </div>
                       </Show>
                     </div>
-                  </Show>
                 );
               }}
             </For>

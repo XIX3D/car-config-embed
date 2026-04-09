@@ -236,14 +236,25 @@ export function createWidgetStore() {
     updateResult(index: number, result: Partial<RenderResult>) {
       setState('galleryResults', index, (prev) => ({ ...prev, ...result }))
 
+      if (state.view !== 'loading') return
+
       const originalProduct = state.galleryResults[0]
-      if (state.view === 'loading' && originalProduct?.success && !originalProduct?.loading) {
+      if (originalProduct?.success && !originalProduct?.loading) {
         actions.stopLoading()
-        setState({
-          view: 'result',
-          currentIndex: 0,
-          hasRendered: true,
-        })
+        setState({ view: 'result', currentIndex: 0, hasRendered: true })
+        return
+      }
+
+      const allDone = state.galleryResults.every((r) => !r.loading)
+      if (!allDone) return
+
+      actions.stopLoading()
+
+      const firstSuccess = state.galleryResults.findIndex((r) => r.success)
+      if (firstSuccess !== -1) {
+        setState({ view: 'result', currentIndex: firstSuccess, hasRendered: true })
+      } else {
+        setState({ view: 'upload', error: 'Rendering failed. Please try again with a different image.' })
       }
     },
 
