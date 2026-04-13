@@ -73,6 +73,7 @@ const authPassword = ref('')
 const authError = ref('')
 const authLoading = ref(false)
 const isAuthenticated = ref(false)
+const manufacturerId = ref<number | null>(null)
 
 const apiConnected = ref(false)
 const products = ref<Product[]>([])
@@ -273,6 +274,7 @@ async function login() {
       return
     }
     authToken.value = data.token
+    manufacturerId.value = data.user?.id ?? null
     isAuthenticated.value = true
     authPassword.value = ''
     await connectApi()
@@ -286,6 +288,7 @@ async function login() {
 
 function logout() {
   authToken.value = ''
+  manufacturerId.value = null
   isAuthenticated.value = false
   apiConnected.value = false
   products.value = []
@@ -301,11 +304,16 @@ async function connectApi() {
 }
 
 async function fetchProducts() {
+  const mId = manufacturerId.value
+  if (mId == null) {
+    products.value = []
+    return
+  }
   try {
-    const res = await apiFetch('/api/v1/products?limit=1000&category=wheels&manufacturer_id=1')
+    const res = await apiFetch(`/api/v1/products?limit=1000&category=wheels&manufacturer_id=${mId}`)
     const data = await res.json()
     const all = data.products || data || []
-    products.value = all.filter((p: any) => p.manufacturer_id === 1)
+    products.value = all.filter((p: any) => p.manufacturer_id === mId)
   } catch (e) {
     console.error('Failed to fetch products:', e)
     products.value = []
