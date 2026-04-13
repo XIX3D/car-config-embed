@@ -2,8 +2,8 @@
 layout: home
 
 hero:
-  name: "AvaCar Widget"
-  text: "Car Customization Preview"
+  name: "Car Customization Widget"
+  text: "Preview Wheels & Wraps"
   tagline: Let customers preview wheels and wraps on their own vehicles
   actions:
     - theme: brand

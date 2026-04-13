@@ -1,6 +1,6 @@
 # Playground
 
-Try the AvaCar widget with live code editing. Changes update the preview in real-time.
+Try the widget with live code editing. Changes update the preview in real-time.
 
 <ClientOnly>
   <Playground />

@@ -1,6 +1,6 @@
 # TypeScript Types
 
-All types used by the AvaCar widget.
+All types used by the widget.
 
 ## Core Types
 

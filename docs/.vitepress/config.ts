@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  title: 'AvaCar Widget',
+  title: 'Car Customization Widget',
   description: 'Embed car customization preview widgets on your site',
   base: '/',
 
@@ -50,7 +50,7 @@ export default defineConfig({
     ],
 
     footer: {
-      message: 'AvaCar Widget Documentation',
+      message: 'Car Customization Widget Documentation',
     },
   },
 

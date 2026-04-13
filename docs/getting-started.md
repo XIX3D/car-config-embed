@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide walks you through integrating the AvaCar widget into your website.
+This guide walks you through integrating the widget into your website.
 
 ## Installation
 
