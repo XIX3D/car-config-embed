@@ -3,6 +3,7 @@ import {
   VALID_IMAGE_TYPES,
   MAX_FILE_SIZE_MB,
   MAX_FILE_SIZE_BYTES,
+  MAX_IMAGE_DIMENSION,
 } from "../../constants";
 import { ModalHeader } from "./ModalHeader";
 
@@ -52,8 +53,8 @@ export function UploadView(props: UploadViewProps) {
     const img = new Image();
     img.onload = () => {
       URL.revokeObjectURL(url);
-      if (img.naturalWidth > 3840 || img.naturalHeight > 3840) {
-        setUploadError("Image must be under 4K");
+      if (img.naturalWidth > MAX_IMAGE_DIMENSION || img.naturalHeight > MAX_IMAGE_DIMENSION) {
+        setUploadError("Image must be under 8K");
         return;
       }
       setPreviewUrl(URL.createObjectURL(file));

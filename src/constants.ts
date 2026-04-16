@@ -35,6 +35,7 @@ export const VALID_IMAGE_TYPES = [
 
 export const MAX_FILE_SIZE_MB = 20;
 export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+export const MAX_IMAGE_DIMENSION = 8192;
 
 export const ZOOM = {
   min: 1,
