@@ -17,6 +17,7 @@ export default defineConfig({
       { text: 'Getting Started', link: '/getting-started' },
       { text: 'Playground', link: '/playground' },
       { text: 'Prompt Playground', link: '/render-playground' },
+      { text: 'User Playground', link: '/user-playground' },
       { text: 'API', link: '/api/javascript-api' },
     ],
 
@@ -27,6 +28,7 @@ export default defineConfig({
           { text: 'Getting Started', link: '/getting-started' },
           { text: 'Playground', link: '/playground' },
           { text: 'Prompt Playground', link: '/render-playground' },
+          { text: 'User Playground', link: '/user-playground' },
         ],
       },
       {
