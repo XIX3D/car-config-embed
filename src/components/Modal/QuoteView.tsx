@@ -50,7 +50,6 @@ export function QuoteView(props: QuoteViewProps) {
       .replace(/\s+/g, "-")
       .replace(/[^a-z0-9-]/gi, "");
     const finish = c.label
-      .replace(" (Original)", "")
       .replace(/\s+/g, "-")
       .replace(/[^a-z0-9-]/gi, "");
     return `${brand}_${model}_${finish}_ZenoRender.jpg`;
@@ -302,7 +301,7 @@ export function QuoteView(props: QuoteViewProps) {
         {/* Finish indicator */}
         <p class="text-xs text-center mt-2">
           <span class="text-zeno-cyan font-medium">
-            {currentResult()?.label.replace(" (Original)", "")}
+            {currentResult()?.label}
           </span>
         </p>
       </div>
@@ -327,13 +326,13 @@ export function QuoteView(props: QuoteViewProps) {
                         ? "border-white scale-105 shadow-[0_0_10px_rgba(255,255,255,0.2)]"
                         : "border-transparent opacity-70 hover:opacity-100 hover:scale-105"
                     }`}
-                    title={result.label.replace(" (Original)", "")}
+                    title={result.label}
                     onClick={() => props.onQuoteViewIndexChange(i())}
                   >
                     <img
                       class="w-full h-full object-contain"
                       src={result.referenceImage!}
-                      alt={result.label.replace(" (Original)", "")}
+                      alt={result.label}
                     />
                   </button>
                   {/* Like button below swatch */}

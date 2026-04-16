@@ -238,8 +238,8 @@ export function createWidgetStore() {
 
       if (state.view !== 'loading') return
 
-      const originalProduct = state.galleryResults[0]
-      if (originalProduct?.success && !originalProduct?.loading) {
+      const firstResult = state.galleryResults[0]
+      if (firstResult?.success && !firstResult?.loading) {
         actions.stopLoading()
         setState({ view: 'result', currentIndex: 0, hasRendered: true })
         return

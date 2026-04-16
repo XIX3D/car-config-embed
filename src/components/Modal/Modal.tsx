@@ -83,26 +83,23 @@ export function Modal(props: ModalProps) {
   const startVisualization = async (file: File) => {
     actions.startLoading()
 
-    const productThumbnail = state.product?.reference_image_paths?.[0] || null
     const selections = state.selections
 
-    const renderRequests = [
-      {
-        label: state.product ? `${state.product.name} (Original)` : 'Original',
-        variantId: null,
-        hexColor: null,
-        referenceImage: productThumbnail,
-      },
-      ...(state.variants || []).map((v) => {
-        const refImg = v.reference_image_paths?.[0] || v.reference_image
-        return {
-          label: v.variant_name,
-          variantId: v.id,
-          hexColor: v.hex_color || null,
-          referenceImage: refImg || null,
-        }
-      }),
-    ]
+    const renderRequests = (state.variants || []).map((v) => {
+      const refImg = v.reference_image_paths?.[0] || v.reference_image
+      return {
+        label: v.variant_name,
+        variantId: v.id,
+        hexColor: v.hex_color || null,
+        referenceImage: refImg || null,
+      }
+    })
+
+    if (renderRequests.length === 0) {
+      actions.stopLoading()
+      actions.setError('No variants available to render.')
+      return
+    }
 
     const initialResults = renderRequests.map((req) => ({
       label: req.label,
@@ -251,7 +248,7 @@ export function Modal(props: ModalProps) {
   const getFilename = (result: { label: string }) => {
     const brand = getBrandName().replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
     const model = getModelName().replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
-    const finish = result.label.replace(' (Original)', '').replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
+    const finish = result.label.replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
     return `${brand}_${model}_${finish}_ZenoRender.jpg`
   }
 
@@ -899,7 +896,7 @@ function FullscreenModal(props: FullscreenModalProps) {
       <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 pt-8 z-20">
         {/* Finish name */}
         <p class="text-center text-white/70 text-sm mb-3">
-          {currentResult()?.label.replace(' (Original)', '')}
+          {currentResult()?.label}
         </p>
 
         {/* Color swatches */}
@@ -965,7 +962,7 @@ function ShareModal(props: {
     if (!props.result) return 'my-wheel-build.png'
     const brand = props.brandName.replace(/[^a-z0-9]/gi, '')
     const model = props.modelName.replace(/[^a-z0-9]/gi, '')
-    const finish = props.result.label.replace(' (Original)', '').replace(/[^a-z0-9]/gi, '')
+    const finish = props.result.label.replace(/[^a-z0-9]/gi, '')
 
     return `${brand}_${model}_${finish}_ZenoRender.jpg`
   }

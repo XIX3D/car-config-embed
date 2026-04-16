@@ -135,7 +135,7 @@ export function SuccessView(props: SuccessViewProps) {
                       style={{ background: result.hexColor || "#ccc" }}
                     />
                     <span class="text-sm text-white/70 truncate max-w-[200px]">
-                      {result.label.replace(" (Original)", "")}
+                      {result.label}
                     </span>
                   </div>
                 )}

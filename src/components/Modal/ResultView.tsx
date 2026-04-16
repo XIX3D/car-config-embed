@@ -69,7 +69,6 @@ export function ResultView(props: ResultViewProps) {
       .replace(/\s+/g, "-")
       .replace(/[^a-z0-9-]/gi, "");
     const finish = c.label
-      .replace(" (Original)", "")
       .replace(/\s+/g, "-")
       .replace(/[^a-z0-9-]/gi, "");
     return `${brand}_${model}_${finish}_ZenoRender.jpg`;
