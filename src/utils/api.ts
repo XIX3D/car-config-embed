@@ -1,4 +1,15 @@
-import type { Product, Variant, QuoteRequest, RenderStreamEvents, DecodeTokenResponse, ValidateTokenResponse, VehicleDetectionResult, SimilarProduct } from '../types'
+import type { Product, Variant, QuoteRequest, RenderStreamEvents, DecodeTokenResponse, ValidateTokenResponse, VehicleDetectionResult, SimilarProduct, QuotaExceededError } from '../types'
+
+const parseQuotaBody = async (res: Response): Promise<QuotaExceededError | null> => {
+  if (res.status !== 429) return null
+  try {
+    const body = await res.clone().json()
+    if (body && typeof body.retry_after_seconds === 'number' && typeof body.message === 'string') {
+      return body as QuotaExceededError
+    }
+  } catch { /* fall through */ }
+  return null
+}
 
 interface SSEStreamResult {
   image?: string
@@ -59,8 +70,12 @@ async function processSSEStream(
           handlers.onComplete?.(data)
           break
         case 'error':
-          handlers.onError?.(data.message)
-          throw new Error(data.message)
+          if (data && typeof data.retry_after_seconds === 'number' && typeof data.message === 'string') {
+            handlers.onQuotaExceeded?.(data as QuotaExceededError)
+          } else {
+            handlers.onError?.(data.message)
+          }
+          throw new Error(data.message || 'Stream error')
       }
     }
   }
@@ -304,6 +319,11 @@ export function createApiClient(baseUrl: string) {
       })
 
       if (!res.ok) {
+        const quota = await parseQuotaBody(res)
+        if (quota) {
+          events.onQuotaExceeded?.(quota)
+          return { success: false, error: quota.message }
+        }
         throw new Error(`Render request failed (${res.status})`)
       }
 
@@ -354,6 +374,11 @@ export function createApiClient(baseUrl: string) {
       })
 
       if (!res.ok) {
+        const quota = await parseQuotaBody(res)
+        if (quota) {
+          events.onQuotaExceeded?.(quota)
+          return { success: false, error: quota.message }
+        }
         throw new Error(`Render request failed (${res.status})`)
       }
 

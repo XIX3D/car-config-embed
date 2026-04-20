@@ -2,6 +2,7 @@ import { Show, Switch, Match, createEffect, createSignal, onCleanup, onMount, Fo
 import { Portal } from 'solid-js/web'
 import type { WidgetStore } from '../../stores/widget-store'
 import type { ApiClient } from '../../utils/api'
+import type { QuotaExceededError } from '../../types'
 import { UploadView } from './UploadView'
 import { LoadingView } from './LoadingView'
 import { ResultView } from './ResultView'
@@ -69,7 +70,6 @@ export function Modal(props: ModalProps) {
     }
   })
 
-
   const handleFileSelect = async (file: File) => {
     const reader = new FileReader()
 
@@ -80,13 +80,25 @@ export function Modal(props: ModalProps) {
     reader.readAsDataURL(file)
   }
 
+  const INITIAL_RENDER_COUNT = 3
+
+  const sortedVariants = () =>
+    [...(state.variants || [])].sort(
+      (a, b) => (a.display_order ?? Number.MAX_SAFE_INTEGER) - (b.display_order ?? Number.MAX_SAFE_INTEGER),
+    )
+
+  const pendingVariants = () =>
+    sortedVariants().filter((v) => !state.galleryResults.some((r) => r.variantId === v.id))
+
   const startVisualization = async (file: File) => {
     actions.startLoading()
 
     const selections = state.selections
 
-    const renderRequests = (state.variants || []).map((v) => {
+    const initialVariants = sortedVariants().slice(0, INITIAL_RENDER_COUNT)
+    const renderRequests = initialVariants.map((v) => {
       const refImg = v.reference_image_paths?.[0] || v.reference_image
+
       return {
         label: v.variant_name,
         variantId: v.id,
@@ -98,6 +110,7 @@ export function Modal(props: ModalProps) {
     if (renderRequests.length === 0) {
       actions.stopLoading()
       actions.setError('No variants available to render.')
+
       return
     }
 
@@ -109,6 +122,7 @@ export function Modal(props: ModalProps) {
       success: false,
       loading: true,
     }))
+
     actions.initResults(initialResults)
 
     renderRequests.forEach((req, index) => {
@@ -116,11 +130,13 @@ export function Modal(props: ModalProps) {
 
       if (selections?.wrap_id) {
         const p: { product_id: string; variant_id?: string } = { product_id: selections.wrap_id }
+
         if (req.variantId) p.variant_id = req.variantId
         products.push(p)
       }
       if (selections?.wheel_id) {
         const p: { product_id: string; variant_id?: string } = { product_id: selections.wheel_id }
+
         if (req.variantId) p.variant_id = req.variantId
         products.push(p)
       }
@@ -147,6 +163,13 @@ export function Modal(props: ModalProps) {
             loading: false,
           })
         },
+        onQuotaExceeded: (data) => {
+          actions.setQuotaError(data)
+          actions.stopLoading()
+          if (state.view === 'loading') {
+            actions.resetToUpload()
+          }
+        },
       })
     })
   }
@@ -155,9 +178,11 @@ export function Modal(props: ModalProps) {
     if (!state.selectedFile || state.rerenderingIndex !== null) return
 
     const result = state.galleryResults[index]
+
     if (!result) return
 
     const requestId = `${index}-${Date.now()}-${Math.random().toString(36).slice(2)}`
+
     actions.setRerenderingIndex(index, requestId)
 
     const selections = state.selections
@@ -165,11 +190,13 @@ export function Modal(props: ModalProps) {
 
     if (selections?.wrap_id) {
       const p: { product_id: string; variant_id?: string } = { product_id: selections.wrap_id }
+
       if (result.variantId) p.variant_id = result.variantId
       products.push(p)
     }
     if (selections?.wheel_id) {
       const p: { product_id: string; variant_id?: string } = { product_id: selections.wheel_id }
+
       if (result.variantId) p.variant_id = result.variantId
       products.push(p)
     }
@@ -193,6 +220,73 @@ export function Modal(props: ModalProps) {
           loading: false,
         }, requestId)
       },
+      onQuotaExceeded: (data) => {
+        actions.setQuotaError(data)
+        actions.setRerenderingIndex(null)
+      },
+    })
+  }
+
+  const handleAddVariant = async (variantId: string) => {
+    if (!state.selectedFile || !state.product) return
+
+    const variant = state.variants.find((v) => v.id === variantId)
+
+    if (!variant) return
+    if (state.galleryResults.some((r) => r.variantId === variant.id)) return
+
+    const refImg = variant.reference_image_paths?.[0] || variant.reference_image
+
+    actions.appendResult({
+      label: variant.variant_name,
+      variantId: variant.id,
+      hexColor: variant.hex_color || null,
+      referenceImage: refImg || null,
+      success: false,
+      loading: true,
+    })
+
+    const selections = state.selections
+    const products: Array<{ product_id: string; variant_id?: string }> = []
+
+    if (selections?.wrap_id) {
+      products.push({ product_id: selections.wrap_id, variant_id: variant.id })
+    }
+    if (selections?.wheel_id) {
+      products.push({ product_id: selections.wheel_id, variant_id: variant.id })
+    }
+
+    props.api.renderSingleVariant(state.selectedFile, products, state.product.manufacturer_id, {
+      onDebug: (data) => {
+        actions.setDebugData(data)
+      },
+      onComplete: (data) => {
+        const idx = state.galleryResults.findIndex((r) => r.variantId === variant.id)
+
+        if (idx === -1) return
+        actions.updateResult(idx, {
+          image: `data:image/png;base64,${data.image_b64}`,
+          success: true,
+          loading: false,
+        })
+        actions.setCurrentIndex(idx)
+      },
+      onError: (msg) => {
+        console.error(`[Add-variant:${variant.id}] Error:`, msg)
+        const idx = state.galleryResults.findIndex((r) => r.variantId === variant.id)
+
+        if (idx === -1) return
+        actions.updateResult(idx, {
+          error: msg,
+          success: false,
+          loading: false,
+        })
+      },
+      onQuotaExceeded: (data) => {
+        actions.setQuotaError(data)
+        const idx = state.galleryResults.findIndex((r) => r.variantId === variant.id)
+        if (idx !== -1) actions.removeResult(idx)
+      },
     })
   }
 
@@ -203,6 +297,7 @@ export function Modal(props: ModalProps) {
     if (!state.product) throw new Error('No product selected')
 
     const productIds: number[] = []
+
     if (state.selections?.wheel_id) {
       productIds.push(parseInt(state.selections.wheel_id, 10))
     }
@@ -249,13 +344,16 @@ export function Modal(props: ModalProps) {
     const brand = getBrandName().replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
     const model = getModelName().replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
     const finish = result.label.replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '')
+
     return `${brand}_${model}_${finish}_ZenoRender.jpg`
   }
 
   const handleDownloadCurrent = () => {
     const current = getCurrentResult()
+
     if (!current?.image) return
     const link = document.createElement('a')
+
     link.href = current.image
     link.download = getFilename(current)
     link.click()
@@ -285,162 +383,183 @@ export function Modal(props: ModalProps) {
     <Show when={state.isOpen}>
       <Portal mount={props.shadowRoot}>
         <div data-theme={currentTheme()} class="contents">
-        <div
-          class="fixed inset-0 w-full h-full bg-black/85 backdrop-blur-sm flex items-center justify-center z-[999999] font-dinpro font-light"
-          onClick={(e) => e.target === e.currentTarget && handleClose()}
-        >
           <div
-            ref={modalRef}
-            class={`relative bg-zeno-card rounded-[24px] sm:rounded-[40px] max-h-[90vh] overflow-hidden text-white flex flex-col transition-all duration-300 ${state.view === 'result' || state.view === 'loading' ? 'avacar-expanded w-[96%] sm:w-[85%]' : 'w-[96%] sm:w-[92%] max-w-md'}`}
-            style={modalStyle()}
+            class="fixed inset-0 w-full h-full bg-black/85 backdrop-blur-sm flex items-center justify-center z-[999999] font-dinpro font-light"
+            onClick={(e) => e.target === e.currentTarget && handleClose()}
           >
-            <GlowOrbs />
+            <div
+              ref={modalRef}
+              class={`relative bg-zeno-card rounded-[24px] sm:rounded-[40px] max-h-[90vh] overflow-hidden text-white flex flex-col transition-all duration-300 ${state.view === 'result' || state.view === 'loading' ? 'avacar-expanded w-[96%] sm:w-[85%]' : 'w-[96%] sm:w-[92%] max-w-md'}`}
+              style={modalStyle()}
+            >
+              <GlowOrbs />
 
-            <Switch>
-              <Match when={state.view === 'upload'}>
-                <UploadView
-                  productImgUrl={productImgUrl()}
-                  brandName={getBrandName()}
-                  modelName={getModelName()}
-                  isWraps={state.isWraps}
-                  onClose={handleClose}
-                  onFileSelect={handleFileSelect}
-                  onError={actions.setError}
-                />
-              </Match>
+              <Switch>
+                <Match when={state.view === 'upload'}>
+                  <UploadView
+                    productImgUrl={productImgUrl()}
+                    brandName={getBrandName()}
+                    modelName={getModelName()}
+                    isWraps={state.isWraps}
+                    onClose={handleClose}
+                    onFileSelect={handleFileSelect}
+                    onError={actions.setError}
+                  />
+                </Match>
 
-              <Match when={state.view === 'loading'}>
-                <LoadingView
-                  productImgUrl={productImgUrl()}
-                  brandName={getBrandName()}
-                  modelName={getModelName()}
-                  previewDataUrl={state.previewDataUrl}
-                  loadingSteps={getLoadingSteps()}
-                  currentStep={state.loadingStep}
-                  onClose={handleClose}
-                  onModalResize={resizeModalForImage}
-                />
-              </Match>
+                <Match when={state.view === 'loading'}>
+                  <LoadingView
+                    productImgUrl={productImgUrl()}
+                    brandName={getBrandName()}
+                    modelName={getModelName()}
+                    previewDataUrl={state.previewDataUrl}
+                    loadingSteps={getLoadingSteps()}
+                    currentStep={state.loadingStep}
+                    onClose={handleClose}
+                    onModalResize={resizeModalForImage}
+                  />
+                </Match>
 
-              <Match when={state.view === 'result'}>
-                <ResultView
-                  productImgUrl={productImgUrl()}
-                  brandName={getBrandName()}
-                  modelName={getModelName()}
-                  results={state.galleryResults}
-                  currentIndex={state.currentIndex}
-                  zoomLevel={state.zoomLevel}
-                  panX={state.panX}
-                  panY={state.panY}
-                  interestedFinishes={state.interestedFinishes}
-                  onClose={handleClose}
-                  onRetry={handleRestart}
-                  onFullscreen={() => actions.toggleFullscreenModal(true)}
-                  onQuote={actions.showQuote}
-                  onSelectIndex={actions.setCurrentIndex}
-                  onZoom={actions.setZoom}
-                  onPan={(x, y) => actions.setPan(x, y)}
-                  onModalResize={resizeModalForImage}
-                  onToggleInterest={actions.toggleFinishInterest}
-                  onRerender={(index) => actions.toggleRerenderModal(true, index)}
-                  rerenderingIndex={state.rerenderingIndex ?? undefined}
-                  triggerZoomAnimation={false}
-                  debugData={state.debugData}
-                />
-              </Match>
+                <Match when={state.view === 'result'}>
+                  <ResultView
+                    productImgUrl={productImgUrl()}
+                    brandName={getBrandName()}
+                    modelName={getModelName()}
+                    results={state.galleryResults}
+                    currentIndex={state.currentIndex}
+                    zoomLevel={state.zoomLevel}
+                    panX={state.panX}
+                    panY={state.panY}
+                    interestedFinishes={state.interestedFinishes}
+                    onClose={handleClose}
+                    onRetry={handleRestart}
+                    onFullscreen={() => actions.toggleFullscreenModal(true)}
+                    onQuote={actions.showQuote}
+                    onSelectIndex={actions.setCurrentIndex}
+                    onZoom={actions.setZoom}
+                    onPan={(x, y) => actions.setPan(x, y)}
+                    onModalResize={resizeModalForImage}
+                    onToggleInterest={actions.toggleFinishInterest}
+                    onRerender={(index) => actions.toggleRerenderModal(true, index)}
+                    rerenderingIndex={state.rerenderingIndex ?? undefined}
+                    triggerZoomAnimation={false}
+                    debugData={state.debugData}
+                    pendingVariants={pendingVariants()}
+                    onAddVariant={(variantId) => actions.toggleAddVariantModal(true, variantId)}
+                  />
+                </Match>
 
-              <Match when={state.view === 'quote'}>
-                <QuoteView
-                  productImgUrl={productImgUrl()}
-                  brandName={getBrandName()}
-                  modelName={getModelName()}
-                  results={state.galleryResults}
-                  interestedFinishes={state.interestedFinishes}
-                  detectedVehicle={state.detectedVehicle}
-                  quoteViewIndex={state.quoteViewIndex}
-                  onClose={handleClose}
-                  onBack={() => actions.setView('result')}
-                  onToggleFinish={actions.toggleFinishInterest}
-                  onSubmit={handleQuoteSubmit}
-                  onQuoteViewIndexChange={actions.setQuoteViewIndex}
-                  onFullscreen={() => actions.toggleFullscreenModal(true)}
-                />
-              </Match>
+                <Match when={state.view === 'quote'}>
+                  <QuoteView
+                    productImgUrl={productImgUrl()}
+                    brandName={getBrandName()}
+                    modelName={getModelName()}
+                    results={state.galleryResults}
+                    interestedFinishes={state.interestedFinishes}
+                    detectedVehicle={state.detectedVehicle}
+                    quoteViewIndex={state.quoteViewIndex}
+                    onClose={handleClose}
+                    onBack={() => actions.setView('result')}
+                    onToggleFinish={actions.toggleFinishInterest}
+                    onSubmit={handleQuoteSubmit}
+                    onQuoteViewIndexChange={actions.setQuoteViewIndex}
+                    onFullscreen={() => actions.toggleFullscreenModal(true)}
+                  />
+                </Match>
 
-              <Match when={state.view === 'success'}>
-                <SuccessView
-                  productImgUrl={productImgUrl()}
-                  brandName={getBrandName()}
-                  modelName={getModelName()}
-                  isWraps={state.isWraps}
-                  results={state.galleryResults}
-                  interestedFinishes={state.interestedFinishes}
-                  onClose={actions.close}
-                  onShare={handleShare}
-                />
-              </Match>
-            </Switch>
+                <Match when={state.view === 'success'}>
+                  <SuccessView
+                    productImgUrl={productImgUrl()}
+                    brandName={getBrandName()}
+                    modelName={getModelName()}
+                    isWraps={state.isWraps}
+                    results={state.galleryResults}
+                    interestedFinishes={state.interestedFinishes}
+                    onClose={actions.close}
+                    onShare={handleShare}
+                  />
+                </Match>
+              </Switch>
 
-            <Show when={state.error}>
-              <div class="text-red-500 text-center p-5 relative z-1">{state.error}</div>
-            </Show>
+              <Show when={state.error}>
+                <div class="text-red-500 text-center p-5 relative z-1">{state.error}</div>
+              </Show>
+            </div>
           </div>
-        </div>
 
-        <Show when={state.showExitModal}>
-          <ExitModal
-            onBack={() => actions.toggleExitModal(false)}
-            onConfirm={actions.close}
-          />
-        </Show>
+          <Show when={state.showExitModal}>
+            <ExitModal
+              onBack={() => actions.toggleExitModal(false)}
+              onConfirm={actions.close}
+            />
+          </Show>
 
-        <Show when={state.showFullscreenModal}>
-          <FullscreenModal
-            imageUrl={getCurrentResult()?.image || ''}
-            finishes={state.galleryResults}
-            currentIndex={state.currentIndex}
-            interestedIds={state.interestedFinishes}
-            brandName={getBrandName()}
-            modelName={getModelName()}
-            onClose={() => actions.toggleFullscreenModal(false)}
-            onIndexChange={actions.setCurrentIndex}
-            onDownload={handleDownloadCurrent}
-            onLike={actions.toggleFinishInterest}
-          />
-        </Show>
+          <Show when={state.showFullscreenModal}>
+            <FullscreenModal
+              imageUrl={getCurrentResult()?.image || ''}
+              finishes={state.galleryResults}
+              currentIndex={state.currentIndex}
+              interestedIds={state.interestedFinishes}
+              brandName={getBrandName()}
+              modelName={getModelName()}
+              onClose={() => actions.toggleFullscreenModal(false)}
+              onIndexChange={actions.setCurrentIndex}
+              onDownload={handleDownloadCurrent}
+              onLike={actions.toggleFinishInterest}
+            />
+          </Show>
 
-        <Show when={state.showShareModal}>
-          <ShareModal
-            result={getCurrentResult()}
-            brandName={getBrandName()}
-            modelName={getModelName()}
-            onClose={() => actions.toggleShareModal(false)}
-          />
-        </Show>
+          <Show when={state.showShareModal}>
+            <ShareModal
+              result={getCurrentResult()}
+              brandName={getBrandName()}
+              modelName={getModelName()}
+              onClose={() => actions.toggleShareModal(false)}
+            />
+          </Show>
 
-        <Show when={state.showRestartModal}>
-          <RestartModal
-            onCancel={() => actions.toggleRestartModal(false)}
-            onConfirm={() => {
-              actions.toggleRestartModal(false)
-              actions.resetToUpload()
-            }}
-          />
-        </Show>
+          <Show when={state.showRestartModal}>
+            <RestartModal
+              onCancel={() => actions.toggleRestartModal(false)}
+              onConfirm={() => {
+                actions.toggleRestartModal(false)
+                actions.resetToUpload()
+              }}
+            />
+          </Show>
 
-        <Show when={state.showRerenderModal}>
-          <RerenderModal
-            onCancel={() => actions.toggleRerenderModal(false)}
-            onConfirm={() => {
-              const index = state.pendingRerenderIndex
-              actions.toggleRerenderModal(false)
-              if (index !== null) handleRerender(index)
-            }}
-          />
-        </Show>
+          <Show when={state.showRerenderModal}>
+            <RerenderModal
+              onCancel={() => actions.toggleRerenderModal(false)}
+              onConfirm={() => {
+                const index = state.pendingRerenderIndex
 
+                actions.toggleRerenderModal(false)
+                if (index !== null) handleRerender(index)
+              }}
+            />
+          </Show>
 
-        <ThemeToggle />
+          <Show when={state.showAddVariantModal}>
+            <AddVariantModal
+              onCancel={() => actions.toggleAddVariantModal(false)}
+              onConfirm={() => {
+                const id = state.pendingAddVariantId
+
+                actions.toggleAddVariantModal(false)
+                if (id) handleAddVariant(id)
+              }}
+            />
+          </Show>
+
+          <Show when={state.quotaError}>
+            <QuotaExceededModal
+              data={state.quotaError!}
+              onDismiss={() => actions.setQuotaError(null)}
+            />
+          </Show>
+
+          <ThemeToggle />
         </div>
       </Portal>
     </Show>
@@ -587,6 +706,98 @@ function RestartModal(props: { onCancel: () => void; onConfirm: () => void }) {
   )
 }
 
+function AddVariantModal(props: { onCancel: () => void; onConfirm: () => void }) {
+  const handleCancel = () => props.onCancel()
+  const handleConfirm = () => props.onConfirm()
+  const handleOverlayClick = (e: MouseEvent) => {
+    if (e.target === e.currentTarget) handleCancel()
+  }
+
+  return (
+    <div
+      class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[1000000] p-4"
+      onClick={handleOverlayClick}
+    >
+      <div class="relative bg-zeno-card rounded-3xl p-8 max-w-[360px] w-full text-center overflow-hidden animate-fadeInUp">
+        <div class="w-16 h-16 rounded-full bg-[var(--theme-primary)]/15 border-2 border-[var(--theme-primary)]/30 flex items-center justify-center mx-auto mb-6">
+          <svg class="w-8 h-8 text-[var(--theme-primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </div>
+        <h3 class="text-2xl font-semibold text-white m-0 mb-2">Render another finish?</h3>
+        <p class="text-sm text-white/40 m-0 mb-8">We&apos;ll generate this finish on your car.</p>
+        <div class="flex gap-4">
+          <button
+            class="flex-1 py-4 rounded-xl bg-white/5 border border-white/20 text-white text-[15px] font-medium cursor-pointer flex items-center justify-center gap-2 transition-all hover:bg-white/10 hover:border-white/30"
+            onClick={handleCancel}
+          >
+            Cancel
+          </button>
+          <button
+            class="flex-1 py-4 rounded-xl bg-[var(--theme-primary)]/15 border border-[var(--theme-primary)]/30 text-[var(--theme-primary-light)] text-[15px] font-medium cursor-pointer transition-all hover:scale-[1.02] hover:bg-[var(--theme-primary)]/20"
+            onClick={handleConfirm}
+          >
+            Render
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function QuotaExceededModal(props: { data: QuotaExceededError; onDismiss: () => void }) {
+  const [remaining, setRemaining] = createSignal(Math.max(0, props.data.retry_after_seconds))
+  const interval = window.setInterval(() => {
+    setRemaining((v) => Math.max(0, v - 1))
+  }, 1000)
+
+  onCleanup(() => clearInterval(interval))
+
+  const format = (s: number): string => {
+    if (s <= 0) return '0:00'
+    const h = Math.floor(s / 3600)
+    const m = Math.floor((s % 3600) / 60)
+    const sec = s % 60
+
+    if (h > 0) return `${h}h ${m}m ${String(sec).padStart(2, '0')}s`
+
+    return `${m}:${String(sec).padStart(2, '0')}`
+  }
+
+  const handleDismiss = () => props.onDismiss()
+  const handleOverlayClick = (e: MouseEvent) => {
+    if (e.target === e.currentTarget) handleDismiss()
+  }
+
+  return (
+    <div
+      class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[1000000] p-4"
+      onClick={handleOverlayClick}
+    >
+      <div class="relative bg-zeno-card rounded-3xl p-8 max-w-[360px] w-full text-center overflow-hidden animate-fadeInUp">
+        <div class="w-16 h-16 rounded-full bg-[var(--theme-primary)]/15 border-2 border-[var(--theme-primary)]/30 flex items-center justify-center mx-auto mb-6">
+          <svg class="w-8 h-8 text-[var(--theme-primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+        </div>
+        <h3 class="text-2xl font-semibold text-white m-0 mb-4">Out of previews!</h3>
+        <p class="text-xs uppercase tracking-[1px] text-white/40 mb-1">More available in</p>
+        <p class="text-3xl font-semibold text-[var(--theme-primary-light)] mb-8 tabular-nums">
+          {format(remaining())}
+        </p>
+        <button
+          type="button"
+          class="w-full py-4 rounded-xl bg-[var(--theme-primary)]/15 border border-[var(--theme-primary)]/30 text-[var(--theme-primary-light)] text-[15px] font-medium cursor-pointer transition-all hover:scale-[1.02] hover:bg-[var(--theme-primary)]/20"
+          onClick={handleDismiss}
+        >
+          Got it
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function RerenderModal(props: { onCancel: () => void; onConfirm: () => void }) {
   const handleCancel = () => props.onCancel()
   const handleConfirm = () => props.onConfirm()
@@ -627,7 +838,6 @@ function RerenderModal(props: { onCancel: () => void; onConfirm: () => void }) {
   )
 }
 
-
 interface FullscreenModalProps {
   imageUrl: string
   finishes: { label: string; image?: string; hexColor?: string | null; referenceImage?: string | null; success: boolean }[]
@@ -658,6 +868,7 @@ function FullscreenModal(props: FullscreenModalProps) {
     if (zoomLevel() <= 1 || !imageRef) return { x: 0, y: 0 }
     const maxPanX = (imageRef.offsetWidth * (zoomLevel() - 1)) / (2 * zoomLevel())
     const maxPanY = (imageRef.offsetHeight * (zoomLevel() - 1)) / (2 * zoomLevel())
+
     return {
       x: Math.max(-maxPanX, Math.min(maxPanX, x)),
       y: Math.max(-maxPanY, Math.min(maxPanY, y)),
@@ -668,12 +879,14 @@ function FullscreenModal(props: FullscreenModalProps) {
     e.preventDefault()
     const delta = e.deltaY > 0 ? -0.25 : 0.25
     const newZoom = Math.max(1, Math.min(4, zoomLevel() + delta))
+
     setZoomLevel(newZoom)
     if (newZoom <= 1) {
       setPanX(0)
       setPanY(0)
     } else {
       const clamped = clampPan(panX(), panY())
+
       setPanX(clamped.x)
       setPanY(clamped.y)
     }
@@ -692,6 +905,7 @@ function FullscreenModal(props: FullscreenModalProps) {
     const dx = (e.clientX - dragStart().x) / zoomLevel()
     const dy = (e.clientY - dragStart().y) / zoomLevel()
     const clamped = clampPan(panStart().x + dx, panStart().y + dy)
+
     setPanX(clamped.x)
     setPanY(clamped.y)
   }
@@ -703,8 +917,9 @@ function FullscreenModal(props: FullscreenModalProps) {
     if (e.touches.length === 2) {
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
+        e.touches[0].clientY - e.touches[1].clientY,
       )
+
       setLastTouchDist(dist)
     } else if (e.touches.length === 1 && zoomLevel() > 1) {
       setIsDragging(true)
@@ -718,13 +933,15 @@ function FullscreenModal(props: FullscreenModalProps) {
       e.preventDefault()
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
+        e.touches[0].clientY - e.touches[1].clientY,
       )
       const scale = dist / lastTouchDist()
       const newZoom = Math.max(1, Math.min(4, zoomLevel() * scale))
+
       setZoomLevel(newZoom)
       setLastTouchDist(dist)
       const clamped = clampPan(panX(), panY())
+
       setPanX(clamped.x)
       setPanY(clamped.y)
     } else if (e.touches.length === 1 && isDragging()) {
@@ -732,6 +949,7 @@ function FullscreenModal(props: FullscreenModalProps) {
       const dx = (e.touches[0].clientX - dragStart().x) / zoomLevel()
       const dy = (e.touches[0].clientY - dragStart().y) / zoomLevel()
       const clamped = clampPan(panStart().x + dx, panStart().y + dy)
+
       setPanX(clamped.x)
       setPanY(clamped.y)
     }
@@ -767,12 +985,14 @@ function FullscreenModal(props: FullscreenModalProps) {
 
   const handlePrev = () => {
     const newIndex = findNextValidIndex(props.currentIndex, -1)
+
     props.onIndexChange(newIndex)
     resetZoom()
   }
 
   const handleNext = () => {
     const newIndex = findNextValidIndex(props.currentIndex, 1)
+
     props.onIndexChange(newIndex)
     resetZoom()
   }
@@ -856,7 +1076,7 @@ function FullscreenModal(props: FullscreenModalProps) {
             style={{
               transform: `scale(${zoomLevel()}) translate(${panX()}px, ${panY()}px)`,
               cursor: zoomLevel() > 1 ? (isDragging() ? 'grabbing' : 'grab') : 'default',
-              "touch-action": "none",
+              'touch-action': 'none',
               transition: isTouching() ? 'none' : 'transform 0.1s ease-out',
             }}
             onWheel={handleWheel}

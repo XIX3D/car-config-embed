@@ -146,6 +146,13 @@ export interface DebugData {
   missing_references?: string[]
 }
 
+export interface QuotaExceededError {
+  error: string
+  limit: number
+  message: string
+  retry_after_seconds: number
+}
+
 export interface RenderStreamEvents {
   onStarted?: () => void
   onVehicleDetected?: (data: { make: string; model: string; year: string; vehicle_type: VehicleType }) => void
@@ -154,4 +161,5 @@ export interface RenderStreamEvents {
   onDebug?: (data: DebugData) => void
   onComplete?: (data: { image_b64: string }) => void
   onError?: (message: string) => void
+  onQuotaExceeded?: (data: QuotaExceededError) => void
 }

@@ -1,5 +1,5 @@
 import { createStore, produce } from 'solid-js/store'
-import type { ViewState, RenderResult, Product, Variant, JWTPayload, DebugData, VehicleInfo } from '../types'
+import type { ViewState, RenderResult, Product, Variant, JWTPayload, DebugData, VehicleInfo, QuotaExceededError } from '../types'
 import { LOADING_STEPS, LOADING_STEPS_WRAPS, ZOOM, ASPECT_THRESHOLDS } from '../constants'
 
 export type ImageAspect = 'normal' | 'wide' | 'tall' | 'square' | null
@@ -44,12 +44,15 @@ export interface WidgetState {
   showRestartModal: boolean
   showRerenderModal: boolean
   pendingRerenderIndex: number | null
+  showAddVariantModal: boolean
+  pendingAddVariantId: string | null
 
   // Quote view
   quoteViewIndex: number
 
   // Error
   error: string | null
+  quotaError: QuotaExceededError | null
 
   // Debug
   debugData: DebugData | null
@@ -93,10 +96,13 @@ const initialState: WidgetState = {
   showRestartModal: false,
   showRerenderModal: false,
   pendingRerenderIndex: null,
+  showAddVariantModal: false,
+  pendingAddVariantId: null,
 
   quoteViewIndex: 0,
 
   error: null,
+  quotaError: null,
 
   debugData: null,
 
@@ -156,6 +162,7 @@ export function createWidgetStore() {
     setImageAspect(width: number, height: number) {
       if (width <= 0 || height <= 0) {
         setState('imageAspect', null)
+
         return
       }
 
@@ -237,20 +244,25 @@ export function createWidgetStore() {
       setState('galleryResults', index, (prev) => ({ ...prev, ...result }))
 
       if (state.view !== 'loading') return
+      if (state.quotaError) return
 
       const firstResult = state.galleryResults[0]
+
       if (firstResult?.success && !firstResult?.loading) {
         actions.stopLoading()
         setState({ view: 'result', currentIndex: 0, hasRendered: true })
+
         return
       }
 
       const allDone = state.galleryResults.every((r) => !r.loading)
+
       if (!allDone) return
 
       actions.stopLoading()
 
       const firstSuccess = state.galleryResults.findIndex((r) => r.success)
+
       if (firstSuccess !== -1) {
         setState({ view: 'result', currentIndex: firstSuccess, hasRendered: true })
       } else {
@@ -338,6 +350,14 @@ export function createWidgetStore() {
       setState('error', error)
     },
 
+    setQuotaError(data: QuotaExceededError | null) {
+      setState('quotaError', data)
+    },
+
+    removeResult(index: number) {
+      setState('galleryResults', (prev) => prev.filter((_, i) => i !== index))
+    },
+
     toggleExitModal(show: boolean) {
       setState('showExitModal', show)
     },
@@ -359,6 +379,17 @@ export function createWidgetStore() {
         showRerenderModal: show,
         pendingRerenderIndex: show ? (index ?? null) : null,
       })
+    },
+
+    toggleAddVariantModal(show: boolean, variantId?: string) {
+      setState({
+        showAddVariantModal: show,
+        pendingAddVariantId: show ? (variantId ?? null) : null,
+      })
+    },
+
+    appendResult(result: RenderResult) {
+      setState('galleryResults', (prev) => [...prev, result])
     },
 
     setQuoteViewIndex(index: number) {
