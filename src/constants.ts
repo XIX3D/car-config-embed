@@ -44,6 +44,8 @@ export const ZOOM = {
   resetThreshold: 1.05,
 } as const;
 
+export const ZOOM_ENABLED = true;
+
 export const PARTICLE_CONFIG = {
   defaultCount: 12,
   leftRange: { min: 10, max: 80 },

@@ -5,13 +5,13 @@ import {
   Show,
   onMount,
   onCleanup,
-} from 'solid-js'
-import type { RenderResult, Variant, DebugData } from '../../types'
-import { ZENO, ZOOM } from '../../constants'
-import { ModalHeader } from './ModalHeader'
-import { DebugPanel } from '../Debug/DebugPanel'
+} from "solid-js";
+import type { RenderResult, DebugData } from "../../types";
+import { ZENO, ZOOM, ZOOM_ENABLED } from "../../constants";
+import { ModalHeader } from "./ModalHeader";
+import { DebugPanel } from "../Debug/DebugPanel";
 
-const DEBUG = import.meta.env.VITE_DEBUG === 'true'
+const DEBUG = import.meta.env.VITE_DEBUG === "true";
 
 interface ResultViewProps {
   productImgUrl: string;
@@ -36,245 +36,226 @@ interface ResultViewProps {
   rerenderingIndex?: number;
   triggerZoomAnimation?: boolean;
   debugData?: DebugData | null;
-  pendingVariants?: Variant[];
-  onAddVariant?: (variantId: string) => void;
 }
 
 export function ResultView(props: ResultViewProps) {
-  let imageRef: HTMLImageElement | undefined
-  let wrapperRef: HTMLDivElement | undefined
-  const [isDragging, setIsDragging] = createSignal(false)
-  const [dragStart, setDragStart] = createSignal({ x: 0, y: 0 })
-  const [panStart, setPanStart] = createSignal({ x: 0, y: 0 })
-  const [lastTouchDist, setLastTouchDist] = createSignal(0)
-  const [showZoomHint, setShowZoomHint] = createSignal(true)
-  const [hasInteracted, setHasInteracted] = createSignal(false)
-  const [isAnimatingZoom, setIsAnimatingZoom] = createSignal(false)
-  const [objectPos, setObjectPos] = createSignal({ x: 50, y: 50 })
-  const [posStart, setPosStart] = createSignal({ x: 50, y: 50 })
+  let imageRef: HTMLImageElement | undefined;
+  let wrapperRef: HTMLDivElement | undefined;
+  const [isDragging, setIsDragging] = createSignal(false);
+  const [dragStart, setDragStart] = createSignal({ x: 0, y: 0 });
+  const [panStart, setPanStart] = createSignal({ x: 0, y: 0 });
+  const [lastTouchDist, setLastTouchDist] = createSignal(0);
+  const [showZoomHint, setShowZoomHint] = createSignal(true);
+  const [hasInteracted, setHasInteracted] = createSignal(false);
+  const [isAnimatingZoom, setIsAnimatingZoom] = createSignal(false);
+  const [objectPos, setObjectPos] = createSignal({ x: 50, y: 50 });
+  const [posStart, setPosStart] = createSignal({ x: 50, y: 50 });
   const isMobile =
-    typeof window !== 'undefined' &&
-    window.matchMedia('(max-width: 640px)').matches
+    typeof window !== "undefined" &&
+    window.matchMedia("(max-width: 640px)").matches;
 
-  const current = () => props.results[props.currentIndex]
+  const current = () => props.results[props.currentIndex];
   const isLiked = (index: number) =>
-    props.interestedFinishes?.includes(index) ?? false
+    props.interestedFinishes?.includes(index) ?? false;
 
   const getFilename = () => {
-    const c = current()
+    const c = current();
 
-    if (!c) return 'my-wheel-build.jpg'
+    if (!c) return "my-wheel-build.jpg";
     const brand = props.brandName
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9-]/gi, '')
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/gi, "");
     const model = props.modelName
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9-]/gi, '')
-    const finish = c.label
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9-]/gi, '')
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/gi, "");
+    const finish = c.label.replace(/\s+/g, "-").replace(/[^a-z0-9-]/gi, "");
 
-    return `${brand}_${model}_${finish}_ZenoRender.jpg`
-  }
+    return `${brand}_${model}_${finish}_ZenoRender.jpg`;
+  };
 
   const handleDownload = () => {
-    const c = current()
+    const c = current();
 
-    if (!c?.image) return
-    const link = document.createElement('a')
+    if (!c?.image) return;
+    const link = document.createElement("a");
 
-    link.href = c.image
-    link.download = getFilename()
-    link.click()
-  }
+    link.href = c.image;
+    link.download = getFilename();
+    link.click();
+  };
 
   const clampPan = (x: number, y: number): { x: number; y: number } => {
-    if (props.zoomLevel <= 1 || !imageRef) return { x: 0, y: 0 }
+    if (props.zoomLevel <= 1 || !imageRef) return { x: 0, y: 0 };
     const maxPanX =
-      (imageRef.offsetWidth * (props.zoomLevel - 1)) / (2 * props.zoomLevel)
+      (imageRef.offsetWidth * (props.zoomLevel - 1)) / (2 * props.zoomLevel);
     const maxPanY =
-      (imageRef.offsetHeight * (props.zoomLevel - 1)) / (2 * props.zoomLevel)
+      (imageRef.offsetHeight * (props.zoomLevel - 1)) / (2 * props.zoomLevel);
 
     return {
       x: Math.max(-maxPanX, Math.min(maxPanX, x)),
       y: Math.max(-maxPanY, Math.min(maxPanY, y)),
-    }
-  }
+    };
+  };
 
   const markInteracted = () => {
     if (!hasInteracted()) {
-      setHasInteracted(true)
-      setShowZoomHint(false)
+      setHasInteracted(true);
+      setShowZoomHint(false);
     }
-  }
+  };
 
   const handleWheel = (e: WheelEvent) => {
-    e.preventDefault()
-    markInteracted()
-    const delta = e.deltaY > 0 ? -ZOOM.step : ZOOM.step
+    if (!ZOOM_ENABLED) return;
+    e.preventDefault();
+    markInteracted();
+    const delta = e.deltaY > 0 ? -ZOOM.step : ZOOM.step;
     const newZoom = Math.max(
       ZOOM.min,
       Math.min(ZOOM.max, props.zoomLevel + delta),
-    )
+    );
 
     if (newZoom !== props.zoomLevel) {
-      props.onZoom(newZoom)
+      props.onZoom(newZoom);
       if (newZoom <= 1) {
-        props.onPan(0, 0)
+        props.onPan(0, 0);
       } else {
-        const clamped = clampPan(props.panX, props.panY)
+        const clamped = clampPan(props.panX, props.panY);
 
-        props.onPan(clamped.x, clamped.y)
+        props.onPan(clamped.x, clamped.y);
       }
     }
-  }
+  };
 
   const handleMouseDown = (e: MouseEvent) => {
-    setIsDragging(true)
-    setDragStart({ x: e.clientX, y: e.clientY })
-    setPanStart({ x: props.panX, y: props.panY })
-    setPosStart({ x: objectPos().x, y: objectPos().y })
-    e.preventDefault()
-  }
+    setIsDragging(true);
+    setDragStart({ x: e.clientX, y: e.clientY });
+    setPanStart({ x: props.panX, y: props.panY });
+    setPosStart({ x: objectPos().x, y: objectPos().y });
+    e.preventDefault();
+  };
 
   const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging()) return
+    if (!isDragging()) return;
     if (props.zoomLevel > 1) {
-      const dx = (e.clientX - dragStart().x) / props.zoomLevel
-      const dy = (e.clientY - dragStart().y) / props.zoomLevel
-      const clamped = clampPan(panStart().x + dx, panStart().y + dy)
+      const dx = (e.clientX - dragStart().x) / props.zoomLevel;
+      const dy = (e.clientY - dragStart().y) / props.zoomLevel;
+      const clamped = clampPan(panStart().x + dx, panStart().y + dy);
 
-      props.onPan(clamped.x, clamped.y)
-    } else {
-      const dx = (e.clientX - dragStart().x) * 0.3
-      const dy = (e.clientY - dragStart().y) * 0.3
-      const newX = Math.max(0, Math.min(100, posStart().x - dx))
-      const newY = Math.max(0, Math.min(100, posStart().y - dy))
-
-      setObjectPos({ x: newX, y: newY })
+      props.onPan(clamped.x, clamped.y);
     }
-  }
+  };
 
   const handleMouseUp = () => {
-    setIsDragging(false)
-  }
+    setIsDragging(false);
+  };
 
   const handleTouchStart = (e: TouchEvent) => {
     if (e.touches.length === 2) {
-      markInteracted()
+      markInteracted();
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY,
-      )
+      );
 
-      setLastTouchDist(dist)
+      setLastTouchDist(dist);
     } else if (e.touches.length === 1) {
-      setIsDragging(true)
-      setDragStart({ x: e.touches[0].clientX, y: e.touches[0].clientY })
-      setPanStart({ x: props.panX, y: props.panY })
-      setPosStart({ x: objectPos().x, y: objectPos().y })
+      setIsDragging(true);
+      setDragStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+      setPanStart({ x: props.panX, y: props.panY });
+      setPosStart({ x: objectPos().x, y: objectPos().y });
     }
-  }
+  };
 
   const handleTouchMove = (e: TouchEvent) => {
-    if (e.touches.length === 2) {
-      e.preventDefault()
+    if (ZOOM_ENABLED && e.touches.length === 2) {
+      e.preventDefault();
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY,
-      )
-      const scale = dist / lastTouchDist()
+      );
+      const scale = dist / lastTouchDist();
       const newZoom = Math.max(
         ZOOM.min,
         Math.min(ZOOM.max, props.zoomLevel * scale),
-      )
+      );
 
-      props.onZoom(newZoom)
-      setLastTouchDist(dist)
-      const clamped = clampPan(props.panX, props.panY)
+      props.onZoom(newZoom);
+      setLastTouchDist(dist);
+      const clamped = clampPan(props.panX, props.panY);
 
-      props.onPan(clamped.x, clamped.y)
-    } else if (e.touches.length === 1 && isDragging()) {
-      e.preventDefault()
-      if (props.zoomLevel > 1) {
-        const dx = (e.touches[0].clientX - dragStart().x) / props.zoomLevel
-        const dy = (e.touches[0].clientY - dragStart().y) / props.zoomLevel
-        const clamped = clampPan(panStart().x + dx, panStart().y + dy)
+      props.onPan(clamped.x, clamped.y);
+    } else if (e.touches.length === 1 && isDragging() && props.zoomLevel > 1) {
+      e.preventDefault();
+      const dx = (e.touches[0].clientX - dragStart().x) / props.zoomLevel;
+      const dy = (e.touches[0].clientY - dragStart().y) / props.zoomLevel;
+      const clamped = clampPan(panStart().x + dx, panStart().y + dy);
 
-        props.onPan(clamped.x, clamped.y)
-      } else {
-        const dx = (e.touches[0].clientX - dragStart().x) * 0.3
-        const dy = (e.touches[0].clientY - dragStart().y) * 0.3
-        const newX = Math.max(0, Math.min(100, posStart().x - dx))
-        const newY = Math.max(0, Math.min(100, posStart().y - dy))
-
-        setObjectPos({ x: newX, y: newY })
-      }
+      props.onPan(clamped.x, clamped.y);
     }
-  }
+  };
 
   const handleTouchEnd = () => {
-    setIsDragging(false)
-    setLastTouchDist(0)
-  }
+    setIsDragging(false);
+    setLastTouchDist(0);
+  };
 
   const resetZoom = (e: MouseEvent) => {
-    e.stopPropagation()
-    props.onZoom(1)
-    props.onPan(0, 0)
-  }
+    e.stopPropagation();
+    props.onZoom(1);
+    props.onPan(0, 0);
+  };
 
   const findNextValidIndex = (
     startIndex: number,
     direction: 1 | -1,
   ): number => {
-    const len = props.results.length
-    let index = startIndex
+    const len = props.results.length;
+    let index = startIndex;
 
     for (let i = 0; i < len; i++) {
-      index = (index + direction + len) % len
-      const result = props.results[index]
+      index = (index + direction + len) % len;
+      const result = props.results[index];
 
       if (result.success && !result.loading && result.image) {
-        return index
+        return index;
       }
     }
 
-    return props.currentIndex
-  }
+    return props.currentIndex;
+  };
 
   const handlePrev = () => {
-    const newIndex = findNextValidIndex(props.currentIndex, -1)
+    const newIndex = findNextValidIndex(props.currentIndex, -1);
 
-    props.onSelectIndex(newIndex)
-  }
+    props.onSelectIndex(newIndex);
+  };
 
   const handleNext = () => {
-    const newIndex = findNextValidIndex(props.currentIndex, 1)
+    const newIndex = findNextValidIndex(props.currentIndex, 1);
 
-    props.onSelectIndex(newIndex)
-  }
+    props.onSelectIndex(newIndex);
+  };
 
   onMount(() => {
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
-  })
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  });
 
   onCleanup(() => {
-    document.removeEventListener('mousemove', handleMouseMove)
-    document.removeEventListener('mouseup', handleMouseUp)
-  })
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseUp);
+  });
 
   const handleImageLoad = () => {
     if (imageRef && props.onModalResize) {
-      props.onModalResize(imageRef.naturalWidth, imageRef.naturalHeight)
+      props.onModalResize(imageRef.naturalWidth, imageRef.naturalHeight);
     }
-    setObjectPos({ x: 50, y: 50 })
-  }
+    setObjectPos({ x: 50, y: 50 });
+  };
 
   createEffect(() => {
-    void props.currentIndex
-    setObjectPos({ x: 50, y: 50 })
+    void props.currentIndex;
+    setObjectPos({ x: 50, y: 50 });
     setTimeout(() => {
       if (
         imageRef &&
@@ -282,64 +263,67 @@ export function ResultView(props: ResultViewProps) {
         imageRef.naturalWidth > 0 &&
         props.onModalResize
       ) {
-        props.onModalResize(imageRef.naturalWidth, imageRef.naturalHeight)
+        props.onModalResize(imageRef.naturalWidth, imageRef.naturalHeight);
       }
-    }, 0)
-  })
+    }, 0);
+  });
 
   createEffect(() => {
+    if (!ZOOM_ENABLED) return;
     if (props.triggerZoomAnimation && !hasInteracted()) {
       setTimeout(() => {
-        setIsAnimatingZoom(true)
+        setIsAnimatingZoom(true);
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            props.onZoom(1.5)
+            props.onZoom(1.5);
             setTimeout(() => {
-              props.onZoom(1)
+              props.onZoom(1);
               setTimeout(() => {
-                setIsAnimatingZoom(false)
-                setShowZoomHint(false)
-              }, 500)
-            }, 500)
-          })
-        })
-      }, 1000)
+                setIsAnimatingZoom(false);
+                setShowZoomHint(false);
+              }, 500);
+            }, 500);
+          });
+        });
+      }, 1000);
     }
-  })
+  });
 
   const triggerDebugAnimation = () => {
-    setIsAnimatingZoom(true)
+    setIsAnimatingZoom(true);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        props.onZoom(1.5)
+        props.onZoom(1.5);
         setTimeout(() => {
-          props.onZoom(1)
+          props.onZoom(1);
           setTimeout(() => {
-            setIsAnimatingZoom(false)
-          }, 500)
-        }, 500)
-      })
-    })
-  }
+            setIsAnimatingZoom(false);
+          }, 500);
+        }, 500);
+      });
+    });
+  };
 
   const transformStyle = () => ({
     transform:
-        props.zoomLevel > 1
-          ? `scale(${props.zoomLevel}) translate(${props.panX}px, ${props.panY}px)`
-          : undefined,
-    'object-position':
-        props.zoomLevel <= 1
-          ? `${objectPos().x}% ${objectPos().y}%`
-          : 'center center',
-    cursor: isDragging() ? 'grabbing' : 'grab',
-  })
+      props.zoomLevel > 1
+        ? `scale(${props.zoomLevel}) translate(${props.panX}px, ${props.panY}px)`
+        : undefined,
+    "object-fit": "contain",
+    "object-position":
+      props.zoomLevel <= 1
+        ? `${objectPos().x}% ${objectPos().y}%`
+        : "center center",
+    cursor:
+      props.zoomLevel > 1 ? (isDragging() ? "grabbing" : "grab") : "default",
+  });
 
-  const handleClose = () => props.onClose()
-  const handleRetry = () => props.onRetry()
-  const handleFullscreen = () => props.onFullscreen()
-  const handleQuote = () => props.onQuote()
+  const handleClose = () => props.onClose();
+  const handleRetry = () => props.onRetry();
+  const handleFullscreen = () => props.onFullscreen();
+  const handleQuote = () => props.onQuote();
 
-  const canNavigate = () => props.results.length > 1
+  const canNavigate = () => props.results.length > 1;
 
   return (
     <div class="relative z-1 flex flex-col items-center pt-6 pb-4 px-6 min-h-[520px]">
@@ -355,10 +339,10 @@ export function ResultView(props: ResultViewProps) {
       <div class="flex flex-col items-center w-full">
         <div
           ref={wrapperRef}
-          class={`relative rounded-2xl overflow-hidden mb-4 animate-fadeInUp ${isMobile ? 'w-full' : 'inline-block max-w-full'}`}
+          class={`relative rounded-2xl overflow-hidden mb-4 animate-fadeInUp bg-black flex items-center justify-center ${isMobile ? "w-full" : "inline-block max-w-full"}`}
           style={{
-            height: isMobile ? 'min(calc(95svh - 380px), 400px)' : undefined,
-            'touch-action': 'none',
+            height: isMobile ? "min(calc(95svh - 380px), 400px)" : undefined,
+            "touch-action": "none",
           }}
           onWheel={handleWheel}
         >
@@ -368,21 +352,21 @@ export function ResultView(props: ResultViewProps) {
             <button
               class={`absolute top-2 sm:top-3 left-2 sm:left-3 w-9 h-9 sm:w-10 sm:h-10 rounded-full backdrop-blur-sm flex items-center justify-center transition-all z-10 ${
                 props.rerenderingIndex === props.currentIndex
-                  ? 'cursor-wait opacity-80'
-                  : 'hover:scale-110 active:scale-95 cursor-pointer'
+                  ? "cursor-wait opacity-80"
+                  : "hover:scale-110 active:scale-95 cursor-pointer"
               }`}
-              style={{ background: 'rgba(0,0,0,0.4)' }}
+              style={{ background: "rgba(0,0,0,0.4)" }}
               onClick={(e) => {
-                e.stopPropagation()
+                e.stopPropagation();
                 if (props.rerenderingIndex !== props.currentIndex) {
-                  props.onRerender?.(props.currentIndex)
+                  props.onRerender?.(props.currentIndex);
                 }
               }}
               disabled={props.rerenderingIndex === props.currentIndex}
               aria-label={
                 props.rerenderingIndex === props.currentIndex
-                  ? 'Re-rendering...'
-                  : 'Re-render'
+                  ? "Re-rendering..."
+                  : "Re-render"
               }
             >
               <Show
@@ -427,10 +411,10 @@ export function ResultView(props: ResultViewProps) {
           {/* Top-right: Download button */}
           <button
             class="absolute top-2 sm:top-3 right-2 sm:right-3 w-9 h-9 sm:w-10 sm:h-10 rounded-full backdrop-blur-sm flex items-center justify-center transition-all z-10 hover:scale-110 active:scale-95 cursor-pointer"
-            style={{ background: 'rgba(0,0,0,0.4)' }}
+            style={{ background: "rgba(0,0,0,0.4)" }}
             onClick={(e) => {
-              e.stopPropagation()
-              handleDownload()
+              e.stopPropagation();
+              handleDownload();
             }}
             aria-label="Download"
           >
@@ -451,10 +435,10 @@ export function ResultView(props: ResultViewProps) {
           <Show when={canNavigate()}>
             <button
               class="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full backdrop-blur-sm flex items-center justify-center text-white/70 transition-all z-10 hover:scale-110 hover:text-white hover:bg-black/50 active:scale-95 cursor-pointer"
-              style={{ background: 'rgba(0,0,0,0.3)' }}
+              style={{ background: "rgba(0,0,0,0.3)" }}
               onClick={(e) => {
-                e.stopPropagation()
-                handlePrev()
+                e.stopPropagation();
+                handlePrev();
               }}
               aria-label="Previous finish"
             >
@@ -470,10 +454,10 @@ export function ResultView(props: ResultViewProps) {
             </button>
             <button
               class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full backdrop-blur-sm flex items-center justify-center text-white/70 transition-all z-10 hover:scale-110 hover:text-white hover:bg-black/50 active:scale-95 cursor-pointer"
-              style={{ background: 'rgba(0,0,0,0.3)' }}
+              style={{ background: "rgba(0,0,0,0.3)" }}
               onClick={(e) => {
-                e.stopPropagation()
-                handleNext()
+                e.stopPropagation();
+                handleNext();
               }}
               aria-label="Next finish"
             >
@@ -492,10 +476,10 @@ export function ResultView(props: ResultViewProps) {
           {/* Bottom-right: Fullscreen button */}
           <button
             class="absolute bottom-3 sm:bottom-3 right-3 sm:right-3 w-9 h-9 sm:w-10 sm:h-10 rounded-full backdrop-blur-sm flex items-center justify-center transition-all z-10 hover:scale-110 active:scale-95 cursor-pointer"
-            style={{ background: 'rgba(0,0,0,0.4)' }}
+            style={{ background: "rgba(0,0,0,0.4)" }}
             onClick={(e) => {
-              e.stopPropagation()
-              handleFullscreen()
+              e.stopPropagation();
+              handleFullscreen();
             }}
             aria-label="Fullscreen"
           >
@@ -509,28 +493,6 @@ export function ResultView(props: ResultViewProps) {
               <path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3" />
             </svg>
           </button>
-
-          {/* Zoom hint */}
-          <Show when={showZoomHint() && !hasInteracted() && !isAnimatingZoom()}>
-            <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-              <div class="bg-black/70 backdrop-blur-sm px-4 py-2.5 rounded-full flex items-center gap-2">
-                <svg
-                  class="w-5 h-5 text-white"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="M21 21l-4.35-4.35" />
-                  <path d="M11 8v6M8 11h6" />
-                </svg>
-                <span class="text-white text-xs sm:text-sm font-medium">
-                  {isMobile ? 'Pinch to zoom' : 'Scroll to zoom'}
-                </span>
-              </div>
-            </div>
-          </Show>
 
           {/* Reset zoom button */}
           <Show when={props.zoomLevel > ZOOM.resetThreshold}>
@@ -559,8 +521,8 @@ export function ResultView(props: ResultViewProps) {
             <button
               class="absolute bottom-3 left-3 z-20 bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-full text-white text-xs font-medium transition-colors cursor-pointer"
               onClick={(e) => {
-                e.stopPropagation()
-                triggerDebugAnimation()
+                e.stopPropagation();
+                triggerDebugAnimation();
               }}
             >
               Test Zoom
@@ -571,14 +533,14 @@ export function ResultView(props: ResultViewProps) {
           </Show>
 
           {current()?.loading ? (
-            <div class="avacar-result-img flex items-center justify-center bg-black/20 rounded-2xl min-h-[300px]">
+            <div class="avacar-result-img self-stretch flex items-center justify-center bg-black/20 rounded-2xl min-h-[300px]">
               <div class="flex flex-col items-center gap-2">
                 <div class="w-12 h-12 border-3 border-white/20 border-t-white rounded-full animate-spin" />
                 <span class="text-white/50 text-sm">Rendering...</span>
               </div>
             </div>
           ) : !current()?.success ? (
-            <div class="avacar-result-img flex flex-col items-center justify-center bg-black/20 rounded-2xl min-h-[300px] gap-3">
+            <div class="avacar-result-img self-stretch flex flex-col items-center justify-center bg-black/20 rounded-2xl min-h-[300px] gap-3">
               <span class="text-white/50 text-sm">Failed to render</span>
               <button
                 class="px-4 py-2 rounded-xl bg-white/10 text-white/70 text-sm hover:bg-white/20 transition-colors cursor-pointer border-none"
@@ -588,11 +550,11 @@ export function ResultView(props: ResultViewProps) {
               </button>
             </div>
           ) : (
-            <div class="relative">
+            <div class="relative w-full h-full flex items-center justify-center">
               <img
                 ref={imageRef}
-                class={`avacar-result-img ${isAnimatingZoom() ? 'zoom-animating' : ''}`}
-                src={current()?.image || ''}
+                class={`avacar-result-img ${isAnimatingZoom() ? "zoom-animating" : ""}`}
+                src={current()?.image || ""}
                 alt="Preview"
                 style={transformStyle()}
                 onMouseDown={handleMouseDown}
@@ -616,7 +578,7 @@ export function ResultView(props: ResultViewProps) {
 
         {/* Finish name */}
         <p class="text-center text-white/60 text-[10px] sm:text-xs uppercase tracking-widest mb-2 sm:mb-3">
-          {props.currentIndex === 0 ? 'Stock' : current()?.label}
+          {current()?.label}
         </p>
 
         {/* Color Carousel - v13 with interest indicators and re-render buttons */}
@@ -628,9 +590,9 @@ export function ResultView(props: ResultViewProps) {
           >
             <For each={props.results}>
               {(result, i) => {
-                const isSelected = () => i() === props.currentIndex
-                const isInterested = () => isLiked(i())
-                const isRerendering = () => props.rerenderingIndex === i()
+                const isSelected = () => i() === props.currentIndex;
+                const isInterested = () => isLiked(i());
+                const isRerendering = () => props.rerenderingIndex === i();
 
                 return (
                   <div class="relative">
@@ -641,25 +603,25 @@ export function ResultView(props: ResultViewProps) {
                       tabIndex={isSelected() ? 0 : -1}
                       class={`flex-shrink-0 w-12 h-12 rounded-xl border-none transition-all relative focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none ${
                         result.loading || isRerendering()
-                          ? 'opacity-30 cursor-wait'
+                          ? "opacity-30 cursor-wait"
                           : result.success
-                            ? 'cursor-pointer'
-                            : 'opacity-20 cursor-not-allowed'
+                            ? "cursor-pointer"
+                            : "opacity-20 cursor-not-allowed"
                       }`}
                       style={{
-                        'background-image': result.referenceImage
+                        "background-image": result.referenceImage
                           ? `url(${result.referenceImage})`
                           : undefined,
-                        'background-color': !result.referenceImage
-                          ? result.hexColor || '#fff'
+                        "background-color": !result.referenceImage
+                          ? result.hexColor || "#fff"
                           : undefined,
-                        'background-size': 'contain',
-                        'background-repeat': 'no-repeat',
-                        'background-position': 'center',
-                        transform: isSelected() ? 'scale(1.1)' : 'scale(1)',
-                        'box-shadow': isSelected()
-                          ? '0 0 0 2px var(--theme-primary), 0 0 20px rgba(192,57,43,0.2)'
-                          : 'none',
+                        "background-size": "contain",
+                        "background-repeat": "no-repeat",
+                        "background-position": "center",
+                        transform: isSelected() ? "scale(1.1)" : "scale(1)",
+                        "box-shadow": isSelected()
+                          ? "0 0 0 2px var(--theme-primary), 0 0 20px rgba(192,57,43,0.2)"
+                          : "none",
                         opacity: isSelected()
                           ? 1
                           : isInterested()
@@ -672,35 +634,43 @@ export function ResultView(props: ResultViewProps) {
                           : result.label
                       }
                       onClick={() => {
-                        if (result.loading || isRerendering()) return
+                        if (result.loading || isRerendering()) return;
                         if (!result.success) {
-                          props.onRerender?.(i())
+                          props.onRerender?.(i());
 
-                          return
+                          return;
                         }
-                        props.onSelectIndex(i())
+                        props.onSelectIndex(i());
                       }}
                       onKeyDown={(e) => {
-                        if (e.key === 'ArrowRight') {
-                          e.preventDefault()
+                        if (e.key === "ArrowRight") {
+                          e.preventDefault();
                           props.onSelectIndex(
                             Math.min(i() + 1, props.results.length - 1),
-                          )
-                        } else if (e.key === 'ArrowLeft') {
-                          e.preventDefault()
-                          props.onSelectIndex(Math.max(i() - 1, 0))
+                          );
+                        } else if (e.key === "ArrowLeft") {
+                          e.preventDefault();
+                          props.onSelectIndex(Math.max(i() - 1, 0));
                         }
                       }}
                       disabled={result.loading || isRerendering()}
                     >
-                      {!result.loading && !result.success && !isRerendering() && (
-                        <div class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
-                          <svg class="w-5 h-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M1 4v6h6M23 20v-6h-6" />
-                            <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" />
-                          </svg>
-                        </div>
-                      )}
+                      {!result.loading &&
+                        !result.success &&
+                        !isRerendering() && (
+                          <div class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
+                            <svg
+                              class="w-5 h-5 text-white/80"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                            >
+                              <path d="M1 4v6h6M23 20v-6h-6" />
+                              <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" />
+                            </svg>
+                          </div>
+                        )}
                     </button>
 
                     <Show when={result.loading || isRerendering()}>
@@ -711,13 +681,11 @@ export function ResultView(props: ResultViewProps) {
 
                     {/* Interest indicator - heart in corner */}
                     <Show
-                      when={
-                        isInterested() && !result.loading && result.success
-                      }
+                      when={isInterested() && !result.loading && result.success}
                     >
                       <div
                         class="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
-                        style={{ background: 'rgba(0,0,0,0.6)' }}
+                        style={{ background: "rgba(0,0,0,0.6)" }}
                       >
                         <svg
                           class="w-3 h-3"
@@ -730,61 +698,9 @@ export function ResultView(props: ResultViewProps) {
                       </div>
                     </Show>
                   </div>
-                )
+                );
               }}
             </For>
-
-            <Show when={(props.pendingVariants?.length ?? 0) > 0}>
-              <For each={props.pendingVariants}>
-                {(variant) => {
-                  const refImg = () =>
-                    variant.reference_image_paths?.[0] || variant.reference_image || null
-
-                  return (
-                    <button
-                      type="button"
-                      aria-label={`Render ${variant.variant_name}`}
-                      title={`Render ${variant.variant_name}`}
-                      class="relative flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden cursor-pointer border border-white/15 hover:border-white/40 transition-all hover:scale-105 bg-zeno-card p-0 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
-                      onClick={() => props.onAddVariant?.(variant.id)}
-                    >
-                      <Show
-                        when={refImg()}
-                        fallback={
-                          <div
-                            class="absolute inset-0"
-                            style={{
-                              background: variant.hex_color || '#222',
-                              filter: 'grayscale(1)',
-                              opacity: 0.5,
-                            }}
-                          />
-                        }
-                      >
-                        <img
-                          src={refImg()!}
-                          alt=""
-                          class="absolute inset-0 w-full h-full object-contain grayscale opacity-50"
-                        />
-                      </Show>
-                      <div class="absolute inset-0 bg-black/45" />
-                      <div class="absolute inset-0 flex items-center justify-center">
-                        <svg
-                          class="w-6 h-6 text-white/90"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2.5"
-                          stroke-linecap="round"
-                        >
-                          <path d="M12 5v14M5 12h14" />
-                        </svg>
-                      </div>
-                    </button>
-                  )
-                }}
-              </For>
-            </Show>
           </div>
         </div>
 
@@ -792,7 +708,7 @@ export function ResultView(props: ResultViewProps) {
         <div class="relative w-full max-w-80 animate-fadeInUp mt-2">
           <button
             class="relative w-full py-3.5 sm:py-4 rounded-2xl text-[1.2rem] font-medium cursor-pointer flex items-center justify-center gap-3 transition-all bg-zeno-electric text-white border-none hover:opacity-90 hover:scale-[1.01] active:scale-[0.98]"
-            style={{ 'box-shadow': 'none' }}
+            style={{ "box-shadow": "none" }}
             onClick={handleQuote}
           >
             <svg class="w-5 h-5" viewBox="0 0 36 36" fill="currentColor">
@@ -801,7 +717,7 @@ export function ResultView(props: ResultViewProps) {
             <span>
               {props.interestedFinishes && props.interestedFinishes.length > 0
                 ? `Request Quote (${props.interestedFinishes.length})`
-                : 'Request Quote'}
+                : "Request Quote"}
             </span>
           </button>
         </div>
@@ -812,5 +728,5 @@ export function ResultView(props: ResultViewProps) {
         Powered by <strong class="text-white/60 font-semibold">Zeno</strong>
       </div>
     </div>
-  )
+  );
 }

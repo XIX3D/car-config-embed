@@ -2,7 +2,7 @@ import { Show, Switch, Match, createEffect, createSignal, onCleanup, onMount, Fo
 import { Portal } from 'solid-js/web'
 import type { WidgetStore } from '../../stores/widget-store'
 import type { ApiClient } from '../../utils/api'
-import type { QuotaExceededError } from '../../types'
+import type { QuotaExceededError, Variant } from '../../types'
 import { UploadView } from './UploadView'
 import { LoadingView } from './LoadingView'
 import { ResultView } from './ResultView'
@@ -11,6 +11,7 @@ import { SuccessView } from './SuccessView'
 import { GlowOrbs } from './GlowOrbs'
 import { ThemeToggle } from '../Debug/ThemeToggle'
 import { currentTheme } from '../../stores/theme-store'
+import { ZOOM_ENABLED } from '../../constants'
 
 interface ModalProps {
   store: WidgetStore
@@ -75,27 +76,32 @@ export function Modal(props: ModalProps) {
 
     reader.onload = (e) => {
       actions.setFile(file, e.target?.result as string)
-      startVisualization(file)
+
+      if (!state.variants || state.variants.length === 0) {
+        actions.setError('No variants available to render.')
+      }
     }
     reader.readAsDataURL(file)
   }
-
-  const INITIAL_RENDER_COUNT = 3
 
   const sortedVariants = () =>
     [...(state.variants || [])].sort(
       (a, b) => (a.display_order ?? Number.MAX_SAFE_INTEGER) - (b.display_order ?? Number.MAX_SAFE_INTEGER),
     )
 
-  const pendingVariants = () =>
-    sortedVariants().filter((v) => !state.galleryResults.some((r) => r.variantId === v.id))
+  const startVisualization = async () => {
+    const file = state.selectedFile
 
-  const startVisualization = async (file: File) => {
+    if (!file) return
+
     actions.startLoading()
 
     const selections = state.selections
 
-    const initialVariants = sortedVariants().slice(0, INITIAL_RENDER_COUNT)
+    const byId = new Map<string, Variant>(state.variants.map((v) => [v.id, v]))
+    const initialVariants = state.selectedVariantIds
+      .map((id) => byId.get(id))
+      .filter((v): v is Variant => !!v)
     const renderRequests = initialVariants.map((v) => {
       const refImg = v.reference_image_paths?.[0] || v.reference_image
 
@@ -227,69 +233,6 @@ export function Modal(props: ModalProps) {
     })
   }
 
-  const handleAddVariant = async (variantId: string) => {
-    if (!state.selectedFile || !state.product) return
-
-    const variant = state.variants.find((v) => v.id === variantId)
-
-    if (!variant) return
-    if (state.galleryResults.some((r) => r.variantId === variant.id)) return
-
-    const refImg = variant.reference_image_paths?.[0] || variant.reference_image
-
-    actions.appendResult({
-      label: variant.variant_name,
-      variantId: variant.id,
-      hexColor: variant.hex_color || null,
-      referenceImage: refImg || null,
-      success: false,
-      loading: true,
-    })
-
-    const selections = state.selections
-    const products: Array<{ product_id: string; variant_id?: string }> = []
-
-    if (selections?.wrap_id) {
-      products.push({ product_id: selections.wrap_id, variant_id: variant.id })
-    }
-    if (selections?.wheel_id) {
-      products.push({ product_id: selections.wheel_id, variant_id: variant.id })
-    }
-
-    props.api.renderSingleVariant(state.selectedFile, products, state.product.manufacturer_id, {
-      onDebug: (data) => {
-        actions.setDebugData(data)
-      },
-      onComplete: (data) => {
-        const idx = state.galleryResults.findIndex((r) => r.variantId === variant.id)
-
-        if (idx === -1) return
-        actions.updateResult(idx, {
-          image: `data:image/png;base64,${data.image_b64}`,
-          success: true,
-          loading: false,
-        })
-        actions.setCurrentIndex(idx)
-      },
-      onError: (msg) => {
-        console.error(`[Add-variant:${variant.id}] Error:`, msg)
-        const idx = state.galleryResults.findIndex((r) => r.variantId === variant.id)
-
-        if (idx === -1) return
-        actions.updateResult(idx, {
-          error: msg,
-          success: false,
-          loading: false,
-        })
-      },
-      onQuotaExceeded: (data) => {
-        actions.setQuotaError(data)
-        const idx = state.galleryResults.findIndex((r) => r.variantId === variant.id)
-        if (idx !== -1) actions.removeResult(idx)
-      },
-    })
-  }
-
   const handleQuoteSubmit = async (
     customer: { name: string; email: string; phone?: string },
     _vehicle: string,
@@ -389,7 +332,7 @@ export function Modal(props: ModalProps) {
           >
             <div
               ref={modalRef}
-              class={`relative bg-zeno-card rounded-[24px] sm:rounded-[40px] max-h-[90vh] overflow-hidden text-white flex flex-col transition-all duration-300 ${state.view === 'result' || state.view === 'loading' ? 'avacar-expanded w-[96%] sm:w-[85%]' : 'w-[96%] sm:w-[92%] max-w-md'}`}
+              class={`relative bg-zeno-card rounded-[24px] sm:rounded-[40px] max-h-[90vh] overflow-hidden text-white flex flex-col transition-all duration-300 ${state.view === 'result' || state.view === 'loading' || (state.view === 'upload' && !!state.selectedFile) ? 'avacar-expanded w-[96%] sm:w-[85%]' : 'w-[96%] sm:w-[92%] max-w-md'}`}
               style={modalStyle()}
             >
               <GlowOrbs />
@@ -401,8 +344,14 @@ export function Modal(props: ModalProps) {
                     brandName={getBrandName()}
                     modelName={getModelName()}
                     isWraps={state.isWraps}
+                    variants={sortedVariants()}
+                    selectedVariantIds={state.selectedVariantIds}
+                    previewUrl={state.previewDataUrl}
                     onClose={handleClose}
                     onFileSelect={handleFileSelect}
+                    onToggleVariant={actions.toggleVariantSelection}
+                    onContinue={() => startVisualization()}
+                    onBackToInitial={actions.clearFile}
                     onError={actions.setError}
                   />
                 </Match>
@@ -444,8 +393,6 @@ export function Modal(props: ModalProps) {
                     rerenderingIndex={state.rerenderingIndex ?? undefined}
                     triggerZoomAnimation={false}
                     debugData={state.debugData}
-                    pendingVariants={pendingVariants()}
-                    onAddVariant={(variantId) => actions.toggleAddVariantModal(true, variantId)}
                   />
                 </Match>
 
@@ -536,18 +483,6 @@ export function Modal(props: ModalProps) {
 
                 actions.toggleRerenderModal(false)
                 if (index !== null) handleRerender(index)
-              }}
-            />
-          </Show>
-
-          <Show when={state.showAddVariantModal}>
-            <AddVariantModal
-              onCancel={() => actions.toggleAddVariantModal(false)}
-              onConfirm={() => {
-                const id = state.pendingAddVariantId
-
-                actions.toggleAddVariantModal(false)
-                if (id) handleAddVariant(id)
               }}
             />
           </Show>
@@ -706,45 +641,6 @@ function RestartModal(props: { onCancel: () => void; onConfirm: () => void }) {
   )
 }
 
-function AddVariantModal(props: { onCancel: () => void; onConfirm: () => void }) {
-  const handleCancel = () => props.onCancel()
-  const handleConfirm = () => props.onConfirm()
-  const handleOverlayClick = (e: MouseEvent) => {
-    if (e.target === e.currentTarget) handleCancel()
-  }
-
-  return (
-    <div
-      class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[1000000] p-4"
-      onClick={handleOverlayClick}
-    >
-      <div class="relative bg-zeno-card rounded-3xl p-8 max-w-[360px] w-full text-center overflow-hidden animate-fadeInUp">
-        <div class="w-16 h-16 rounded-full bg-[var(--theme-primary)]/15 border-2 border-[var(--theme-primary)]/30 flex items-center justify-center mx-auto mb-6">
-          <svg class="w-8 h-8 text-[var(--theme-primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-        </div>
-        <h3 class="text-2xl font-semibold text-white m-0 mb-2">Render another finish?</h3>
-        <p class="text-sm text-white/40 m-0 mb-8">We&apos;ll generate this finish on your car.</p>
-        <div class="flex gap-4">
-          <button
-            class="flex-1 py-4 rounded-xl bg-white/5 border border-white/20 text-white text-[15px] font-medium cursor-pointer flex items-center justify-center gap-2 transition-all hover:bg-white/10 hover:border-white/30"
-            onClick={handleCancel}
-          >
-            Cancel
-          </button>
-          <button
-            class="flex-1 py-4 rounded-xl bg-[var(--theme-primary)]/15 border border-[var(--theme-primary)]/30 text-[var(--theme-primary-light)] text-[15px] font-medium cursor-pointer transition-all hover:scale-[1.02] hover:bg-[var(--theme-primary)]/20"
-            onClick={handleConfirm}
-          >
-            Render
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function QuotaExceededModal(props: { data: QuotaExceededError; onDismiss: () => void }) {
   const [remaining, setRemaining] = createSignal(Math.max(0, props.data.retry_after_seconds))
   const interval = window.setInterval(() => {
@@ -876,6 +772,7 @@ function FullscreenModal(props: FullscreenModalProps) {
   }
 
   const handleWheel = (e: WheelEvent) => {
+    if (!ZOOM_ENABLED) return
     e.preventDefault()
     const delta = e.deltaY > 0 ? -0.25 : 0.25
     const newZoom = Math.max(1, Math.min(4, zoomLevel() + delta))
@@ -929,7 +826,7 @@ function FullscreenModal(props: FullscreenModalProps) {
   }
 
   const handleTouchMove = (e: TouchEvent) => {
-    if (e.touches.length === 2) {
+    if (ZOOM_ENABLED && e.touches.length === 2) {
       e.preventDefault()
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,

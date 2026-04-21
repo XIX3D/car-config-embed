@@ -26,6 +26,7 @@ export interface WidgetState {
   hasRendered: boolean
   detectedVehicle: VehicleInfo | null
   interestedFinishes: number[]
+  selectedVariantIds: string[]
 
   // Loading
   loadingStep: number
@@ -44,8 +45,6 @@ export interface WidgetState {
   showRestartModal: boolean
   showRerenderModal: boolean
   pendingRerenderIndex: number | null
-  showAddVariantModal: boolean
-  pendingAddVariantId: string | null
 
   // Quote view
   quoteViewIndex: number
@@ -81,6 +80,7 @@ const initialState: WidgetState = {
   hasRendered: false,
   detectedVehicle: null,
   interestedFinishes: [],
+  selectedVariantIds: [],
 
   loadingStep: 0,
   loadingInterval: null,
@@ -96,8 +96,6 @@ const initialState: WidgetState = {
   showRestartModal: false,
   showRerenderModal: false,
   pendingRerenderIndex: null,
-  showAddVariantModal: false,
-  pendingAddVariantId: null,
 
   quoteViewIndex: 0,
 
@@ -156,7 +154,31 @@ export function createWidgetStore() {
       setState({
         selectedFile: file,
         previewDataUrl: dataUrl,
+        selectedVariantIds: [],
       })
+    },
+
+    clearFile() {
+      setState({
+        selectedFile: null,
+        previewDataUrl: null,
+        selectedVariantIds: [],
+        error: null,
+      })
+    },
+
+    toggleVariantSelection(id: string) {
+      setState('selectedVariantIds', produce((list) => {
+        const i = list.indexOf(id)
+
+        if (i !== -1) {
+          list.splice(i, 1)
+
+          return
+        }
+        list.push(id)
+        if (list.length > 3) list.shift()
+      }))
     },
 
     setImageAspect(width: number, height: number) {
@@ -315,6 +337,7 @@ export function createWidgetStore() {
         currentIndex: 0,
         hasRendered: false,
         interestedFinishes: [],
+        selectedVariantIds: [],
         error: null,
         debugData: null,
         zoomLevel: ZOOM.min,
@@ -379,17 +402,6 @@ export function createWidgetStore() {
         showRerenderModal: show,
         pendingRerenderIndex: show ? (index ?? null) : null,
       })
-    },
-
-    toggleAddVariantModal(show: boolean, variantId?: string) {
-      setState({
-        showAddVariantModal: show,
-        pendingAddVariantId: show ? (variantId ?? null) : null,
-      })
-    },
-
-    appendResult(result: RenderResult) {
-      setState('galleryResults', (prev) => [...prev, result])
     },
 
     setQuoteViewIndex(index: number) {
