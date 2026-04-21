@@ -45,11 +45,9 @@ export function ResultView(props: ResultViewProps) {
   const [dragStart, setDragStart] = createSignal({ x: 0, y: 0 });
   const [panStart, setPanStart] = createSignal({ x: 0, y: 0 });
   const [lastTouchDist, setLastTouchDist] = createSignal(0);
-  const [showZoomHint, setShowZoomHint] = createSignal(true);
   const [hasInteracted, setHasInteracted] = createSignal(false);
   const [isAnimatingZoom, setIsAnimatingZoom] = createSignal(false);
   const [objectPos, setObjectPos] = createSignal({ x: 50, y: 50 });
-  const [posStart, setPosStart] = createSignal({ x: 50, y: 50 });
   const isMobile =
     typeof window !== "undefined" &&
     window.matchMedia("(max-width: 640px)").matches;
@@ -100,7 +98,6 @@ export function ResultView(props: ResultViewProps) {
   const markInteracted = () => {
     if (!hasInteracted()) {
       setHasInteracted(true);
-      setShowZoomHint(false);
     }
   };
 
@@ -130,7 +127,6 @@ export function ResultView(props: ResultViewProps) {
     setIsDragging(true);
     setDragStart({ x: e.clientX, y: e.clientY });
     setPanStart({ x: props.panX, y: props.panY });
-    setPosStart({ x: objectPos().x, y: objectPos().y });
     e.preventDefault();
   };
 
@@ -162,7 +158,6 @@ export function ResultView(props: ResultViewProps) {
       setIsDragging(true);
       setDragStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
       setPanStart({ x: props.panX, y: props.panY });
-      setPosStart({ x: objectPos().x, y: objectPos().y });
     }
   };
 
@@ -280,7 +275,6 @@ export function ResultView(props: ResultViewProps) {
               props.onZoom(1);
               setTimeout(() => {
                 setIsAnimatingZoom(false);
-                setShowZoomHint(false);
               }, 500);
             }, 500);
           });
@@ -309,7 +303,7 @@ export function ResultView(props: ResultViewProps) {
       props.zoomLevel > 1
         ? `scale(${props.zoomLevel}) translate(${props.panX}px, ${props.panY}px)`
         : undefined,
-    "object-fit": "contain",
+    "object-fit": "contain" as const,
     "object-position":
       props.zoomLevel <= 1
         ? `${objectPos().x}% ${objectPos().y}%`

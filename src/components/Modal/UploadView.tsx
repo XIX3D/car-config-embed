@@ -35,7 +35,6 @@ export function UploadView(props: UploadViewProps) {
 
   const selectionIndex = (id: string) => props.selectedVariantIds.indexOf(id);
   const selectedCount = () => props.selectedVariantIds.length;
-  const atLimit = () => selectedCount() >= MAX_SELECTIONS;
   const canContinue = () => !!props.previewUrl && selectedCount() > 0;
 
   const handleFile = (file: File) => {
