@@ -364,7 +364,7 @@ export function UploadView(props: UploadViewProps) {
 
       {/* Footer */}
       <div class="text-white/40 text-xs text-center pt-4 mt-auto">
-        Powered by <strong class="text-white/60 font-semibold">Zeno</strong>
+        Powered by <strong class="text-white/60 font-semibold">XIX3D</strong>
       </div>
     </div>
   );

@@ -147,7 +147,7 @@ export function SuccessView(props: SuccessViewProps) {
 
       {/* Footer */}
       <div class="text-white/40 text-xs text-center py-4 mt-auto relative z-10">
-        Powered by <strong class="text-white/60 font-semibold">Zeno</strong>
+        Powered by <strong class="text-white/60 font-semibold">XIX3D</strong>
       </div>
     </div>
   );
