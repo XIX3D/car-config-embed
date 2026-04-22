@@ -10,6 +10,7 @@ import type { RenderResult, DebugData } from "../../types";
 import { ZENO, ZOOM, ZOOM_ENABLED } from "../../constants";
 import { ModalHeader } from "./ModalHeader";
 import { DebugPanel } from "../Debug/DebugPanel";
+import { downloadRenderImage } from "../../utils/download";
 
 const DEBUG = import.meta.env.VITE_DEBUG === "true";
 
@@ -71,15 +72,11 @@ export function ResultView(props: ResultViewProps) {
     return `${brand}_${model}_${finish}_ZenoRender.jpg`;
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     const c = current();
 
     if (!c?.image) return;
-    const link = document.createElement("a");
-
-    link.href = c.image;
-    link.download = getFilename();
-    link.click();
+    await downloadRenderImage(c.image, getFilename());
   };
 
   const clampPan = (x: number, y: number): { x: number; y: number } => {

@@ -1,6 +1,7 @@
 import { createSignal, For, Show, createEffect } from "solid-js";
 import type { RenderResult, VehicleInfo } from "../../types";
 import { ModalHeader } from "./ModalHeader";
+import { downloadRenderImage } from "../../utils/download";
 
 interface CustomerData {
   name: string;
@@ -55,13 +56,10 @@ export function QuoteView(props: QuoteViewProps) {
     return `${brand}_${model}_${finish}_ZenoRender.jpg`;
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     const c = currentResult();
     if (!c?.image) return;
-    const link = document.createElement("a");
-    link.href = c.image;
-    link.download = getFilename();
-    link.click();
+    await downloadRenderImage(c.image, getFilename());
   };
 
   createEffect(() => {

@@ -12,6 +12,7 @@ import { GlowOrbs } from './GlowOrbs'
 import { ThemeToggle } from '../Debug/ThemeToggle'
 import { currentTheme } from '../../stores/theme-store'
 import { ZOOM_ENABLED } from '../../constants'
+import { downloadRenderImage } from '../../utils/download'
 
 interface ModalProps {
   store: WidgetStore
@@ -291,15 +292,11 @@ export function Modal(props: ModalProps) {
     return `${brand}_${model}_${finish}_ZenoRender.jpg`
   }
 
-  const handleDownloadCurrent = () => {
+  const handleDownloadCurrent = async () => {
     const current = getCurrentResult()
 
     if (!current?.image) return
-    const link = document.createElement('a')
-
-    link.href = current.image
-    link.download = getFilename(current)
-    link.click()
+    await downloadRenderImage(current.image, getFilename(current))
   }
 
   const handleRestart = () => {
@@ -1084,13 +1081,9 @@ function ShareModal(props: {
     return `${brand}_${model}_${finish}_ZenoRender.jpg`
   }
 
-  const downloadImage = () => {
+  const downloadImage = async () => {
     if (!props.result?.image) return
-    const link = document.createElement('a')
-
-    link.href = props.result.image
-    link.download = getFilename()
-    link.click()
+    await downloadRenderImage(props.result.image, getFilename())
     handleClose()
   }
 
