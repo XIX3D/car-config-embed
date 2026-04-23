@@ -213,7 +213,7 @@ function bindButtons() {
 
     api.validateToken(jwt).then((result) => {
       if (!result) return
-      if (result.valid && !result.is_active) {
+      if (result.is_active === false) {
         if (useDefaultStyle && wrapper) {
           wrapper.style.display = 'none'
         } else {
