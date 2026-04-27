@@ -159,66 +159,47 @@ function bindButtons() {
     const size = (button.getAttribute('data-size') as ButtonSize) || 'standard'
     const explicitTheme = button.getAttribute('data-button-theme') as ButtonTheme | null
 
-    let wrapper: HTMLDivElement | null = null
+    const originalDisplay = button.style.display
+    button.style.display = 'none'
 
-    if (useDefaultStyle) {
-      const theme = explicitTheme || detectTheme(button)
-
-      wrapper = document.createElement('div')
-
-      button.parentNode?.insertBefore(wrapper, button)
-      button.style.display = 'none'
-
-      render(
-        () => (
-          <ZenoButton
-            text={buttonText}
-            theme={theme}
-            size={size}
-            onClick={() => openPreview(jwt, customBrand)}
-          />
-        ),
-        wrapper,
-      )
-
-      if (!explicitTheme) {
-        const btn = wrapper.querySelector('.avacar-btn-zeno')
-
-        if (btn) {
-          btn.setAttribute('data-jwt', jwt)
-        }
-      } else {
-        const btn = wrapper.querySelector('.avacar-btn-zeno')
-
-        if (btn) {
-          btn.setAttribute('data-theme-locked', 'true')
-          btn.setAttribute('data-jwt', jwt)
-        }
-      }
-    } else {
-      button.addEventListener('click', (e) => {
-        e.preventDefault()
-        openPreview(jwt, customBrand)
-      })
-    }
-
-    if (!decodeJWT(jwt)) {
-      if (useDefaultStyle && wrapper) {
-        wrapper.style.display = 'none'
-      } else {
-        button.style.display = 'none'
-      }
-      return
-    }
+    if (!decodeJWT(jwt)) return
 
     api.validateToken(jwt).then((result) => {
       if (!result) return
-      if (result.is_active === false) {
-        if (useDefaultStyle && wrapper) {
-          wrapper.style.display = 'none'
-        } else {
-          button.style.display = 'none'
+      if (result.is_active === false) return
+
+      if (useDefaultStyle) {
+        const theme = explicitTheme || detectTheme(button)
+        const wrapper = document.createElement('div')
+
+        button.parentNode?.insertBefore(wrapper, button)
+
+        render(
+          () => (
+            <ZenoButton
+              text={buttonText}
+              theme={theme}
+              size={size}
+              onClick={() => openPreview(jwt, customBrand)}
+            />
+          ),
+          wrapper,
+        )
+
+        const btn = wrapper.querySelector('.avacar-btn-zeno')
+
+        if (btn) {
+          btn.setAttribute('data-jwt', jwt)
+          if (explicitTheme) {
+            btn.setAttribute('data-theme-locked', 'true')
+          }
         }
+      } else {
+        button.style.display = originalDisplay
+        button.addEventListener('click', (e) => {
+          e.preventDefault()
+          openPreview(jwt, customBrand)
+        })
       }
     }).catch(() => {})
   })
