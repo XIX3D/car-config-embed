@@ -166,7 +166,10 @@ function bindButtons() {
 
     api.validateToken(jwt).then((result) => {
       if (!result) return
-      if (result.is_active === false) return
+      if (result.is_active === false) {
+        button.remove()
+        return
+      }
 
       if (useDefaultStyle) {
         const theme = explicitTheme || detectTheme(button)
