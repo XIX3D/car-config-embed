@@ -106,11 +106,30 @@ interface RenderResult {
 const renderResults = ref<RenderResult[]>([])
 const renderInProgress = ref(false)
 const fullscreenIndex = ref<number>(-1)
-const debugModalData = ref<Record<string, any> | null>(null)
+interface RejectedAttempt {
+  image_b64: string
+  reason: string
+  confidence?: number
+}
+
+interface DebugModalData {
+  debug: Record<string, any> | null
+  rejected: RejectedAttempt[]
+}
+
+const debugModalData = ref<DebugModalData | null>(null)
 
 function openDebugModal(result: RenderResult) {
-  const evt = result.sseEvents.find(e => e.type === 'debug')
-  if (evt) debugModalData.value = evt.data
+  const debugEvt = result.sseEvents.find(e => e.type === 'debug')
+  const rejected = result.sseEvents
+    .filter(e => e.type === 'audit_failed_debug')
+    .map(e => e.data as RejectedAttempt)
+  if (debugEvt || rejected.length) {
+    debugModalData.value = {
+      debug: debugEvt ? debugEvt.data : null,
+      rejected,
+    }
+  }
 }
 
 function closeDebugModal() {
@@ -131,8 +150,9 @@ function storageUrl(path: string): string {
 }
 
 async function copyDebugText() {
-  if (!debugModalData.value?.parts) return
-  const text = debugModalData.value.parts
+  const parts = debugModalData.value?.debug?.parts
+  if (!parts) return
+  const text = parts
     .filter((p: any) => p.type === 'text')
     .map((p: any) => p.content)
     .join('\n')
@@ -936,11 +956,12 @@ onUnmounted(() => {
 
             <div v-if="r.sseEvents.length" class="rp-sse-strip">
               <span v-for="(evt, j) in r.sseEvents" :key="j"
-                class="rp-sse-chip" :class="[evt.type, { clickable: evt.type === 'debug' }]"
-                @click="evt.type === 'debug' && openDebugModal(r)">
+                class="rp-sse-chip" :class="[evt.type, { clickable: evt.type === 'debug' || evt.type === 'audit_failed_debug' }]"
+                @click="(evt.type === 'debug' || evt.type === 'audit_failed_debug') && openDebugModal(r)">
                 <template v-if="evt.type === 'vehicle_detected'">{{ evt.data.make }} {{ evt.data.model }}</template>
                 <template v-else-if="evt.type === 'error'">{{ evt.data.message }}</template>
                 <template v-else-if="evt.type === 'debug'">debug ▸</template>
+                <template v-else-if="evt.type === 'audit_failed_debug'">audit failed ▸</template>
                 <template v-else>{{ evt.type }}</template>
               </span>
             </div>
@@ -976,18 +997,33 @@ onUnmounted(() => {
       <div v-if="debugModalData" class="rp-fullscreen-overlay" @click.self="closeDebugModal" @keydown.escape="closeDebugModal">
         <div class="rp-debug-modal">
           <div class="rp-debug-modal-header">
-            <span class="rp-debug-modal-title">Gemini Debug — {{ debugModalData.parts?.length || 0 }} parts</span>
+            <span class="rp-debug-modal-title">
+              Gemini Debug — {{ debugModalData.debug?.parts?.length || 0 }} parts<span v-if="debugModalData.rejected.length"> · {{ debugModalData.rejected.length }} rejected</span>
+            </span>
             <div style="display: flex; gap: 0.5rem;">
-              <button class="rp-btn rp-btn-ghost rp-btn-xs" @click="copyDebugText">Copy text</button>
+              <button v-if="debugModalData.debug" class="rp-btn rp-btn-ghost rp-btn-xs" @click="copyDebugText">Copy text</button>
               <button class="rp-fullscreen-close" @click="closeDebugModal" style="position: static;">&times;</button>
             </div>
           </div>
           <div class="rp-debug-modal-body">
-            <div v-if="debugModalData.missing_references?.length" class="rp-debug-missing">
-              <span class="rp-debug-missing-label">Missing references ({{ debugModalData.missing_references.length }})</span>
-              <span v-for="(ref, k) in debugModalData.missing_references" :key="k" class="rp-debug-missing-item">{{ ref }}</span>
+            <div v-if="debugModalData.rejected.length" class="rp-debug-rejected">
+              <span class="rp-debug-rejected-label">Rejected attempts ({{ debugModalData.rejected.length }})</span>
+              <div v-for="(att, k) in debugModalData.rejected" :key="`rej-${k}`" class="rp-debug-rejected-card">
+                <div class="rp-debug-rejected-preview">
+                  <img :src="`data:image/jpeg;base64,${att.image_b64}`" :alt="`Rejected attempt ${k + 1}`" loading="lazy" />
+                </div>
+                <div class="rp-debug-rejected-meta">
+                  <span class="rp-debug-rejected-badge">rejected</span>
+                  <div class="rp-debug-rejected-reason">{{ att.reason }}</div>
+                  <span v-if="att.confidence != null" class="rp-muted" style="font-size: 0.7rem;">confidence: {{ att.confidence }}</span>
+                </div>
+              </div>
             </div>
-            <template v-for="(part, k) in debugModalData.parts" :key="k">
+            <div v-if="debugModalData.debug?.missing_references?.length" class="rp-debug-missing">
+              <span class="rp-debug-missing-label">Missing references ({{ debugModalData.debug.missing_references.length }})</span>
+              <span v-for="(ref, k) in debugModalData.debug.missing_references" :key="k" class="rp-debug-missing-item">{{ ref }}</span>
+            </div>
+            <template v-for="(part, k) in debugModalData.debug?.parts" :key="k">
               <pre v-if="part.type === 'text'" class="rp-debug-prompt">{{ part.content }}</pre>
               <div v-else-if="part.type === 'image'" class="rp-debug-image-card">
                 <div class="rp-debug-image-preview">
