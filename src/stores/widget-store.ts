@@ -55,6 +55,7 @@ export interface WidgetState {
 
   // Debug
   debugData: DebugData | null
+  showQuotaModal: boolean
 
   // Single re-render
   rerenderingIndex: number | null
@@ -103,6 +104,7 @@ const initialState: WidgetState = {
   quotaError: null,
 
   debugData: null,
+  showQuotaModal: true,
 
   rerenderingIndex: null,
   rerenderRequestId: null,
@@ -367,6 +369,10 @@ export function createWidgetStore() {
 
     setDebugData(data: DebugData) {
       setState('debugData', data)
+    },
+
+    toggleShowQuotaModal() {
+      setState('showQuotaModal', (v) => !v)
     },
 
     setError(error: string | null) {

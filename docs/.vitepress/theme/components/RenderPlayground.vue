@@ -119,6 +119,18 @@ interface DebugModalData {
 
 const debugModalData = ref<DebugModalData | null>(null)
 
+const REJECTED_VISIBLE_KEY = 'rp-debug-rejected-visible'
+const showRejected = ref<boolean>(
+  typeof window !== 'undefined' && window.localStorage.getItem(REJECTED_VISIBLE_KEY) !== '0'
+)
+
+function toggleRejected() {
+  showRejected.value = !showRejected.value
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(REJECTED_VISIBLE_KEY, showRejected.value ? '1' : '0')
+  }
+}
+
 function openDebugModal(result: RenderResult) {
   const debugEvt = result.sseEvents.find(e => e.type === 'debug')
   const rejected = result.sseEvents
@@ -768,6 +780,10 @@ onUnmounted(() => {
           <input type="checkbox" v-model="fastMode" />
           <span>Fast</span>
         </label>
+        <label class="rp-inline-toggle" title="Show rejected images in the debug modal">
+          <input type="checkbox" :checked="showRejected" @change="toggleRejected" />
+          <span>Show rejected</span>
+        </label>
         <button class="rp-btn rp-btn-render" :disabled="renderInProgress || !canRender" @click="triggerRender">
           <span v-if="renderInProgress" class="rp-btn-spinner" />
           {{ renderInProgress ? 'Rendering...' : selectedVariantId ? 'Render' : `Render All (${variants.length || 1})` }}
@@ -1001,12 +1017,15 @@ onUnmounted(() => {
               Gemini Debug — {{ debugModalData.debug?.parts?.length || 0 }} parts<span v-if="debugModalData.rejected.length"> · {{ debugModalData.rejected.length }} rejected</span>
             </span>
             <div style="display: flex; gap: 0.5rem;">
+              <button v-if="debugModalData.rejected.length" class="rp-btn rp-btn-ghost rp-btn-xs" @click="toggleRejected">
+                {{ showRejected ? 'Hide rejected' : 'Show rejected' }}
+              </button>
               <button v-if="debugModalData.debug" class="rp-btn rp-btn-ghost rp-btn-xs" @click="copyDebugText">Copy text</button>
               <button class="rp-fullscreen-close" @click="closeDebugModal" style="position: static;">&times;</button>
             </div>
           </div>
           <div class="rp-debug-modal-body">
-            <div v-if="debugModalData.rejected.length" class="rp-debug-rejected">
+            <div v-if="showRejected && debugModalData.rejected.length" class="rp-debug-rejected">
               <span class="rp-debug-rejected-label">Rejected attempts ({{ debugModalData.rejected.length }})</span>
               <div v-for="(att, k) in debugModalData.rejected" :key="`rej-${k}`" class="rp-debug-rejected-card">
                 <div class="rp-debug-rejected-preview">
