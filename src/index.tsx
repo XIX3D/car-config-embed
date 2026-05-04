@@ -9,9 +9,15 @@ import { createApiClient } from './utils/api'
 import { decodeJWT } from './utils/jwt'
 import { createSession } from './utils/session'
 import { detectTheme, observeThemeChanges } from './utils/theme'
-import type { ButtonTheme, ButtonSize, WidgetConfig } from './types'
+import type { ButtonTheme, ButtonSize, WidgetConfig, EmailGateResponse } from './types'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.platform.xix3d.com'
+
+const FAIL_CLOSED_GATE: EmailGateResponse = {
+  email_required: true,
+  free_sessions_used: 0,
+  free_sessions_limit: 0,
+}
 
 const store = createWidgetStore()
 const api = createApiClient(API_URL)
@@ -79,6 +85,8 @@ async function openPreview(jwt: string, customBrand?: string) {
     }
 
     store.actions.open(selections, product, variants, customBrand)
+    const gate = await api.getEmailGate(product?.manufacturer_id)
+    store.actions.setEmailGate(gate ?? FAIL_CLOSED_GATE)
     return
   }
 
@@ -107,6 +115,8 @@ async function openPreview(jwt: string, customBrand?: string) {
   }
 
   store.actions.open(selections, product, variants, customBrand)
+  const gate = await api.getEmailGate(product?.manufacturer_id)
+  store.actions.setEmailGate(gate ?? FAIL_CLOSED_GATE)
 }
 
 function createZenoButton(

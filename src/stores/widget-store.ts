@@ -1,5 +1,5 @@
 import { createStore, produce } from 'solid-js/store'
-import type { ViewState, RenderResult, Product, Variant, JWTPayload, DebugData, VehicleInfo, QuotaExceededError } from '../types'
+import type { ViewState, RenderResult, Product, Variant, JWTPayload, DebugData, VehicleInfo, QuotaExceededError, EmailGateResponse } from '../types'
 import { LOADING_STEPS, LOADING_STEPS_WRAPS, ZOOM, ASPECT_THRESHOLDS } from '../constants'
 
 export type ImageAspect = 'normal' | 'wide' | 'tall' | 'square' | null
@@ -52,6 +52,7 @@ export interface WidgetState {
   // Error
   error: string | null
   quotaError: QuotaExceededError | null
+  emailGate: EmailGateResponse | null
 
   // Debug
   debugData: DebugData | null
@@ -102,6 +103,7 @@ const initialState: WidgetState = {
 
   error: null,
   quotaError: null,
+  emailGate: null,
 
   debugData: null,
   showQuotaModal: true,
@@ -381,6 +383,10 @@ export function createWidgetStore() {
 
     setQuotaError(data: QuotaExceededError | null) {
       setState('quotaError', data)
+    },
+
+    setEmailGate(gate: EmailGateResponse | null) {
+      setState('emailGate', gate)
     },
 
     removeResult(index: number) {

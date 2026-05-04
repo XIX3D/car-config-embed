@@ -17,6 +17,7 @@ import { LoadingView } from "./LoadingView";
 import { ResultView } from "./ResultView";
 import { QuoteView } from "./QuoteView";
 import { SuccessView } from "./SuccessView";
+import { EmailGateView } from "./EmailGateView";
 import { GlowOrbs } from "./GlowOrbs";
 import { ThemeToggle } from "../Debug/ThemeToggle";
 import { currentTheme } from "../../stores/theme-store";
@@ -201,6 +202,13 @@ export function Modal(props: ModalProps) {
             actions.resetToUpload();
           }
         },
+        onEmailGateRequired: (data) => {
+          actions.setEmailGate(data);
+          actions.stopLoading();
+          if (state.view === "loading") {
+            actions.resetToUpload();
+          }
+        },
       });
     });
   };
@@ -271,8 +279,47 @@ export function Modal(props: ModalProps) {
           actions.setQuotaError(data);
           actions.setRerenderingIndex(null);
         },
+        onEmailGateRequired: (data) => {
+          actions.setEmailGate(data);
+          actions.setRerenderingIndex(null);
+        },
       },
     );
+  };
+
+  const handleEmailGateSubmit = async (customer: {
+    name: string;
+    email: string;
+    phone?: string;
+    address?: string;
+  }) => {
+    if (!state.product) throw new Error("No product selected");
+
+    const productIds: number[] = [];
+
+    if (state.selections?.wheel_id) {
+      productIds.push(parseInt(state.selections.wheel_id, 10));
+    }
+    if (state.selections?.wrap_id) {
+      productIds.push(parseInt(state.selections.wrap_id, 10));
+    }
+
+    if (productIds.length === 0) throw new Error("No product selected");
+
+    const response = await props.api.submitLead({
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+      message: customer.address ? `Address: ${customer.address}` : undefined,
+      product_ids: productIds,
+      manufacturer_id: state.product.manufacturer_id,
+    });
+
+    if (!response.success) {
+      throw new Error(response.error || "Failed to submit");
+    }
+
+    actions.setEmailGate({ ...state.emailGate!, email_required: false });
   };
 
   const handleQuoteSubmit = async (
@@ -385,6 +432,17 @@ export function Modal(props: ModalProps) {
               <GlowOrbs />
 
               <Switch>
+                <Match when={state.emailGate?.email_required}>
+                  <EmailGateView
+                    productImgUrl={productImgUrl()}
+                    brandName={getBrandName()}
+                    modelName={getModelName()}
+                    data={state.emailGate!}
+                    onClose={handleClose}
+                    onSubmit={handleEmailGateSubmit}
+                  />
+                </Match>
+
                 <Match when={state.view === "upload"}>
                   <UploadView
                     productImgUrl={productImgUrl()}

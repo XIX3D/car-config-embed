@@ -1,4 +1,4 @@
-import type { Product, Variant, QuoteRequest, RenderStreamEvents, DecodeTokenResponse, ValidateTokenResponse, VehicleDetectionResult, SimilarProduct, QuotaExceededError } from '../types'
+import type { Product, Variant, QuoteRequest, RenderStreamEvents, DecodeTokenResponse, ValidateTokenResponse, VehicleDetectionResult, SimilarProduct, QuotaExceededError, EmailGateResponse } from '../types'
 
 const parseQuotaBody = async (res: Response): Promise<QuotaExceededError | null> => {
   if (res.status !== 429) return null
@@ -9,6 +9,38 @@ const parseQuotaBody = async (res: Response): Promise<QuotaExceededError | null>
     }
   } catch { /* fall through */ }
   return null
+}
+
+const parseEmailGateBody = async (res: Response): Promise<EmailGateResponse | null> => {
+  try {
+    const body = await res.clone().json()
+    if (body && body.error === 'email_required' && typeof body.free_sessions_limit === 'number') {
+      return {
+        email_required: true,
+        free_sessions_used: body.free_sessions_used,
+        free_sessions_limit: body.free_sessions_limit,
+      }
+    }
+  } catch { /* fall through */ }
+  return null
+}
+
+const parseEmailGateEvent = (data: unknown): EmailGateResponse | null => {
+  if (!data || typeof data !== 'object') return null
+  const d = data as Record<string, unknown>
+  if (typeof d.message !== 'string') return null
+  let inner: Record<string, unknown>
+  try {
+    inner = JSON.parse(d.message)
+  } catch {
+    return null
+  }
+  if (inner.error !== 'email_required' || typeof inner.free_sessions_limit !== 'number') return null
+  return {
+    email_required: true,
+    free_sessions_used: typeof inner.free_sessions_used === 'number' ? inner.free_sessions_used : 0,
+    free_sessions_limit: inner.free_sessions_limit,
+  }
 }
 
 interface SSEStreamResult {
@@ -69,13 +101,17 @@ async function processSSEStream(
           finalImage = `data:image/png;base64,${data.image_b64}`
           handlers.onComplete?.(data)
           break
-        case 'error':
-          if (data && typeof data.retry_after_seconds === 'number' && typeof data.message === 'string') {
+        case 'error': {
+          const gate = parseEmailGateEvent(data)
+          if (gate) {
+            handlers.onEmailGateRequired?.(gate)
+          } else if (data && typeof data.retry_after_seconds === 'number' && typeof data.message === 'string') {
             handlers.onQuotaExceeded?.(data as QuotaExceededError)
           } else {
             handlers.onError?.(data.message)
           }
           throw new Error(data.message || 'Stream error')
+        }
       }
     }
   }
@@ -245,9 +281,38 @@ export function createApiClient(baseUrl: string) {
     }
   }
 
+  const getEmailGate = async (manufacturerId?: number): Promise<EmailGateResponse | null> => {
+    try {
+      const url = manufacturerId
+        ? `${baseUrl}/api/v1/render/email-required?manufacturer_id=${manufacturerId}`
+        : `${baseUrl}/api/v1/render/email-required`
+      const res = await fetch(url, {
+        headers: sessionHeaders(),
+      })
+      if (!res.ok) return null
+      return await res.json()
+    } catch {
+      return null
+    }
+  }
+
   const submitQuote = async (request: QuoteRequest): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`${baseUrl}/api/v1/quote/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
+        body: JSON.stringify(request),
+      })
+
+      return await res.json()
+    } catch {
+      return { success: false, error: 'Network error. Please try again.' }
+    }
+  }
+
+  const submitLead = async (request: QuoteRequest): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/quote/lead`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
         body: JSON.stringify(request),
@@ -319,6 +384,11 @@ export function createApiClient(baseUrl: string) {
       })
 
       if (!res.ok) {
+        const gate = await parseEmailGateBody(res)
+        if (gate) {
+          events.onEmailGateRequired?.(gate)
+          return { success: false, error: 'Email required' }
+        }
         const quota = await parseQuotaBody(res)
         if (quota) {
           events.onQuotaExceeded?.(quota)
@@ -374,6 +444,11 @@ export function createApiClient(baseUrl: string) {
       })
 
       if (!res.ok) {
+        const gate = await parseEmailGateBody(res)
+        if (gate) {
+          events.onEmailGateRequired?.(gate)
+          return { success: false, error: 'Email required' }
+        }
         const quota = await parseQuotaBody(res)
         if (quota) {
           events.onQuotaExceeded?.(quota)
@@ -418,6 +493,8 @@ export function createApiClient(baseUrl: string) {
     renderStream,
     renderSingleVariant,
     submitQuote,
+    submitLead,
+    getEmailGate,
     getStorageUrl,
   }
 }

@@ -153,6 +153,12 @@ export interface QuotaExceededError {
   retry_after_seconds: number
 }
 
+export interface EmailGateResponse {
+  email_required: boolean
+  free_sessions_used: number
+  free_sessions_limit: number
+}
+
 export interface RenderStreamEvents {
   onStarted?: () => void
   onVehicleDetected?: (data: { make: string; model: string; year: string; vehicle_type: VehicleType }) => void
@@ -162,4 +168,5 @@ export interface RenderStreamEvents {
   onComplete?: (data: { image_b64: string }) => void
   onError?: (message: string) => void
   onQuotaExceeded?: (data: QuotaExceededError) => void
+  onEmailGateRequired?: (data: EmailGateResponse) => void
 }
