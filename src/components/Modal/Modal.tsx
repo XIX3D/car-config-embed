@@ -24,6 +24,8 @@ import { currentTheme } from "../../stores/theme-store";
 import { ZOOM_ENABLED } from "../../constants";
 import { downloadRenderImage } from "../../utils/download";
 
+const isDebug = import.meta.env.VITE_DEBUG === "true";
+
 interface ModalProps {
   store: WidgetStore;
   api: ApiClient;
@@ -603,28 +605,30 @@ export function Modal(props: ModalProps) {
             />
           </Show>
 
-          <button
-            class="fixed bottom-3 right-20 z-[1000001] bg-slate-700 hover:bg-slate-800 px-3 py-1.5 rounded-full text-white text-xs font-medium transition-colors cursor-pointer shadow-lg"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (state.showQuotaModal && state.quotaError) {
-                actions.setQuotaError(null);
-                actions.toggleShowQuotaModal();
-              } else {
-                actions.setQuotaError({
-                  error: "quota_exceeded",
-                  limit: 5,
-                  message: "Out of previews (debug)",
-                  retry_after_seconds: 90,
-                });
-                if (!state.showQuotaModal) actions.toggleShowQuotaModal();
-              }
-            }}
-          >
-            {state.quotaError && state.showQuotaModal
-              ? "Hide timeout modal"
-              : "Show timeout modal"}
-          </button>
+          <Show when={isDebug}>
+            <button
+              class="fixed bottom-3 right-20 z-[1000001] bg-slate-700 hover:bg-slate-800 px-3 py-1.5 rounded-full text-white text-xs font-medium transition-colors cursor-pointer shadow-lg"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (state.showQuotaModal && state.quotaError) {
+                  actions.setQuotaError(null);
+                  actions.toggleShowQuotaModal();
+                } else {
+                  actions.setQuotaError({
+                    error: "quota_exceeded",
+                    limit: 5,
+                    message: "Out of previews (debug)",
+                    retry_after_seconds: 90,
+                  });
+                  if (!state.showQuotaModal) actions.toggleShowQuotaModal();
+                }
+              }}
+            >
+              {state.quotaError && state.showQuotaModal
+                ? "Hide timeout modal"
+                : "Show timeout modal"}
+            </button>
+          </Show>
 
           <ThemeToggle />
         </div>
