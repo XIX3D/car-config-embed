@@ -58,10 +58,10 @@ export function EmailGateView(props: EmailGateViewProps) {
 
       <div class="animate-fadeInUp opacity-0 [animation-delay:0.1s] mt-4 mb-5 text-center">
         <h3 class="text-xl font-semibold text-white m-0 mb-2">
-          Your render is ready.
+          Welcome back
         </h3>
         <p class="text-sm text-white/50">
-          Enter your details to continue.
+          Enter your details to continue rendering
         </p>
       </div>
 
@@ -132,7 +132,15 @@ export function EmailGateView(props: EmailGateViewProps) {
       </form>
 
       <div class="text-white/40 text-xs text-center pt-3 mt-auto">
-        Powered by <strong class="text-white/60 font-semibold">XIX3D</strong>
+        Powered by{" "}
+        <a
+          href="https://xix3d.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-white/60 font-semibold no-underline cursor-pointer"
+        >
+          <strong>XIX3D</strong>
+        </a>
       </div>
     </div>
   );
