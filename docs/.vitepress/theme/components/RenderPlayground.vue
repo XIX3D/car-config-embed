@@ -9,6 +9,7 @@ interface Product {
   name: string
   category: string
   sku: string
+  external_id: string | null
   status: string
   orthographic_image: string | null
   reference_image_paths: string[]
@@ -241,7 +242,9 @@ const filteredProducts = computed(() => {
   const q = productSearch.value.toLowerCase().trim()
   if (!q) return products.value
   return products.value.filter(p =>
-    p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
+    p.name.toLowerCase().includes(q)
+    || p.sku.toLowerCase().includes(q)
+    || (p.external_id?.toLowerCase().includes(q) ?? false)
   )
 })
 
@@ -832,6 +835,7 @@ onUnmounted(() => {
                 <div class="rp-product-item-info">
                   <span class="rp-product-item-name">{{ p.name }}</span>
                   <span class="rp-product-item-sku">{{ p.sku }}</span>
+                  <span v-if="p.external_id" class="rp-product-item-external-id">{{ p.external_id }}</span>
                 </div>
               </div>
               <div v-if="!filteredProducts.length" class="rp-product-item-empty">No products match "{{ productSearch }}"</div>

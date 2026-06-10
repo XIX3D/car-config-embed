@@ -349,6 +349,8 @@
 .rp-product-item-info { display: flex; flex-direction: column; min-width: 0; }
 .rp-product-item-name { font-size: 0.8rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rp-product-item-sku { font-size: 0.7rem; color: var(--vp-c-text-3); }
+.rp-product-item-external-id { font-size: 0.65rem; font-family: var(--vp-font-family-mono, ui-monospace, SFMono-Regular, monospace); color: var(--vp-c-text-3); opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rp-product-item.active .rp-product-item-external-id { color: rgba(255,255,255,0.6); }
 .rp-product-item-empty { padding: 1rem; text-align: center; color: var(--vp-c-text-3); font-size: 0.8rem; }
 
 /* Product thumbnail */
