@@ -45,3 +45,8 @@ jobs:
           tag_name: ${{ steps.version.outputs.version }}
           files: dist/car-config-embed.iife.js
           generate_release_notes: true
+          # Tags containing "-demo" (e.g. v0.0.0-bodykit-demo) ship as
+          # prereleases and are explicitly excluded from `latest`, so the
+          # prod URL keeps serving the most recent non-demo release.
+          prerelease: ${{ contains(steps.version.outputs.version, '-demo') }}
+          make_latest: ${{ contains(steps.version.outputs.version, '-demo') && 'false' || 'true' }}

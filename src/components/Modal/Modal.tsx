@@ -48,7 +48,7 @@ export function Modal(props: ModalProps) {
     width?: string;
   }>({});
 
-  const productImgUrl = () => state.product?.reference_image_paths?.[0] || "";
+  const productImgUrl = () => state.customHeaderImage || state.product?.reference_image_paths?.[0] || "";
 
   const resizeModalForImage = (imgWidth: number, imgHeight: number) => {
     if (!imgWidth || !imgHeight) return;
@@ -454,6 +454,7 @@ export function Modal(props: ModalProps) {
                     variants={sortedVariants()}
                     selectedVariantIds={state.selectedVariantIds}
                     previewUrl={state.previewDataUrl}
+                    customVariantThumb={state.customVariantThumb}
                     onClose={handleClose}
                     onFileSelect={handleFileSelect}
                     onToggleVariant={actions.toggleVariantSelection}

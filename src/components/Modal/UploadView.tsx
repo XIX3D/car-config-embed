@@ -16,6 +16,7 @@ interface UploadViewProps {
   variants: Variant[];
   selectedVariantIds: string[];
   previewUrl: string | null;
+  customVariantThumb?: string | null;
   onClose: () => void;
   onFileSelect: (file: File) => void;
   onToggleVariant: (id: string) => void;
@@ -295,10 +296,19 @@ export function UploadView(props: UploadViewProps) {
               {(variant, i) => {
                 const isSelected = () => selectionIndex(variant.id) !== -1;
                 const orderNumber = () => selectionIndex(variant.id) + 1;
-                const refImg = () =>
-                  variant.reference_image_paths?.[0] ||
-                  variant.reference_image ||
-                  null;
+                const refImg = () => {
+                  // When set AND there's only one variant, override the thumbnail.
+                  // Multi-variant products are intentionally unaffected — they need
+                  // their own per-variant thumbs to be distinguishable.
+                  if (props.customVariantThumb && props.variants.length === 1) {
+                    return props.customVariantThumb;
+                  }
+                  return (
+                    variant.reference_image_paths?.[0] ||
+                    variant.reference_image ||
+                    null
+                  );
+                };
 
                 return (
                   <div class="relative">

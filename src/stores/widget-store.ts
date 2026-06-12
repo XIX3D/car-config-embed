@@ -14,6 +14,8 @@ export interface WidgetState {
   product: Product | null
   variants: Variant[]
   customBrand: string | null
+  customHeaderImage: string | null
+  customVariantThumb: string | null
 
   // File handling
   selectedFile: File | null
@@ -72,6 +74,8 @@ const initialState: WidgetState = {
   product: null,
   variants: [],
   customBrand: null,
+  customHeaderImage: null,
+  customVariantThumb: null,
 
   selectedFile: null,
   previewDataUrl: null,
@@ -129,8 +133,16 @@ export function createWidgetStore() {
     state.galleryResults[state.currentIndex] || null
 
   const actions = {
-    open(selections: JWTPayload, product: Product | null, variants: Variant[], customBrand?: string) {
+    open(
+      selections: JWTPayload,
+      product: Product | null,
+      variants: Variant[],
+      customBrand?: string,
+      customHeaderImage?: string,
+      customVariantThumb?: string,
+    ) {
       const isWraps = !!(selections.wrap_id && !selections.wheel_id)
+      const autoSelected = variants.length === 1 ? [String(variants[0].id)] : []
 
       setState({
         ...initialState,
@@ -139,7 +151,10 @@ export function createWidgetStore() {
         product,
         variants,
         customBrand: customBrand || null,
+        customHeaderImage: customHeaderImage || null,
+        customVariantThumb: customVariantThumb || null,
         isWraps,
+        selectedVariantIds: autoSelected,
       })
     },
 
