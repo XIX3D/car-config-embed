@@ -133,10 +133,12 @@ export function createWidgetStore() {
     state.galleryResults[state.currentIndex] || null
 
   // When there's exactly one variant, keep it auto-selected across all
-  // state transitions (upload, clear, reset). Otherwise default to empty
-  // so the user makes an explicit choice.
+  // state transitions (upload, clear, reset). Otherwise default to empty.
+  // Note: variant.id is a number at runtime even though the type says
+  // string[]. Card.isSelected uses .indexOf(variant.id) without coercion,
+  // so pushing a stringified id silently breaks the selected styling.
   const defaultVariantSelection = () =>
-    state.variants.length === 1 ? [String(state.variants[0].id)] : []
+    state.variants.length === 1 ? [state.variants[0].id as unknown as string] : []
 
   const actions = {
     open(
@@ -148,7 +150,7 @@ export function createWidgetStore() {
       customVariantThumb?: string,
     ) {
       const isWraps = !!(selections.wrap_id && !selections.wheel_id)
-      const autoSelected = variants.length === 1 ? [String(variants[0].id)] : []
+      const autoSelected = variants.length === 1 ? [variants[0].id as unknown as string] : []
 
       setState({
         ...initialState,
