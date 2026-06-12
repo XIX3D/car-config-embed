@@ -54,7 +54,7 @@ function mountWidget() {
   render(() => <Modal store={store} api={api} shadowRoot={shadowRoot!} />, mountPoint)
 }
 
-async function openPreview(jwt: string, customBrand?: string, customHeaderImage?: string, customVariantThumb?: string) {
+async function openPreview(jwt: string, customBrand?: string, customHeaderImage?: string, customVariantThumb?: string, requireVehicle?: string) {
   if (!jwt) {
     console.error('Avacar: No JWT token provided')
 
@@ -84,7 +84,7 @@ async function openPreview(jwt: string, customBrand?: string, customHeaderImage?
       variants = await api.fetchVariants(productId, variantIds)
     }
 
-    store.actions.open(selections, product, variants, customBrand, customHeaderImage, customVariantThumb)
+    store.actions.open(selections, product, variants, customBrand, customHeaderImage, customVariantThumb, requireVehicle)
     const gate = await api.getEmailGate(product?.manufacturer_id)
     store.actions.setEmailGate(gate ?? FAIL_CLOSED_GATE)
     return
@@ -114,7 +114,7 @@ async function openPreview(jwt: string, customBrand?: string, customHeaderImage?
     variants = v
   }
 
-  store.actions.open(selections, product, variants, customBrand, customHeaderImage, customVariantThumb)
+  store.actions.open(selections, product, variants, customBrand, customHeaderImage, customVariantThumb, requireVehicle)
   const gate = await api.getEmailGate(product?.manufacturer_id)
   store.actions.setEmailGate(gate ?? FAIL_CLOSED_GATE)
 }
@@ -170,6 +170,7 @@ function bindButtons() {
     const explicitTheme = button.getAttribute('data-button-theme') as ButtonTheme | null
     const customHeaderImage = button.getAttribute('data-header-image') || undefined
     const customVariantThumb = button.getAttribute('data-variant-thumb') || undefined
+    const requireVehicle = button.getAttribute('data-require-vehicle') || undefined
 
     const originalDisplay = button.style.display
     button.style.display = 'none'
@@ -195,7 +196,7 @@ function bindButtons() {
               text={buttonText}
               theme={theme}
               size={size}
-              onClick={() => openPreview(jwt, customBrand, customHeaderImage, customVariantThumb)}
+              onClick={() => openPreview(jwt, customBrand, customHeaderImage, customVariantThumb, requireVehicle)}
             />
           ),
           wrapper,
@@ -213,7 +214,7 @@ function bindButtons() {
         button.style.display = originalDisplay
         button.addEventListener('click', (e) => {
           e.preventDefault()
-          openPreview(jwt, customBrand, customHeaderImage, customVariantThumb)
+          openPreview(jwt, customBrand, customHeaderImage, customVariantThumb, requireVehicle)
         })
       }
     }).catch(() => {})

@@ -16,6 +16,7 @@ export interface WidgetState {
   customBrand: string | null
   customHeaderImage: string | null
   customVariantThumb: string | null
+  requireVehicle: string | null
 
   // File handling
   selectedFile: File | null
@@ -76,6 +77,7 @@ const initialState: WidgetState = {
   customBrand: null,
   customHeaderImage: null,
   customVariantThumb: null,
+  requireVehicle: null,
 
   selectedFile: null,
   previewDataUrl: null,
@@ -148,6 +150,7 @@ export function createWidgetStore() {
       customBrand?: string,
       customHeaderImage?: string,
       customVariantThumb?: string,
+      requireVehicle?: string,
     ) {
       const isWraps = !!(selections.wrap_id && !selections.wheel_id)
       const autoSelected = variants.length === 1 ? [variants[0].id as unknown as string] : []
@@ -161,6 +164,7 @@ export function createWidgetStore() {
         customBrand: customBrand || null,
         customHeaderImage: customHeaderImage || null,
         customVariantThumb: customVariantThumb || null,
+        requireVehicle: requireVehicle || null,
         isWraps,
         selectedVariantIds: autoSelected,
       })

@@ -26,6 +26,25 @@ import { downloadRenderImage } from "../../utils/download";
 
 const isDebug = import.meta.env.VITE_DEBUG === "true";
 
+// Optional client-side vehicle gate, opt-in via data-require-vehicle="<slug>"
+// on the preview button. Runs Gemini Flash detect-vehicle BEFORE the render
+// submit; if the detected car doesn't match, the user is bounced back with
+// a friendly error and no render is wasted.
+//
+// Detection failures (network etc.) fail open — better to attempt the
+// render than to block on a flaky detect call.
+const VEHICLE_GATES: Record<string, {
+  description: string;
+  check: (v: { make?: string; model?: string; year?: string | number }) => boolean;
+}> = {
+  "porsche-911-turbo": {
+    description: "Porsche 911 Turbo",
+    check: (v) =>
+      (v.make || "").toLowerCase() === "porsche" &&
+      /911\s*turbo/i.test(v.model || ""),
+  },
+};
+
 interface ModalProps {
   store: WidgetStore;
   api: ApiClient;
@@ -118,7 +137,42 @@ export function Modal(props: ModalProps) {
 
     if (!file) return;
 
+    actions.setError(null);
     actions.startLoading();
+
+    // Pre-flight vehicle gate (opt-in via data-require-vehicle)
+    if (state.requireVehicle) {
+      const gate = VEHICLE_GATES[state.requireVehicle];
+
+      if (gate) {
+        let detected: { make?: string; model?: string; year?: string | number } | null = null;
+
+        try {
+          detected = (await props.api.detectVehicle(file)) as typeof detected;
+        } catch {
+          detected = null;
+        }
+
+        if (detected) {
+          actions.setDetectedVehicle(detected as never);
+          if (!gate.check(detected)) {
+            actions.stopLoading();
+            actions.setView("upload");
+            const yearStr = detected.year ? `${detected.year} ` : "";
+            const what =
+              `${yearStr}${detected.make || ""} ${detected.model || ""}`.trim() ||
+              "this vehicle";
+
+            actions.setError(
+              `This preview is for ${gate.description} only. We detected ${what}. Please upload a different photo.`,
+            );
+
+            return;
+          }
+        }
+        // detected === null → detection failed (network etc.), fail open
+      }
+    }
 
     const selections = state.selections;
 
