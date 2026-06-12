@@ -132,6 +132,12 @@ export function createWidgetStore() {
   const getCurrentResult = () =>
     state.galleryResults[state.currentIndex] || null
 
+  // When there's exactly one variant, keep it auto-selected across all
+  // state transitions (upload, clear, reset). Otherwise default to empty
+  // so the user makes an explicit choice.
+  const defaultVariantSelection = () =>
+    state.variants.length === 1 ? [String(state.variants[0].id)] : []
+
   const actions = {
     open(
       selections: JWTPayload,
@@ -173,7 +179,7 @@ export function createWidgetStore() {
       setState({
         selectedFile: file,
         previewDataUrl: dataUrl,
-        selectedVariantIds: [],
+        selectedVariantIds: defaultVariantSelection(),
       })
     },
 
@@ -181,7 +187,7 @@ export function createWidgetStore() {
       setState({
         selectedFile: null,
         previewDataUrl: null,
-        selectedVariantIds: [],
+        selectedVariantIds: defaultVariantSelection(),
         error: null,
       })
     },
@@ -356,7 +362,7 @@ export function createWidgetStore() {
         currentIndex: 0,
         hasRendered: false,
         interestedFinishes: [],
-        selectedVariantIds: [],
+        selectedVariantIds: defaultVariantSelection(),
         error: null,
         debugData: null,
         zoomLevel: ZOOM.min,
