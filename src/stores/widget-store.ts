@@ -56,7 +56,7 @@ export interface WidgetState {
   error: string | null
   quotaError: QuotaExceededError | null
   emailGate: EmailGateResponse | null
-  vehicleGateError: { description: string; detected: string } | null
+  vehicleGateError: { description: string } | null
 
   // Debug
   debugData: DebugData | null
@@ -418,7 +418,7 @@ export function createWidgetStore() {
       setState('emailGate', gate)
     },
 
-    setVehicleGateError(data: { description: string; detected: string } | null) {
+    setVehicleGateError(data: { description: string } | null) {
       setState('vehicleGateError', data)
     },
 

@@ -163,15 +163,7 @@ export function Modal(props: ModalProps) {
           if (!gate.check(detected)) {
             actions.stopLoading();
             actions.setView("upload");
-            const yearStr = detected.year ? `${detected.year} ` : "";
-            const what =
-              `${yearStr}${detected.make || ""} ${detected.model || ""}`.trim() ||
-              "this vehicle";
-
-            actions.setVehicleGateError({
-              description: gate.description,
-              detected: what,
-            });
+            actions.setVehicleGateError({ description: gate.description });
 
             return;
           }
@@ -669,7 +661,6 @@ export function Modal(props: ModalProps) {
           <Show when={state.vehicleGateError}>
             <VehicleGateModal
               description={state.vehicleGateError!.description}
-              detected={state.vehicleGateError!.detected}
               onDismiss={() => actions.setVehicleGateError(null)}
             />
           </Show>
@@ -956,7 +947,6 @@ function QuotaExceededModal(props: {
 
 function VehicleGateModal(props: {
   description: string;
-  detected: string;
   onDismiss: () => void;
 }) {
   const handleDismiss = () => props.onDismiss();
@@ -988,11 +978,8 @@ function VehicleGateModal(props: {
         <h3 class="text-2xl font-semibold text-white m-0 mb-4">
           Unsupported Vehicle
         </h3>
-        <p class="text-sm text-white/70 mb-2 leading-relaxed">
+        <p class="text-sm text-white/70 mb-8 leading-relaxed">
           This kit is built for the <span class="text-white font-medium">{props.description}</span>.
-        </p>
-        <p class="text-sm text-white/60 mb-8 leading-relaxed">
-          We detected <span class="text-white font-medium">{props.detected}</span> in your photo.
         </p>
         <button
           type="button"
