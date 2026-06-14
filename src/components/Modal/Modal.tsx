@@ -168,9 +168,10 @@ export function Modal(props: ModalProps) {
               `${yearStr}${detected.make || ""} ${detected.model || ""}`.trim() ||
               "this vehicle";
 
-            actions.setError(
-              `This preview is for ${gate.description} only. We detected ${what}. Please upload a different photo.`,
-            );
+            actions.setVehicleGateError({
+              description: gate.description,
+              detected: what,
+            });
 
             return;
           }
@@ -665,6 +666,14 @@ export function Modal(props: ModalProps) {
             />
           </Show>
 
+          <Show when={state.vehicleGateError}>
+            <VehicleGateModal
+              description={state.vehicleGateError!.description}
+              detected={state.vehicleGateError!.detected}
+              onDismiss={() => actions.setVehicleGateError(null)}
+            />
+          </Show>
+
           <Show when={isDebug}>
             <button
               class="fixed bottom-3 right-20 z-[1000001] bg-slate-700 hover:bg-slate-800 px-3 py-1.5 rounded-full text-white text-xs font-medium transition-colors cursor-pointer shadow-lg"
@@ -939,6 +948,58 @@ function QuotaExceededModal(props: {
           onClick={handleDismiss}
         >
           Got it
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function VehicleGateModal(props: {
+  description: string;
+  detected: string;
+  onDismiss: () => void;
+}) {
+  const handleDismiss = () => props.onDismiss();
+  const handleOverlayClick = (e: MouseEvent) => {
+    if (e.target === e.currentTarget) handleDismiss();
+  };
+
+  return (
+    <div
+      class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[1000000] p-4"
+      onClick={handleOverlayClick}
+    >
+      <div class="relative bg-zeno-card rounded-3xl p-8 max-w-[400px] w-full text-center overflow-hidden animate-fadeInUp">
+        <div class="w-16 h-16 rounded-full bg-[var(--theme-primary)]/15 border-2 border-[var(--theme-primary)]/30 flex items-center justify-center mx-auto mb-6">
+          <svg
+            class="w-8 h-8 text-[var(--theme-primary)]"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </div>
+        <h3 class="text-2xl font-semibold text-white m-0 mb-4">
+          Unsupported Vehicle
+        </h3>
+        <p class="text-sm text-white/70 mb-2 leading-relaxed">
+          This kit is built for the <span class="text-white font-medium">{props.description}</span>.
+        </p>
+        <p class="text-sm text-white/60 mb-8 leading-relaxed">
+          We detected <span class="text-white font-medium">{props.detected}</span> in your photo.
+        </p>
+        <button
+          type="button"
+          class="w-full py-4 rounded-xl bg-[var(--theme-primary)]/15 border border-[var(--theme-primary)]/30 text-[var(--theme-primary-light)] text-[15px] font-medium cursor-pointer transition-all hover:scale-[1.02] hover:bg-[var(--theme-primary)]/20"
+          onClick={handleDismiss}
+        >
+          Try a different photo
         </button>
       </div>
     </div>
