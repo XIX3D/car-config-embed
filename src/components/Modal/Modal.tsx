@@ -145,10 +145,11 @@ export function Modal(props: ModalProps) {
       const gate = VEHICLE_GATES[state.requireVehicle];
 
       if (gate) {
-        let detected: { make?: string; model?: string; year?: string | number } | null = null;
+        type DetectedVehicle = { make?: string; model?: string; year?: string | number };
+        let detected: DetectedVehicle | null = null;
 
         try {
-          detected = (await props.api.detectVehicle(file)) as typeof detected;
+          detected = (await props.api.detectVehicle(file)) as DetectedVehicle | null;
         } catch {
           detected = null;
         }
