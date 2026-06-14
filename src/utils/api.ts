@@ -219,7 +219,7 @@ export function createApiClient(baseUrl: string) {
 
       if (!res.ok) return null
       const data = await res.json()
-      return data.vehicle ?? null
+      return data.detection ?? null
     } catch {
       return null
     }

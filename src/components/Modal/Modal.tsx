@@ -38,10 +38,14 @@ const VEHICLE_GATES: Record<string, {
   check: (v: { make?: string; model?: string; year?: string | number }) => boolean;
 }> = {
   "porsche-911-turbo": {
-    description: "Porsche 911 Turbo",
-    check: (v) =>
-      (v.make || "").toLowerCase() === "porsche" &&
-      /911\s*turbo/i.test(v.model || ""),
+    description: "Porsche 911 Turbo (2020–2024)",
+    check: (v) => {
+      if ((v.make || "").toLowerCase() !== "porsche") return false;
+      if (!/911\s*turbo/i.test(v.model || "")) return false;
+      const year = Number(v.year);
+      if (!year || Number.isNaN(year)) return true;
+      return year >= 2020 && year <= 2024;
+    },
   },
 };
 
