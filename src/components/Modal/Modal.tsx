@@ -179,7 +179,16 @@ export function Modal(props: ModalProps) {
       .map((id) => byId.get(id))
       .filter((v): v is Variant => !!v);
     const renderRequests = initialVariants.map((v) => {
-      const refImg = v.reference_image_paths?.[0] || v.reference_image;
+      // Same override rule as UploadView's variant thumb: if a custom thumb
+      // is set AND there's exactly one variant, use it. Multi-variant
+      // products are unaffected. This carries through to ResultView /
+      // QuoteView via result.referenceImage.
+      const overrideThumb =
+        state.customVariantThumb && state.variants.length === 1
+          ? state.customVariantThumb
+          : null;
+      const refImg =
+        overrideThumb || v.reference_image_paths?.[0] || v.reference_image;
 
       return {
         label: v.variant_name,
