@@ -296,15 +296,18 @@ export function QuoteView(props: QuoteViewProps) {
           </Show>
         </div>
 
-        {/* Finish indicator */}
+        {/* Finish indicator (hidden for single-variant products) */}
+        <Show when={props.results.length > 1}>
         <p class="text-xs text-center mt-2">
           <span class="text-zeno-cyan font-medium">
             {currentResult()?.label}
           </span>
         </p>
+        </Show>
       </div>
 
-      {/* WheelFinishSelector - horizontal swatches with like buttons below */}
+      {/* WheelFinishSelector — hidden when there's only one variant */}
+      <Show when={props.results.length > 1}>
       <div class="animate-fadeInUp opacity-0 [animation-delay:0.15s] mb-4">
         <p class="text-xs uppercase tracking-[1px] text-white/50 mb-2 text-center">
           Interested in
@@ -360,6 +363,7 @@ export function QuoteView(props: QuoteViewProps) {
           </For>
         </div>
       </div>
+      </Show>
 
       {/* Form */}
       <form

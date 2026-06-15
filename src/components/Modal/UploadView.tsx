@@ -276,6 +276,8 @@ export function UploadView(props: UploadViewProps) {
 
       <Show when={props.previewUrl && props.variants.length > 0}>
         <div class="flex flex-col items-center gap-3 w-full animate-fadeInUp opacity-0 [animation-delay:0.1s]">
+          {/* Single-variant products auto-select; no selection UI shown. */}
+          <Show when={props.variants.length > 1}>
           <div class="flex flex-col items-center gap-1" aria-live="polite">
             <p class="text-sm text-white/70 m-0 font-medium">Select a finish</p>
             <Show when={selectedCount()}>
@@ -351,6 +353,7 @@ export function UploadView(props: UploadViewProps) {
               }}
             </For>
           </div>
+          </Show>
 
           <div class="relative w-full max-w-80 mt-1">
             <button

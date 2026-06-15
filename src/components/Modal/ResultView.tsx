@@ -567,6 +567,8 @@ export function ResultView(props: ResultViewProps) {
           )}
         </div>
 
+        {/* Single-result products skip the finish carousel entirely. */}
+        <Show when={props.results.length > 1}>
         {/* Finish name */}
         <p class="text-center text-white/60 text-[10px] sm:text-xs uppercase tracking-widest mb-2 sm:mb-3">
           {current()?.label}
@@ -694,6 +696,7 @@ export function ResultView(props: ResultViewProps) {
             </For>
           </div>
         </div>
+        </Show>
 
         {/* CTA Button - v13 style */}
         <div class="relative w-full max-w-80 animate-fadeInUp mt-2">
