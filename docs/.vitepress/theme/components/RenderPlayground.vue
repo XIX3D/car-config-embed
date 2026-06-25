@@ -84,6 +84,12 @@ const productModalOpen = ref(false)
 const productSearchInput = ref<HTMLInputElement>()
 const productGrid = ref<HTMLElement>()
 const outputSection = ref<HTMLElement>()
+
+type QcStatus = 'good' | 'needs_work'
+interface QcEntry { status: QcStatus; note: string; ts: number }
+const qcMap = ref<Record<string, QcEntry>>({})
+const qcFilter = ref<'all' | 'unreviewed' | 'needs_work' | 'good'>('all')
+
 const variants = ref<Variant[]>([])
 const selectedVariantId = ref<string>('')
 
@@ -244,12 +250,21 @@ const selectedVehicleObj = computed(() => {
 
 const filteredProducts = computed(() => {
   const q = productSearch.value.toLowerCase().trim()
-  if (!q) return products.value
-  return products.value.filter(p =>
-    p.name.toLowerCase().includes(q)
-    || p.sku.toLowerCase().includes(q)
-    || (p.external_id?.toLowerCase().includes(q) ?? false)
-  )
+  let list = products.value
+  if (q) {
+    list = list.filter(p =>
+      p.name.toLowerCase().includes(q)
+      || p.sku.toLowerCase().includes(q)
+      || (p.external_id?.toLowerCase().includes(q) ?? false)
+    )
+  }
+  if (qcFilter.value !== 'all') {
+    list = list.filter(p => {
+      const st = qcMap.value[String(p.id)]?.status
+      return qcFilter.value === 'unreviewed' ? !st : st === qcFilter.value
+    })
+  }
+  return list
 })
 
 function pickProduct(p: Product) {
@@ -269,6 +284,91 @@ function openProductModal() {
 function closeProductModal() {
   productModalOpen.value = false
 }
+
+// ── QC status (per product, stored in localStorage, keyed per account) ──
+const QC_KEY_PREFIX = 'rp-qc-v1-'
+function qcStorageKey() {
+  return `${QC_KEY_PREFIX}${manufacturerId.value ?? 'anon'}`
+}
+function loadQc() {
+  if (typeof window === 'undefined') return
+  try {
+    const raw = window.localStorage.getItem(qcStorageKey())
+    qcMap.value = raw ? JSON.parse(raw) : {}
+  } catch { qcMap.value = {} }
+}
+function saveQc() {
+  if (typeof window === 'undefined') return
+  try { window.localStorage.setItem(qcStorageKey(), JSON.stringify(qcMap.value)) } catch { /* quota */ }
+}
+function setQc(productId: string, status: QcStatus | null) {
+  if (!productId) return
+  if (status === null) {
+    delete qcMap.value[productId]
+  } else {
+    const existing = qcMap.value[productId]
+    qcMap.value[productId] = { status, note: existing?.note ?? '', ts: Date.now() }
+  }
+  saveQc()
+}
+function setQcNote(productId: string, note: string) {
+  const e = qcMap.value[productId]
+  if (!e) return
+  e.note = note
+  saveQc()
+}
+
+const currentQc = computed(() => selectedProductId.value ? qcMap.value[selectedProductId.value] : undefined)
+
+const qcStats = computed(() => {
+  let good = 0, needs = 0
+  for (const k in qcMap.value) {
+    if (qcMap.value[k].status === 'good') good++
+    else if (qcMap.value[k].status === 'needs_work') needs++
+  }
+  const total = products.value.length
+  const reviewed = good + needs
+  return { good, needs, reviewed, total, left: Math.max(0, total - reviewed) }
+})
+
+function nextUnreviewed() {
+  const n = products.value.length
+  if (!n) return
+  const start = productIndex.value
+  for (let i = 1; i <= n; i++) {
+    const p = products.value[(start + i) % n]
+    if (p && !qcMap.value[String(p.id)]) { pickProduct(p); return }
+  }
+}
+
+function exportQc() {
+  if (typeof window === 'undefined') return
+  const blob = new Blob([JSON.stringify(qcMap.value, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `qc-status-${manufacturerId.value ?? 'export'}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+function importQc(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result as string)
+      if (data && typeof data === 'object') {
+        qcMap.value = { ...qcMap.value, ...data }
+        saveQc()
+      }
+    } catch { /* invalid file */ }
+  }
+  reader.readAsText(file)
+  ;(e.target as HTMLInputElement).value = ''
+}
+
+watch(manufacturerId, loadQc)
 
 function prevProduct() {
   const idx = products.value.findIndex(p => String(p.id) === selectedProductId.value)
@@ -945,6 +1045,20 @@ onUnmounted(() => {
         <span v-if="renderInProgress" class="rp-muted" style="font-size: 0.75rem;">Batch rendering...</span>
       </div>
       <div class="rp-card-body">
+        <div v-if="selectedProductId" class="rp-qc-bar">
+          <span class="rp-qc-label">QC this product:</span>
+          <button class="rp-qc-btn good" :class="{ active: currentQc?.status === 'good' }" @click="setQc(selectedProductId, currentQc?.status === 'good' ? null : 'good')">👍 Good</button>
+          <button class="rp-qc-btn needs" :class="{ active: currentQc?.status === 'needs_work' }" @click="setQc(selectedProductId, currentQc?.status === 'needs_work' ? null : 'needs_work')">🚩 Needs work</button>
+          <input
+            v-if="currentQc?.status === 'needs_work'"
+            class="rp-qc-note"
+            :value="currentQc?.note"
+            @input="setQcNote(selectedProductId, ($event.target as HTMLInputElement).value)"
+            placeholder="Note (e.g. rim too dark) — saved automatically"
+          />
+          <button class="rp-btn rp-btn-ghost rp-btn-xs rp-qc-next" @click="nextUnreviewed">Next unreviewed →</button>
+        </div>
+
         <div v-if="!renderResults.length" class="rp-output-center">
           <span class="rp-muted">
             {{ selectedVariantId ? 'Click Render to generate' : 'Click Render to generate all variants' }}
@@ -1013,17 +1127,36 @@ onUnmounted(() => {
             <span class="rp-muted rp-pm-count">{{ filteredProducts.length }} / {{ products.length }}</span>
             <button class="rp-fullscreen-close" @click="closeProductModal" style="position: static;">&times;</button>
           </div>
+          <div class="rp-pm-toolbar">
+            <div class="rp-pm-filters">
+              <button class="rp-pm-filter" :class="{ active: qcFilter === 'all' }" @click="qcFilter = 'all'">All ({{ products.length }})</button>
+              <button class="rp-pm-filter" :class="{ active: qcFilter === 'unreviewed' }" @click="qcFilter = 'unreviewed'">Unreviewed ({{ qcStats.left }})</button>
+              <button class="rp-pm-filter" :class="{ active: qcFilter === 'needs_work' }" @click="qcFilter = 'needs_work'">🚩 Needs work ({{ qcStats.needs }})</button>
+              <button class="rp-pm-filter" :class="{ active: qcFilter === 'good' }" @click="qcFilter = 'good'">👍 Good ({{ qcStats.good }})</button>
+            </div>
+            <div class="rp-pm-actions">
+              <span class="rp-muted rp-pm-stats">{{ qcStats.reviewed }} reviewed · {{ qcStats.left }} left</span>
+              <button class="rp-btn rp-btn-ghost rp-btn-xs" @click="exportQc">Export</button>
+              <label class="rp-btn rp-btn-ghost rp-btn-xs" style="cursor: pointer;">
+                Import
+                <input type="file" accept="application/json" @change="importQc" style="display: none;" />
+              </label>
+            </div>
+          </div>
           <div ref="productGrid" class="rp-pm-grid">
             <button
               v-for="p in filteredProducts"
               :key="p.id"
               class="rp-pm-card"
-              :class="{ active: selectedProductId === String(p.id) }"
+              :class="{ active: selectedProductId === String(p.id), 'qc-good': qcMap[String(p.id)]?.status === 'good', 'qc-needs': qcMap[String(p.id)]?.status === 'needs_work' }"
               @click="pickProduct(p)"
             >
               <div class="rp-pm-card-img">
                 <img v-if="productThumb(p)" :src="productThumb(p)!" :alt="p.name" loading="lazy" />
                 <div v-else class="rp-product-item-img-empty" style="width: 100%; height: 100%;" />
+                <span v-if="qcMap[String(p.id)]" class="rp-pm-badge" :class="qcMap[String(p.id)].status" :title="qcMap[String(p.id)].note">
+                  {{ qcMap[String(p.id)].status === 'good' ? '👍' : '🚩' }}
+                </span>
               </div>
               <div class="rp-pm-card-info">
                 <span class="rp-pm-card-name">{{ p.name }}</span>
@@ -1031,7 +1164,7 @@ onUnmounted(() => {
                 <span v-if="p.external_id" class="rp-pm-card-ext">{{ p.external_id }}</span>
               </div>
             </button>
-            <div v-if="!filteredProducts.length" class="rp-product-item-empty">No products match "{{ productSearch }}"</div>
+            <div v-if="!filteredProducts.length" class="rp-product-item-empty">No products match the current filter</div>
           </div>
         </div>
       </div>
