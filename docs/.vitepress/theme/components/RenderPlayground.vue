@@ -86,11 +86,10 @@ const productGrid = ref<HTMLElement>()
 const outputSection = ref<HTMLElement>()
 
 type QcStatus = 'good' | 'needs_work'
-type ProductStatus = '' | 'good' | 'needs_work' | 'in_progress'
-interface FinishQc { status: QcStatus; note: string }
-interface QcEntry { note: string; finishes: Record<string, FinishQc>; finishCount: number; ts: number }
+type ProductStatus = '' | 'good' | 'needs_work'
+interface QcEntry { status: QcStatus | null; note: string; ts: number }
 const qcMap = ref<Record<string, QcEntry>>({})
-const qcFilter = ref<'all' | 'unreviewed' | 'in_progress' | 'needs_work' | 'good'>('all')
+const qcFilter = ref<'all' | 'unreviewed' | 'needs_work' | 'good'>('all')
 
 const variants = ref<Variant[]>([])
 const selectedVariantId = ref<string>('')
@@ -216,9 +215,9 @@ function onFullscreenKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') { closeFullscreen(); e.preventDefault(); return }
   const t = e.target as HTMLElement | null
   const typing = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')
-  if (!typing && currentResult.value?.imageUrl) {
-    if (e.key === 'g' || e.key === 'G') { setFinishQc(currentResult.value, finishQcOf(currentResult.value)?.status === 'good' ? null : 'good'); e.preventDefault() }
-    else if (e.key === 'n' || e.key === 'N') { setFinishQc(currentResult.value, finishQcOf(currentResult.value)?.status === 'needs_work' ? null : 'needs_work'); e.preventDefault() }
+  if (!typing && selectedProductId.value) {
+    if (e.key === 'g' || e.key === 'G') { setProductQc(currentQc.value?.status === 'good' ? null : 'good'); e.preventDefault() }
+    else if (e.key === 'n' || e.key === 'N') { setProductQc(currentQc.value?.status === 'needs_work' ? null : 'needs_work'); e.preventDefault() }
   }
 }
 
@@ -286,18 +285,20 @@ function closeProductModal() {
   productModalOpen.value = false
 }
 
-// ── QC status (per finish + per wheel, in localStorage, keyed per account) ──
+// ── QC status (one verdict + note per wheel, in localStorage, keyed per account) ──
 const QC_KEY_PREFIX = 'rp-qc-v1-'
 function qcStorageKey() {
   return `${QC_KEY_PREFIX}${manufacturerId.value ?? 'anon'}`
 }
 function normalizeEntry(e: any): QcEntry {
-  return {
-    note: typeof e?.note === 'string' ? e.note : '',
-    finishes: (e && typeof e.finishes === 'object' && e.finishes) ? e.finishes : {},
-    finishCount: typeof e?.finishCount === 'number' ? e.finishCount : 0,
-    ts: typeof e?.ts === 'number' ? e.ts : 0,
+  let status: QcStatus | null = (e?.status === 'good' || e?.status === 'needs_work') ? e.status : null
+  // migrate the older per-finish shape into a single wheel verdict
+  if (!status && e?.finishes && typeof e.finishes === 'object') {
+    const vals = Object.values(e.finishes) as any[]
+    if (vals.some(f => f?.status === 'needs_work')) status = 'needs_work'
+    else if (vals.length && vals.every(f => f?.status === 'good')) status = 'good'
   }
+  return { status, note: typeof e?.note === 'string' ? e.note : '', ts: typeof e?.ts === 'number' ? e.ts : 0 }
 }
 function loadQc() {
   if (typeof window === 'undefined') return
@@ -315,68 +316,56 @@ function saveQc() {
 }
 function ensureEntry(productId: string): QcEntry {
   let e = qcMap.value[productId]
-  if (!e) { e = { note: '', finishes: {}, finishCount: 0, ts: Date.now() }; qcMap.value[productId] = e }
+  if (!e) { e = { status: null, note: '', ts: Date.now() }; qcMap.value[productId] = e }
   return e
 }
-function finishKey(r: RenderResult): string {
-  return r.variantId ?? 'default'
-}
-function finishQcOf(r: RenderResult | null): FinishQc | undefined {
-  if (!r || !selectedProductId.value) return undefined
-  return qcMap.value[selectedProductId.value]?.finishes?.[finishKey(r)]
-}
-function setFinishQc(r: RenderResult | null, status: QcStatus | null) {
-  if (!r || !selectedProductId.value) return
+
+const currentQc = computed(() => selectedProductId.value ? qcMap.value[selectedProductId.value] : undefined)
+const currentWheelNote = computed(() => currentQc.value?.note ?? '')
+
+function setProductQc(status: QcStatus | null) {
+  if (!selectedProductId.value) return
   const e = ensureEntry(selectedProductId.value)
-  e.finishCount = Math.max(e.finishCount, renderResults.value.length)
-  const k = finishKey(r)
-  if (status === null) delete e.finishes[k]
-  else e.finishes[k] = { status, note: e.finishes[k]?.note ?? '' }
+  e.status = status
   e.ts = Date.now()
+  if (!e.status && !e.note) delete qcMap.value[selectedProductId.value]
   saveQc()
 }
-function setFinishNote(r: RenderResult | null, note: string) {
-  if (!r || !selectedProductId.value) return
-  const f = qcMap.value[selectedProductId.value]?.finishes?.[finishKey(r)]
-  if (!f) return
-  f.note = note
-  saveQc()
-}
-const currentWheelNote = computed(() => selectedProductId.value ? (qcMap.value[selectedProductId.value]?.note ?? '') : '')
 function setWheelNote(note: string) {
   if (!selectedProductId.value) return
   const e = ensureEntry(selectedProductId.value)
   e.note = note
   e.ts = Date.now()
+  if (!e.status && !e.note) delete qcMap.value[selectedProductId.value]
+  saveQc()
+}
+// edit a note straight from the picker worklist (any product, not just the selected one)
+function setNoteFor(productId: string, note: string) {
+  const e = ensureEntry(productId)
+  e.note = note
+  e.ts = Date.now()
+  if (!e.status && !e.note) delete qcMap.value[productId]
   saveQc()
 }
 
 function productStatus(productId: string): ProductStatus {
-  const e = qcMap.value[productId]
-  if (!e) return ''
-  const vals = Object.values(e.finishes || {})
-  if (!vals.length) return e.note ? 'in_progress' : ''
-  if (vals.some(f => f.status === 'needs_work')) return 'needs_work'
-  if (e.finishCount && vals.length >= e.finishCount) return 'good'
-  return 'in_progress'
+  return qcMap.value[productId]?.status || ''
 }
 function statusLabel(s: ProductStatus): string {
-  if (s === 'good') return '👍 All finishes good'
+  if (s === 'good') return '👍 Good'
   if (s === 'needs_work') return '🚩 Needs work'
-  if (s === 'in_progress') return '🟡 In progress'
   return '○ Unreviewed'
 }
 
 const qcStats = computed(() => {
-  let good = 0, needs = 0, inProgress = 0
+  let good = 0, needs = 0
   for (const p of products.value) {
     const s = productStatus(String(p.id))
     if (s === 'good') good++
     else if (s === 'needs_work') needs++
-    else if (s === 'in_progress') inProgress++
   }
   const total = products.value.length
-  return { good, needs, inProgress, total, left: Math.max(0, total - good - needs - inProgress) }
+  return { good, needs, total, left: Math.max(0, total - good - needs) }
 })
 
 const nextUnreviewedProduct = computed(() => {
@@ -402,15 +391,31 @@ async function nextWheel() {
   await triggerRender()
 }
 
-function exportQc() {
+function download(filename: string, text: string, mime: string) {
   if (typeof window === 'undefined') return
-  const blob = new Blob([JSON.stringify(qcMap.value, null, 2)], { type: 'application/json' })
+  const blob = new Blob([text], { type: mime })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `qc-status-${manufacturerId.value ?? 'export'}.json`
+  a.download = filename
   a.click()
   URL.revokeObjectURL(url)
+}
+function exportQc() {
+  download(`qc-status-${manufacturerId.value ?? 'export'}.json`, JSON.stringify(qcMap.value, null, 2), 'application/json')
+}
+function csvCell(v: unknown): string {
+  const s = String(v ?? '')
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+function exportQcCsv() {
+  const rows: string[][] = [['name', 'sku', 'external_id', 'status', 'note']]
+  for (const p of products.value) {
+    const e = qcMap.value[String(p.id)]
+    if (!e || (!e.status && !e.note)) continue
+    rows.push([p.name, p.sku, p.external_id ?? '', e.status ?? '', e.note])
+  }
+  download(`qc-status-${manufacturerId.value ?? 'export'}.csv`, rows.map(r => r.map(csvCell).join(',')).join('\n'), 'text/csv')
 }
 function importQc(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
@@ -1109,13 +1114,13 @@ onUnmounted(() => {
       </div>
       <div class="rp-card-body">
         <div v-if="selectedProductId && renderResults.length" class="rp-qc-summary">
-          <span class="rp-qc-summary-status" :class="productStatus(selectedProductId)">{{ statusLabel(productStatus(selectedProductId)) }}</span>
-          <span class="rp-muted" style="font-size: 0.72rem;">Mark each finish below or expand a render to judge</span>
+          <button class="rp-qc-btn good" :class="{ active: currentQc?.status === 'good' }" @click="setProductQc(currentQc?.status === 'good' ? null : 'good')">👍 Good</button>
+          <button class="rp-qc-btn needs" :class="{ active: currentQc?.status === 'needs_work' }" @click="setProductQc(currentQc?.status === 'needs_work' ? null : 'needs_work')">🚩 Needs work</button>
           <input
             class="rp-qc-note"
             :value="currentWheelNote"
             @input="setWheelNote(($event.target as HTMLInputElement).value)"
-            placeholder="Wheel note (whole product)"
+            placeholder="Note — what to fix on this wheel"
           />
           <button class="rp-btn rp-btn-ghost rp-btn-xs rp-qc-next" :disabled="!nextUnreviewedProduct" @click="nextWheel">
             {{ nextUnreviewedProduct ? 'Next wheel →' : 'All reviewed' }}
@@ -1133,10 +1138,6 @@ onUnmounted(() => {
             <div class="rp-result-header">
               <span class="rp-result-label">{{ r.label }}</span>
               <div style="display: flex; align-items: center; gap: 0.3rem;">
-                <template v-if="r.imageUrl">
-                  <button class="rp-qc-mini good" :class="{ active: finishQcOf(r)?.status === 'good' }" title="Good (this finish)" @click="setFinishQc(r, finishQcOf(r)?.status === 'good' ? null : 'good')">👍</button>
-                  <button class="rp-qc-mini needs" :class="{ active: finishQcOf(r)?.status === 'needs_work' }" title="Needs work (this finish)" @click="setFinishQc(r, finishQcOf(r)?.status === 'needs_work' ? null : 'needs_work')">🚩</button>
-                </template>
                 <span v-if="r.elapsed" class="rp-muted" style="font-size: 0.7rem;">{{ r.elapsed }}s</span>
                 <button v-if="r.imageUrl" class="rp-btn rp-btn-ghost rp-btn-xs" @click="openFullscreen(i)">View</button>
               </div>
@@ -1198,13 +1199,13 @@ onUnmounted(() => {
             <div class="rp-pm-filters">
               <button class="rp-pm-filter" :class="{ active: qcFilter === 'all' }" @click="qcFilter = 'all'">All ({{ products.length }})</button>
               <button class="rp-pm-filter" :class="{ active: qcFilter === 'unreviewed' }" @click="qcFilter = 'unreviewed'">Unreviewed ({{ qcStats.left }})</button>
-              <button class="rp-pm-filter" :class="{ active: qcFilter === 'in_progress' }" @click="qcFilter = 'in_progress'">🟡 In progress ({{ qcStats.inProgress }})</button>
               <button class="rp-pm-filter" :class="{ active: qcFilter === 'needs_work' }" @click="qcFilter = 'needs_work'">🚩 Needs work ({{ qcStats.needs }})</button>
               <button class="rp-pm-filter" :class="{ active: qcFilter === 'good' }" @click="qcFilter = 'good'">👍 Good ({{ qcStats.good }})</button>
             </div>
             <div class="rp-pm-actions">
               <span class="rp-muted rp-pm-stats">{{ qcStats.good + qcStats.needs }} done · {{ qcStats.left }} left</span>
-              <button class="rp-btn rp-btn-ghost rp-btn-xs" @click="exportQc">Export</button>
+              <button class="rp-btn rp-btn-ghost rp-btn-xs" @click="exportQcCsv">Export CSV</button>
+              <button class="rp-btn rp-btn-ghost rp-btn-xs" @click="exportQc">JSON</button>
               <label class="rp-btn rp-btn-ghost rp-btn-xs" style="cursor: pointer;">
                 Import
                 <input type="file" accept="application/json" @change="importQc" style="display: none;" />
@@ -1212,26 +1213,35 @@ onUnmounted(() => {
             </div>
           </div>
           <div ref="productGrid" class="rp-pm-grid">
-            <button
+            <div
               v-for="p in filteredProducts"
               :key="p.id"
               class="rp-pm-card"
               :class="[`qc-${productStatus(String(p.id)) || 'none'}`, { active: selectedProductId === String(p.id) }]"
-              @click="pickProduct(p)"
             >
-              <div class="rp-pm-card-img">
-                <img v-if="productThumb(p)" :src="productThumb(p)!" :alt="p.name" loading="lazy" />
-                <div v-else class="rp-product-item-img-empty" style="width: 100%; height: 100%;" />
-                <span v-if="productStatus(String(p.id))" class="rp-pm-badge" :class="productStatus(String(p.id))" :title="qcMap[String(p.id)]?.note">
-                  {{ productStatus(String(p.id)) === 'good' ? '👍' : productStatus(String(p.id)) === 'needs_work' ? '🚩' : '🟡' }}
-                </span>
+              <div class="rp-pm-card-click" @click="pickProduct(p)">
+                <div class="rp-pm-card-img">
+                  <img v-if="productThumb(p)" :src="productThumb(p)!" :alt="p.name" loading="lazy" />
+                  <div v-else class="rp-product-item-img-empty" style="width: 100%; height: 100%;" />
+                  <span v-if="productStatus(String(p.id))" class="rp-pm-badge" :class="productStatus(String(p.id))">
+                    {{ productStatus(String(p.id)) === 'good' ? '👍' : '🚩' }}
+                  </span>
+                </div>
+                <div class="rp-pm-card-info">
+                  <span class="rp-pm-card-name">{{ p.name }}</span>
+                  <span class="rp-pm-card-sku">{{ p.sku }}</span>
+                  <span v-if="p.external_id" class="rp-pm-card-ext">{{ p.external_id }}</span>
+                </div>
               </div>
-              <div class="rp-pm-card-info">
-                <span class="rp-pm-card-name">{{ p.name }}</span>
-                <span class="rp-pm-card-sku">{{ p.sku }}</span>
-                <span v-if="p.external_id" class="rp-pm-card-ext">{{ p.external_id }}</span>
-              </div>
-            </button>
+              <input
+                v-if="productStatus(String(p.id)) === 'needs_work' || qcMap[String(p.id)]?.note"
+                class="rp-pm-card-note"
+                :value="qcMap[String(p.id)]?.note ?? ''"
+                placeholder="Add a fix note..."
+                @click.stop
+                @input="setNoteFor(String(p.id), ($event.target as HTMLInputElement).value)"
+              />
+            </div>
             <div v-if="!filteredProducts.length" class="rp-product-item-empty">No products match the current filter</div>
           </div>
         </div>
@@ -1259,21 +1269,21 @@ onUnmounted(() => {
           </div>
 
           <div class="rp-fs-qc">
-            <button class="rp-qc-btn good" :class="{ active: finishQcOf(currentResult)?.status === 'good' }" :disabled="!currentResult?.imageUrl" @click="setFinishQc(currentResult, finishQcOf(currentResult)?.status === 'good' ? null : 'good')">👍 Good <kbd>G</kbd></button>
-            <button class="rp-qc-btn needs" :class="{ active: finishQcOf(currentResult)?.status === 'needs_work' }" :disabled="!currentResult?.imageUrl" @click="setFinishQc(currentResult, finishQcOf(currentResult)?.status === 'needs_work' ? null : 'needs_work')">🚩 Needs work <kbd>N</kbd></button>
-            <input class="rp-qc-note" :value="finishQcOf(currentResult)?.note ?? ''" :disabled="!finishQcOf(currentResult)" placeholder="Note for this finish" @input="setFinishNote(currentResult, ($event.target as HTMLInputElement).value)" />
+            <span class="rp-fs-qc-label">This wheel:</span>
+            <button class="rp-qc-btn good" :class="{ active: currentQc?.status === 'good' }" @click="setProductQc(currentQc?.status === 'good' ? null : 'good')">👍 Good <kbd>G</kbd></button>
+            <button class="rp-qc-btn needs" :class="{ active: currentQc?.status === 'needs_work' }" @click="setProductQc(currentQc?.status === 'needs_work' ? null : 'needs_work')">🚩 Needs work <kbd>N</kbd></button>
+            <input class="rp-qc-note" :value="currentWheelNote" placeholder="Note — what to fix on this wheel" @input="setWheelNote(($event.target as HTMLInputElement).value)" />
           </div>
 
           <div class="rp-fs-strip">
             <button v-for="(r, i) in renderResults" :key="i" class="rp-fs-thumb" :class="{ active: i === fullscreenIndex }" @click="fullscreenIndex = i">
               <img v-if="r.imageUrl" :src="r.imageUrl" :alt="r.label" />
               <div v-else class="rp-fs-thumb-empty"><div v-if="r.loading" class="rp-spinner" /></div>
-              <span v-if="finishQcOf(r)" class="rp-fs-thumb-badge" :class="finishQcOf(r)?.status">{{ finishQcOf(r)?.status === 'good' ? '👍' : '🚩' }}</span>
             </button>
           </div>
 
           <div class="rp-fs-foot">
-            <input class="rp-qc-note" :value="currentWheelNote" placeholder="Wheel note (whole product)" @input="setWheelNote(($event.target as HTMLInputElement).value)" />
+            <span class="rp-fs-foot-status" :class="productStatus(selectedProductId)">{{ statusLabel(productStatus(selectedProductId)) }}</span>
             <button class="rp-btn rp-btn-render" :disabled="!nextUnreviewedProduct || renderInProgress" @click="nextWheel">
               {{ nextUnreviewedProduct ? 'Next wheel →' : 'All reviewed 🎉' }}
             </button>

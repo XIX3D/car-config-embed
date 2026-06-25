@@ -568,8 +568,21 @@
 }
 .rp-fs-thumb-badge.good { box-shadow: 0 0 0 1.5px #22c55e; }
 .rp-fs-thumb-badge.needs_work { box-shadow: 0 0 0 1.5px #ef4444; }
-.rp-fs-foot { display: flex; align-items: center; gap: 0.5rem; }
+.rp-fs-qc-label { font-size: 0.8rem; font-weight: 600; color: var(--vp-c-text-2); }
+.rp-fs-foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
 .rp-fs-foot .rp-btn-render { flex-shrink: 0; }
+.rp-fs-foot-status { font-size: 0.85rem; font-weight: 700; color: rgba(255,255,255,0.7); }
+.rp-fs-foot-status.good { color: #4ade80; }
+.rp-fs-foot-status.needs_work { color: #f87171; }
+
+/* Picker card: clickable body + inline worklist note */
+.rp-pm-card-click { display: flex; flex-direction: column; gap: 0.5rem; cursor: pointer; }
+.rp-pm-card-note {
+  width: 100%; padding: 0.3rem 0.45rem; font-size: 0.72rem;
+  border: 1px solid var(--vp-c-divider); border-radius: 6px;
+  background: var(--vp-c-bg-soft); color: var(--vp-c-text-1); outline: none;
+}
+.rp-pm-card-note:focus { border-color: #ef4444; background: var(--vp-c-bg); }
 
 /* ── Variant cards ── */
 .rp-variants { margin-top: 0.75rem; }
