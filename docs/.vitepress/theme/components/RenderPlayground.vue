@@ -86,9 +86,11 @@ const productGrid = ref<HTMLElement>()
 const outputSection = ref<HTMLElement>()
 
 type QcStatus = 'good' | 'needs_work'
-interface QcEntry { status: QcStatus; note: string; ts: number }
+type ProductStatus = '' | 'good' | 'needs_work' | 'in_progress'
+interface FinishQc { status: QcStatus; note: string }
+interface QcEntry { note: string; finishes: Record<string, FinishQc>; finishCount: number; ts: number }
 const qcMap = ref<Record<string, QcEntry>>({})
-const qcFilter = ref<'all' | 'unreviewed' | 'needs_work' | 'good'>('all')
+const qcFilter = ref<'all' | 'unreviewed' | 'in_progress' | 'needs_work' | 'good'>('all')
 
 const variants = ref<Variant[]>([])
 const selectedVariantId = ref<string>('')
@@ -116,6 +118,7 @@ interface RenderResult {
 const renderResults = ref<RenderResult[]>([])
 const renderInProgress = ref(false)
 const fullscreenIndex = ref<number>(-1)
+const viewerOpen = ref(false)
 interface RejectedAttempt {
   image_b64: string
   reason: string
@@ -181,44 +184,42 @@ async function copyDebugText() {
   await navigator.clipboard.writeText(text)
 }
 
-const fullscreenImage = computed(() => {
-  if (fullscreenIndex.value < 0) return null
-  return renderResults.value[fullscreenIndex.value]?.imageUrl || null
-})
+const currentResult = computed(() =>
+  fullscreenIndex.value >= 0 ? renderResults.value[fullscreenIndex.value] ?? null : null
+)
 
-const fullscreenLabel = computed(() => {
-  if (fullscreenIndex.value < 0) return ''
-  return renderResults.value[fullscreenIndex.value]?.label || ''
-})
+const fullscreenLabel = computed(() => currentResult.value?.label || '')
 
 function openFullscreen(index: number) {
   fullscreenIndex.value = index
+  viewerOpen.value = true
 }
 
 function closeFullscreen() {
+  viewerOpen.value = false
   fullscreenIndex.value = -1
 }
 
 function fullscreenPrev() {
-  if (fullscreenIndex.value <= 0) return
-  for (let i = fullscreenIndex.value - 1; i >= 0; i--) {
-    if (renderResults.value[i]?.imageUrl) { fullscreenIndex.value = i; return }
-  }
+  if (fullscreenIndex.value > 0) fullscreenIndex.value--
 }
 
 function fullscreenNext() {
-  if (fullscreenIndex.value >= renderResults.value.length - 1) return
-  for (let i = fullscreenIndex.value + 1; i < renderResults.value.length; i++) {
-    if (renderResults.value[i]?.imageUrl) { fullscreenIndex.value = i; return }
-  }
+  if (fullscreenIndex.value < renderResults.value.length - 1) fullscreenIndex.value++
 }
 
 function onFullscreenKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && productModalOpen.value) { closeProductModal(); e.preventDefault(); return }
-  if (fullscreenIndex.value < 0) return
-  if (e.key === 'ArrowLeft') { fullscreenPrev(); e.preventDefault() }
-  else if (e.key === 'ArrowRight') { fullscreenNext(); e.preventDefault() }
-  else if (e.key === 'Escape') { closeFullscreen(); e.preventDefault() }
+  if (!viewerOpen.value) return
+  if (e.key === 'ArrowLeft') { fullscreenPrev(); e.preventDefault(); return }
+  if (e.key === 'ArrowRight') { fullscreenNext(); e.preventDefault(); return }
+  if (e.key === 'Escape') { closeFullscreen(); e.preventDefault(); return }
+  const t = e.target as HTMLElement | null
+  const typing = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')
+  if (!typing && currentResult.value?.imageUrl) {
+    if (e.key === 'g' || e.key === 'G') { setFinishQc(currentResult.value, finishQcOf(currentResult.value)?.status === 'good' ? null : 'good'); e.preventDefault() }
+    else if (e.key === 'n' || e.key === 'N') { setFinishQc(currentResult.value, finishQcOf(currentResult.value)?.status === 'needs_work' ? null : 'needs_work'); e.preventDefault() }
+  }
 }
 
 const fastMode = ref(true)
@@ -260,7 +261,7 @@ const filteredProducts = computed(() => {
   }
   if (qcFilter.value !== 'all') {
     list = list.filter(p => {
-      const st = qcMap.value[String(p.id)]?.status
+      const st = productStatus(String(p.id))
       return qcFilter.value === 'unreviewed' ? !st : st === qcFilter.value
     })
   }
@@ -285,60 +286,120 @@ function closeProductModal() {
   productModalOpen.value = false
 }
 
-// ── QC status (per product, stored in localStorage, keyed per account) ──
+// ── QC status (per finish + per wheel, in localStorage, keyed per account) ──
 const QC_KEY_PREFIX = 'rp-qc-v1-'
 function qcStorageKey() {
   return `${QC_KEY_PREFIX}${manufacturerId.value ?? 'anon'}`
+}
+function normalizeEntry(e: any): QcEntry {
+  return {
+    note: typeof e?.note === 'string' ? e.note : '',
+    finishes: (e && typeof e.finishes === 'object' && e.finishes) ? e.finishes : {},
+    finishCount: typeof e?.finishCount === 'number' ? e.finishCount : 0,
+    ts: typeof e?.ts === 'number' ? e.ts : 0,
+  }
 }
 function loadQc() {
   if (typeof window === 'undefined') return
   try {
     const raw = window.localStorage.getItem(qcStorageKey())
-    qcMap.value = raw ? JSON.parse(raw) : {}
+    const parsed = raw ? JSON.parse(raw) : {}
+    const out: Record<string, QcEntry> = {}
+    for (const k in parsed) out[k] = normalizeEntry(parsed[k])
+    qcMap.value = out
   } catch { qcMap.value = {} }
 }
 function saveQc() {
   if (typeof window === 'undefined') return
   try { window.localStorage.setItem(qcStorageKey(), JSON.stringify(qcMap.value)) } catch { /* quota */ }
 }
-function setQc(productId: string, status: QcStatus | null) {
-  if (!productId) return
-  if (status === null) {
-    delete qcMap.value[productId]
-  } else {
-    const existing = qcMap.value[productId]
-    qcMap.value[productId] = { status, note: existing?.note ?? '', ts: Date.now() }
-  }
+function ensureEntry(productId: string): QcEntry {
+  let e = qcMap.value[productId]
+  if (!e) { e = { note: '', finishes: {}, finishCount: 0, ts: Date.now() }; qcMap.value[productId] = e }
+  return e
+}
+function finishKey(r: RenderResult): string {
+  return r.variantId ?? 'default'
+}
+function finishQcOf(r: RenderResult | null): FinishQc | undefined {
+  if (!r || !selectedProductId.value) return undefined
+  return qcMap.value[selectedProductId.value]?.finishes?.[finishKey(r)]
+}
+function setFinishQc(r: RenderResult | null, status: QcStatus | null) {
+  if (!r || !selectedProductId.value) return
+  const e = ensureEntry(selectedProductId.value)
+  e.finishCount = Math.max(e.finishCount, renderResults.value.length)
+  const k = finishKey(r)
+  if (status === null) delete e.finishes[k]
+  else e.finishes[k] = { status, note: e.finishes[k]?.note ?? '' }
+  e.ts = Date.now()
   saveQc()
 }
-function setQcNote(productId: string, note: string) {
-  const e = qcMap.value[productId]
-  if (!e) return
+function setFinishNote(r: RenderResult | null, note: string) {
+  if (!r || !selectedProductId.value) return
+  const f = qcMap.value[selectedProductId.value]?.finishes?.[finishKey(r)]
+  if (!f) return
+  f.note = note
+  saveQc()
+}
+const currentWheelNote = computed(() => selectedProductId.value ? (qcMap.value[selectedProductId.value]?.note ?? '') : '')
+function setWheelNote(note: string) {
+  if (!selectedProductId.value) return
+  const e = ensureEntry(selectedProductId.value)
   e.note = note
+  e.ts = Date.now()
   saveQc()
 }
 
-const currentQc = computed(() => selectedProductId.value ? qcMap.value[selectedProductId.value] : undefined)
+function productStatus(productId: string): ProductStatus {
+  const e = qcMap.value[productId]
+  if (!e) return ''
+  const vals = Object.values(e.finishes || {})
+  if (!vals.length) return e.note ? 'in_progress' : ''
+  if (vals.some(f => f.status === 'needs_work')) return 'needs_work'
+  if (e.finishCount && vals.length >= e.finishCount) return 'good'
+  return 'in_progress'
+}
+function statusLabel(s: ProductStatus): string {
+  if (s === 'good') return '👍 All finishes good'
+  if (s === 'needs_work') return '🚩 Needs work'
+  if (s === 'in_progress') return '🟡 In progress'
+  return '○ Unreviewed'
+}
 
 const qcStats = computed(() => {
-  let good = 0, needs = 0
-  for (const k in qcMap.value) {
-    if (qcMap.value[k].status === 'good') good++
-    else if (qcMap.value[k].status === 'needs_work') needs++
+  let good = 0, needs = 0, inProgress = 0
+  for (const p of products.value) {
+    const s = productStatus(String(p.id))
+    if (s === 'good') good++
+    else if (s === 'needs_work') needs++
+    else if (s === 'in_progress') inProgress++
   }
   const total = products.value.length
-  const reviewed = good + needs
-  return { good, needs, reviewed, total, left: Math.max(0, total - reviewed) }
+  return { good, needs, inProgress, total, left: Math.max(0, total - good - needs - inProgress) }
 })
 
-function nextUnreviewed() {
+const nextUnreviewedProduct = computed(() => {
   const n = products.value.length
-  if (!n) return
+  if (!n) return null
   const start = productIndex.value
   for (let i = 1; i <= n; i++) {
     const p = products.value[(start + i) % n]
-    if (p && !qcMap.value[String(p.id)]) { pickProduct(p); return }
+    if (p && !productStatus(String(p.id))) return p
   }
+  return null
+})
+
+async function nextWheel() {
+  const target = nextUnreviewedProduct.value
+  if (!target) return
+  selectedProductId.value = String(target.id)
+  selectedVariantId.value = ''
+  // load this wheel's finishes + prompt before rendering all of them
+  await Promise.all([fetchVariants(String(target.id)), fetchPromptPreview(String(target.id))])
+  fullscreenIndex.value = 0
+  viewerOpen.value = true
+  await triggerRender()
 }
 
 function exportQc() {
@@ -359,7 +420,9 @@ function importQc(e: Event) {
     try {
       const data = JSON.parse(reader.result as string)
       if (data && typeof data === 'object') {
-        qcMap.value = { ...qcMap.value, ...data }
+        const merged = { ...qcMap.value }
+        for (const k in data) merged[k] = normalizeEntry(data[k])
+        qcMap.value = merged
         saveQc()
       }
     } catch { /* invalid file */ }
@@ -1045,18 +1108,18 @@ onUnmounted(() => {
         <span v-if="renderInProgress" class="rp-muted" style="font-size: 0.75rem;">Batch rendering...</span>
       </div>
       <div class="rp-card-body">
-        <div v-if="selectedProductId" class="rp-qc-bar">
-          <span class="rp-qc-label">QC this product:</span>
-          <button class="rp-qc-btn good" :class="{ active: currentQc?.status === 'good' }" @click="setQc(selectedProductId, currentQc?.status === 'good' ? null : 'good')">👍 Good</button>
-          <button class="rp-qc-btn needs" :class="{ active: currentQc?.status === 'needs_work' }" @click="setQc(selectedProductId, currentQc?.status === 'needs_work' ? null : 'needs_work')">🚩 Needs work</button>
+        <div v-if="selectedProductId && renderResults.length" class="rp-qc-summary">
+          <span class="rp-qc-summary-status" :class="productStatus(selectedProductId)">{{ statusLabel(productStatus(selectedProductId)) }}</span>
+          <span class="rp-muted" style="font-size: 0.72rem;">Mark each finish below or expand a render to judge</span>
           <input
-            v-if="currentQc?.status === 'needs_work'"
             class="rp-qc-note"
-            :value="currentQc?.note"
-            @input="setQcNote(selectedProductId, ($event.target as HTMLInputElement).value)"
-            placeholder="Note (e.g. rim too dark) — saved automatically"
+            :value="currentWheelNote"
+            @input="setWheelNote(($event.target as HTMLInputElement).value)"
+            placeholder="Wheel note (whole product)"
           />
-          <button class="rp-btn rp-btn-ghost rp-btn-xs rp-qc-next" @click="nextUnreviewed">Next unreviewed →</button>
+          <button class="rp-btn rp-btn-ghost rp-btn-xs rp-qc-next" :disabled="!nextUnreviewedProduct" @click="nextWheel">
+            {{ nextUnreviewedProduct ? 'Next wheel →' : 'All reviewed' }}
+          </button>
         </div>
 
         <div v-if="!renderResults.length" class="rp-output-center">
@@ -1070,6 +1133,10 @@ onUnmounted(() => {
             <div class="rp-result-header">
               <span class="rp-result-label">{{ r.label }}</span>
               <div style="display: flex; align-items: center; gap: 0.3rem;">
+                <template v-if="r.imageUrl">
+                  <button class="rp-qc-mini good" :class="{ active: finishQcOf(r)?.status === 'good' }" title="Good (this finish)" @click="setFinishQc(r, finishQcOf(r)?.status === 'good' ? null : 'good')">👍</button>
+                  <button class="rp-qc-mini needs" :class="{ active: finishQcOf(r)?.status === 'needs_work' }" title="Needs work (this finish)" @click="setFinishQc(r, finishQcOf(r)?.status === 'needs_work' ? null : 'needs_work')">🚩</button>
+                </template>
                 <span v-if="r.elapsed" class="rp-muted" style="font-size: 0.7rem;">{{ r.elapsed }}s</span>
                 <button v-if="r.imageUrl" class="rp-btn rp-btn-ghost rp-btn-xs" @click="openFullscreen(i)">View</button>
               </div>
@@ -1131,11 +1198,12 @@ onUnmounted(() => {
             <div class="rp-pm-filters">
               <button class="rp-pm-filter" :class="{ active: qcFilter === 'all' }" @click="qcFilter = 'all'">All ({{ products.length }})</button>
               <button class="rp-pm-filter" :class="{ active: qcFilter === 'unreviewed' }" @click="qcFilter = 'unreviewed'">Unreviewed ({{ qcStats.left }})</button>
+              <button class="rp-pm-filter" :class="{ active: qcFilter === 'in_progress' }" @click="qcFilter = 'in_progress'">🟡 In progress ({{ qcStats.inProgress }})</button>
               <button class="rp-pm-filter" :class="{ active: qcFilter === 'needs_work' }" @click="qcFilter = 'needs_work'">🚩 Needs work ({{ qcStats.needs }})</button>
               <button class="rp-pm-filter" :class="{ active: qcFilter === 'good' }" @click="qcFilter = 'good'">👍 Good ({{ qcStats.good }})</button>
             </div>
             <div class="rp-pm-actions">
-              <span class="rp-muted rp-pm-stats">{{ qcStats.reviewed }} reviewed · {{ qcStats.left }} left</span>
+              <span class="rp-muted rp-pm-stats">{{ qcStats.good + qcStats.needs }} done · {{ qcStats.left }} left</span>
               <button class="rp-btn rp-btn-ghost rp-btn-xs" @click="exportQc">Export</button>
               <label class="rp-btn rp-btn-ghost rp-btn-xs" style="cursor: pointer;">
                 Import
@@ -1148,14 +1216,14 @@ onUnmounted(() => {
               v-for="p in filteredProducts"
               :key="p.id"
               class="rp-pm-card"
-              :class="{ active: selectedProductId === String(p.id), 'qc-good': qcMap[String(p.id)]?.status === 'good', 'qc-needs': qcMap[String(p.id)]?.status === 'needs_work' }"
+              :class="[`qc-${productStatus(String(p.id)) || 'none'}`, { active: selectedProductId === String(p.id) }]"
               @click="pickProduct(p)"
             >
               <div class="rp-pm-card-img">
                 <img v-if="productThumb(p)" :src="productThumb(p)!" :alt="p.name" loading="lazy" />
                 <div v-else class="rp-product-item-img-empty" style="width: 100%; height: 100%;" />
-                <span v-if="qcMap[String(p.id)]" class="rp-pm-badge" :class="qcMap[String(p.id)].status" :title="qcMap[String(p.id)].note">
-                  {{ qcMap[String(p.id)].status === 'good' ? '👍' : '🚩' }}
+                <span v-if="productStatus(String(p.id))" class="rp-pm-badge" :class="productStatus(String(p.id))" :title="qcMap[String(p.id)]?.note">
+                  {{ productStatus(String(p.id)) === 'good' ? '👍' : productStatus(String(p.id)) === 'needs_work' ? '🚩' : '🟡' }}
                 </span>
               </div>
               <div class="rp-pm-card-info">
@@ -1170,16 +1238,47 @@ onUnmounted(() => {
       </div>
     </Teleport>
 
-    <!-- FULLSCREEN MODAL -->
+    <!-- FULLSCREEN REVIEW / QC VIEWER -->
     <Teleport to="body">
-      <div v-if="fullscreenImage" class="rp-fullscreen-overlay" @click.self="closeFullscreen">
-        <button class="rp-fs-nav rp-fs-prev" :disabled="fullscreenIndex <= 0" @click="fullscreenPrev">&lsaquo;</button>
-        <div class="rp-fullscreen-modal">
+      <div v-if="viewerOpen" class="rp-fullscreen-overlay" @click.self="closeFullscreen">
+        <div class="rp-fs">
           <button class="rp-fullscreen-close" @click="closeFullscreen">&times;</button>
-          <img :src="fullscreenImage" :alt="fullscreenLabel" />
-          <div class="rp-fs-label">{{ fullscreenLabel }}</div>
+          <div class="rp-fs-top">
+            <span class="rp-fs-title">{{ selectedProduct?.name || 'Render' }}</span>
+            <span class="rp-fs-sub">{{ fullscreenLabel }} · finish {{ fullscreenIndex + 1 }} of {{ renderResults.length }}</span>
+          </div>
+
+          <div class="rp-fs-stage">
+            <button class="rp-fs-nav rp-fs-prev" :disabled="fullscreenIndex <= 0" @click="fullscreenPrev">&lsaquo;</button>
+            <div class="rp-fs-image">
+              <img v-if="currentResult?.imageUrl" :src="currentResult.imageUrl" :alt="fullscreenLabel" />
+              <div v-else-if="currentResult?.error" class="rp-fs-state rp-error">{{ currentResult.error }}</div>
+              <div v-else class="rp-fs-state"><div class="rp-spinner" /><span class="rp-muted">Rendering...</span></div>
+            </div>
+            <button class="rp-fs-nav rp-fs-next" :disabled="fullscreenIndex >= renderResults.length - 1" @click="fullscreenNext">&rsaquo;</button>
+          </div>
+
+          <div class="rp-fs-qc">
+            <button class="rp-qc-btn good" :class="{ active: finishQcOf(currentResult)?.status === 'good' }" :disabled="!currentResult?.imageUrl" @click="setFinishQc(currentResult, finishQcOf(currentResult)?.status === 'good' ? null : 'good')">👍 Good <kbd>G</kbd></button>
+            <button class="rp-qc-btn needs" :class="{ active: finishQcOf(currentResult)?.status === 'needs_work' }" :disabled="!currentResult?.imageUrl" @click="setFinishQc(currentResult, finishQcOf(currentResult)?.status === 'needs_work' ? null : 'needs_work')">🚩 Needs work <kbd>N</kbd></button>
+            <input class="rp-qc-note" :value="finishQcOf(currentResult)?.note ?? ''" :disabled="!finishQcOf(currentResult)" placeholder="Note for this finish" @input="setFinishNote(currentResult, ($event.target as HTMLInputElement).value)" />
+          </div>
+
+          <div class="rp-fs-strip">
+            <button v-for="(r, i) in renderResults" :key="i" class="rp-fs-thumb" :class="{ active: i === fullscreenIndex }" @click="fullscreenIndex = i">
+              <img v-if="r.imageUrl" :src="r.imageUrl" :alt="r.label" />
+              <div v-else class="rp-fs-thumb-empty"><div v-if="r.loading" class="rp-spinner" /></div>
+              <span v-if="finishQcOf(r)" class="rp-fs-thumb-badge" :class="finishQcOf(r)?.status">{{ finishQcOf(r)?.status === 'good' ? '👍' : '🚩' }}</span>
+            </button>
+          </div>
+
+          <div class="rp-fs-foot">
+            <input class="rp-qc-note" :value="currentWheelNote" placeholder="Wheel note (whole product)" @input="setWheelNote(($event.target as HTMLInputElement).value)" />
+            <button class="rp-btn rp-btn-render" :disabled="!nextUnreviewedProduct || renderInProgress" @click="nextWheel">
+              {{ nextUnreviewedProduct ? 'Next wheel →' : 'All reviewed 🎉' }}
+            </button>
+          </div>
         </div>
-        <button class="rp-fs-nav rp-fs-next" :disabled="fullscreenIndex >= renderResults.length - 1" @click="fullscreenNext">&rsaquo;</button>
       </div>
     </Teleport>
 
