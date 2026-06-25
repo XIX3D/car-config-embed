@@ -80,7 +80,10 @@ const apiConnected = ref(false)
 const products = ref<Product[]>([])
 const selectedProductId = ref<string>('')
 const productSearch = ref('')
-const productListOpen = ref(false)
+const productModalOpen = ref(false)
+const productSearchInput = ref<HTMLInputElement>()
+const productGrid = ref<HTMLElement>()
+const outputSection = ref<HTMLElement>()
 const variants = ref<Variant[]>([])
 const selectedVariantId = ref<string>('')
 
@@ -205,6 +208,7 @@ function fullscreenNext() {
 }
 
 function onFullscreenKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && productModalOpen.value) { closeProductModal(); e.preventDefault(); return }
   if (fullscreenIndex.value < 0) return
   if (e.key === 'ArrowLeft') { fullscreenPrev(); e.preventDefault() }
   else if (e.key === 'ArrowRight') { fullscreenNext(); e.preventDefault() }
@@ -250,8 +254,20 @@ const filteredProducts = computed(() => {
 
 function pickProduct(p: Product) {
   selectedProductId.value = String(p.id)
-  productSearch.value = ''
-  productListOpen.value = false
+  productModalOpen.value = false
+}
+
+function openProductModal() {
+  productModalOpen.value = true
+  nextTick(() => {
+    productSearchInput.value?.focus()
+    productSearchInput.value?.select()
+    productGrid.value?.querySelector('.active')?.scrollIntoView({ block: 'center' })
+  })
+}
+
+function closeProductModal() {
+  productModalOpen.value = false
 }
 
 function prevProduct() {
@@ -581,6 +597,7 @@ async function triggerRender() {
   if (!canRender.value) return
 
   renderInProgress.value = true
+  nextTick(() => outputSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
 
   let vehicleBlob: Blob | null = null
   try {
@@ -712,21 +729,12 @@ async function initMonaco() {
   })
 }
 
-function onClickOutside(e: MouseEvent) {
-  const wrap = document.querySelector('.rp-product-select-wrap')
-  if (wrap && !wrap.contains(e.target as Node)) {
-    productListOpen.value = false
-  }
-}
-
 onMounted(() => {
-  document.addEventListener('click', onClickOutside)
   document.addEventListener('paste', onPaste)
   document.addEventListener('keydown', onFullscreenKeydown)
 })
 
 onUnmounted(() => {
-  document.removeEventListener('click', onClickOutside)
   document.removeEventListener('paste', onPaste)
   document.removeEventListener('keydown', onFullscreenKeydown)
   observer?.disconnect()
@@ -810,42 +818,21 @@ onUnmounted(() => {
         </div>
       </div>
       <div class="rp-card-body">
-        <div class="rp-product-row">
-          <div class="rp-product-select-wrap">
-            <div class="rp-search-box">
-              <input
-                v-model="productSearch"
-                type="text"
-                class="rp-search-input"
-                :placeholder="selectedProduct ? selectedProduct.name : 'Search products...'"
-                @focus="productListOpen = true"
-              />
-              <button v-if="selectedProductId" class="rp-search-clear" @click="selectedProductId = ''; productSearch = '';">&times;</button>
+        <button class="rp-product-trigger" @click="openProductModal">
+          <template v-if="selectedProduct">
+            <img v-if="productThumb(selectedProduct)" :src="productThumb(selectedProduct)!" :alt="selectedProduct.name" class="rp-product-trigger-img" />
+            <div v-else class="rp-product-trigger-img rp-product-item-img-empty" />
+            <div class="rp-product-trigger-info">
+              <span class="rp-product-trigger-name">{{ selectedProduct.name }}</span>
+              <span class="rp-product-trigger-sku">{{ selectedProduct.sku }}<template v-if="selectedProduct.external_id"> &middot; {{ selectedProduct.external_id }}</template></span>
             </div>
-            <div v-if="productListOpen" class="rp-product-list">
-              <div
-                v-for="p in filteredProducts"
-                :key="p.id"
-                class="rp-product-item"
-                :class="{ active: selectedProductId === String(p.id) }"
-                @mousedown.prevent="pickProduct(p)"
-              >
-                <img v-if="productThumb(p)" :src="productThumb(p)!" class="rp-product-item-img" />
-                <div v-else class="rp-product-item-img rp-product-item-img-empty" />
-                <div class="rp-product-item-info">
-                  <span class="rp-product-item-name">{{ p.name }}</span>
-                  <span class="rp-product-item-sku">{{ p.sku }}</span>
-                  <span v-if="p.external_id" class="rp-product-item-external-id">{{ p.external_id }}</span>
-                </div>
-              </div>
-              <div v-if="!filteredProducts.length" class="rp-product-item-empty">No products match "{{ productSearch }}"</div>
-            </div>
-          </div>
-          <div v-if="selectedProduct" class="rp-product-thumb">
-            <img v-if="productThumb(selectedProduct)" :src="productThumb(selectedProduct)!" :alt="selectedProduct.name" />
-            <div v-else class="rp-product-thumb-empty">No image</div>
-          </div>
-        </div>
+            <span class="rp-product-trigger-action">Change</span>
+          </template>
+          <template v-else>
+            <span class="rp-product-trigger-placeholder">Select a product&hellip;</span>
+            <span class="rp-product-trigger-action">Browse</span>
+          </template>
+        </button>
 
         <!-- VARIANTS -->
         <div v-if="variants.length" class="rp-variants">
@@ -946,7 +933,7 @@ onUnmounted(() => {
     </div>
 
     <!-- STEP 4: OUTPUT -->
-    <div class="rp-card">
+    <div ref="outputSection" class="rp-card">
       <div class="rp-card-header">
         <div style="display: flex; align-items: center; gap: 0.5rem;">
           <span class="rp-step">4</span>
@@ -998,6 +985,57 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- FLOATING RENDER BUTTON -->
+    <button
+      class="rp-fab-render"
+      :disabled="renderInProgress || !canRender"
+      :title="canRender ? '' : 'Select a product and a vehicle image first'"
+      @click="triggerRender"
+    >
+      <span v-if="renderInProgress" class="rp-btn-spinner" />
+      <span v-else class="rp-fab-render-icon">&#9654;</span>
+      <span>{{ renderInProgress ? 'Rendering...' : selectedVariantId ? 'Render' : `Render All (${variants.length || 1})` }}</span>
+    </button>
+
+    <!-- PRODUCT PICKER MODAL -->
+    <Teleport to="body">
+      <div v-if="productModalOpen" class="rp-fullscreen-overlay" @click.self="closeProductModal">
+        <div class="rp-pm">
+          <div class="rp-pm-header">
+            <input
+              ref="productSearchInput"
+              v-model="productSearch"
+              type="text"
+              class="rp-pm-search"
+              placeholder="Search products by name, SKU, or ID..."
+            />
+            <span class="rp-muted rp-pm-count">{{ filteredProducts.length }} / {{ products.length }}</span>
+            <button class="rp-fullscreen-close" @click="closeProductModal" style="position: static;">&times;</button>
+          </div>
+          <div ref="productGrid" class="rp-pm-grid">
+            <button
+              v-for="p in filteredProducts"
+              :key="p.id"
+              class="rp-pm-card"
+              :class="{ active: selectedProductId === String(p.id) }"
+              @click="pickProduct(p)"
+            >
+              <div class="rp-pm-card-img">
+                <img v-if="productThumb(p)" :src="productThumb(p)!" :alt="p.name" loading="lazy" />
+                <div v-else class="rp-product-item-img-empty" style="width: 100%; height: 100%;" />
+              </div>
+              <div class="rp-pm-card-info">
+                <span class="rp-pm-card-name">{{ p.name }}</span>
+                <span class="rp-pm-card-sku">{{ p.sku }}</span>
+                <span v-if="p.external_id" class="rp-pm-card-ext">{{ p.external_id }}</span>
+              </div>
+            </button>
+            <div v-if="!filteredProducts.length" class="rp-product-item-empty">No products match "{{ productSearch }}"</div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- FULLSCREEN MODAL -->
     <Teleport to="body">
