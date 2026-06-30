@@ -230,8 +230,29 @@ let editableEditor: any = null
 let masterEditorInitialized = false
 let observer: MutationObserver | null = null
 
+// Tracks which product the current variants.value reflects. Set by fetchVariants
+// on success, cleared synchronously when selectedProductId changes. Render is
+// gated on this matching the current selection so a render can never fire with
+// stale variant IDs from a previous product (two Velos wheels share the same
+// variant names, so the UI labels look right even when the IDs underneath are
+// wrong — only a structural guard prevents that class of bug).
+const variantsLoadedFor = ref<string | null>(null)
+const variantsLoading = computed(
+  () => !!selectedProductId.value && variantsLoadedFor.value !== selectedProductId.value
+)
+
 const canRender = computed(() => {
-  return selectedProductId.value && (selectedVehicle.value || uploadedFile.value)
+  if (!selectedProductId.value) return false
+  if (!(selectedVehicle.value || uploadedFile.value)) return false
+  if (variantsLoading.value) return false
+  return true
+})
+
+const renderBlockReason = computed(() => {
+  if (!selectedProductId.value) return 'Select a product first'
+  if (!(selectedVehicle.value || uploadedFile.value)) return 'Choose a vehicle image'
+  if (variantsLoading.value) return 'Loading variants…'
+  return ''
 })
 
 const selectedProduct = computed(() => {
@@ -543,10 +564,16 @@ async function fetchVariants(productId: string) {
   try {
     const res = await apiFetch(`/api/v1/products/${productId}/variants`)
     const data = await res.json()
+    // Guard against stale responses: if the user switched products while this
+    // request was in flight, don't clobber the newer fetch's data.
+    if (selectedProductId.value !== productId) return
     variants.value = data.variants || []
+    variantsLoadedFor.value = productId
   } catch (e) {
     console.error('Failed to fetch variants:', e)
+    if (selectedProductId.value !== productId) return
     variants.value = []
+    variantsLoadedFor.value = productId
   }
 }
 
@@ -813,6 +840,7 @@ async function triggerRender() {
 watch(selectedProductId, async (pid) => {
   if (!pid) {
     variants.value = []
+    variantsLoadedFor.value = null
     selectedVariantId.value = ''
     masterPrompt.value = ''
     editablePrompt.value = ''
@@ -820,6 +848,12 @@ watch(selectedProductId, async (pid) => {
     if (editableEditor) editableEditor.setValue('')
     return
   }
+  // Clear stale variants + the loaded-for marker synchronously before the
+  // network fetch resolves. This trips canRender to false until the new
+  // product's variants land, so the Render button cannot fire with stale
+  // variant IDs from the previous product.
+  variants.value = []
+  variantsLoadedFor.value = null
   selectedVariantId.value = ''
   await Promise.all([fetchVariants(pid), fetchPromptPreview(pid)])
 })
@@ -963,9 +997,14 @@ onUnmounted(() => {
           <input type="checkbox" :checked="showRejected" @change="toggleRejected" />
           <span>Show rejected</span>
         </label>
-        <button class="rp-btn rp-btn-render" :disabled="renderInProgress || !canRender" @click="triggerRender">
-          <span v-if="renderInProgress" class="rp-btn-spinner" />
-          {{ renderInProgress ? 'Rendering...' : selectedVariantId ? 'Render' : `Render All (${variants.length || 1})` }}
+        <button
+          class="rp-btn rp-btn-render"
+          :disabled="renderInProgress || !canRender"
+          :title="renderBlockReason"
+          @click="triggerRender"
+        >
+          <span v-if="renderInProgress || variantsLoading" class="rp-btn-spinner" />
+          {{ renderInProgress ? 'Rendering...' : variantsLoading ? 'Loading variants...' : selectedVariantId ? 'Render' : `Render All (${variants.length || 1})` }}
         </button>
       </div>
     </div>
@@ -1172,12 +1211,12 @@ onUnmounted(() => {
     <button
       class="rp-fab-render"
       :disabled="renderInProgress || !canRender"
-      :title="canRender ? '' : 'Select a product and a vehicle image first'"
+      :title="renderBlockReason"
       @click="triggerRender"
     >
-      <span v-if="renderInProgress" class="rp-btn-spinner" />
+      <span v-if="renderInProgress || variantsLoading" class="rp-btn-spinner" />
       <span v-else class="rp-fab-render-icon">&#9654;</span>
-      <span>{{ renderInProgress ? 'Rendering...' : selectedVariantId ? 'Render' : `Render All (${variants.length || 1})` }}</span>
+      <span>{{ renderInProgress ? 'Rendering...' : variantsLoading ? 'Loading variants...' : selectedVariantId ? 'Render' : `Render All (${variants.length || 1})` }}</span>
     </button>
 
     <!-- PRODUCT PICKER MODAL -->
