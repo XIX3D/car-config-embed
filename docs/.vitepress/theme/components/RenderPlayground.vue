@@ -218,6 +218,9 @@ function onFullscreenKeydown(e: KeyboardEvent) {
   if (!typing && selectedProductId.value) {
     if (e.key === 'g' || e.key === 'G') { setProductQc(currentQc.value?.status === 'good' ? null : 'good'); e.preventDefault() }
     else if (e.key === 'n' || e.key === 'N') { setProductQc(currentQc.value?.status === 'needs_work' ? null : 'needs_work'); e.preventDefault() }
+    else if (e.key === 'Enter' || e.key === ' ') { advanceWheel(); e.preventDefault() }
+    else if (e.key === 'ArrowUp') { cycleReference(-1); e.preventDefault() }
+    else if (e.key === 'ArrowDown') { cycleReference(1); e.preventDefault() }
   }
 }
 
@@ -268,6 +271,78 @@ const selectedVariant = computed(() => {
 const selectedVehicleObj = computed(() => {
   return BUNDLED_VEHICLES.find(v => v.id === selectedVehicle.value)
 })
+
+// Reference images shown beside the render in the QC viewer.
+// The authoritative source is the debug event: the exact reference images fed to the
+// model for THIS render (wheel reference, orthographic view, center-cap detail, ...).
+const refIndex = ref(0)
+type RefImage = { src: string; label: string }
+
+function cleanRefLabel(text: string): string {
+  const lines = text.split('\n').map(s => s.trim()).filter(Boolean)
+  let last = lines[lines.length - 1] || 'Reference'
+  last = last.replace(/[:\-–—]\s*$/, '')
+  if (last.length > 48) last = last.slice(0, 47) + '…'
+  return last || 'Reference'
+}
+function refPriority(label: string): number {
+  const l = label.toLowerCase()
+  if (/vehicle|base image|input image|the car|customer/.test(l)) return 9
+  if (/reference/.test(l)) return 0
+  if (/orthograph/.test(l)) return 1
+  return 5
+}
+function refsFromDebug(result: RenderResult | null): RefImage[] {
+  const parts = result?.sseEvents.find(e => e.type === 'debug')?.data?.parts
+  if (!Array.isArray(parts)) return []
+  const out: RefImage[] = []
+  let label = 'Reference'
+  for (const part of parts) {
+    if (part?.type === 'text' && typeof part.content === 'string') {
+      label = cleanRefLabel(part.content)
+    } else if (part?.type === 'image' && part.source) {
+      out.push({ src: part.source, label })
+    }
+  }
+  // reference + orthographic first, vehicle/base image last
+  return out
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => refPriority(a.r.label) - refPriority(b.r.label) || a.i - b.i)
+    .map(x => x.r)
+}
+const referenceImages = computed<RefImage[]>(() => {
+  const fromDebug = refsFromDebug(currentResult.value)
+  if (fromDebug.length) return fromDebug
+  // fallback before the render's debug arrives: product/variant fields
+  const out: RefImage[] = []
+  const seen = new Set<string>()
+  const add = (src: string | null | undefined, label: string) => {
+    if (src && !seen.has(src)) { seen.add(src); out.push({ src, label }) }
+  }
+  const vid = currentResult.value?.variantId
+  if (vid) {
+    const v = variants.value.find(v => String(v.id) === vid)
+    if (v) { add(v.reference_image, 'Variant reference'); add(v.orthographic_image, 'Variant orthographic') }
+  }
+  const p = selectedProduct.value
+  if (p) {
+    add(p.orthographic_image, 'Orthographic')
+    ;(p.reference_image_paths || []).forEach((r, i) => add(r, `Reference ${i + 1}`))
+  }
+  return out
+})
+const currentReference = computed(() => {
+  const list = referenceImages.value
+  if (!list.length) return null
+  return list[Math.min(refIndex.value, list.length - 1)]
+})
+function cycleReference(dir: number) {
+  const n = referenceImages.value.length
+  if (n < 2) return
+  refIndex.value = (Math.min(refIndex.value, n - 1) + dir + n) % n
+}
+// Reset to the top reference whenever the viewed finish/product changes.
+watch(() => currentResult.value?.variantId, () => { refIndex.value = 0 })
 
 const filteredProducts = computed(() => {
   const q = productSearch.value.toLowerCase().trim()
@@ -410,6 +485,12 @@ async function nextWheel() {
   fullscreenIndex.value = 0
   viewerOpen.value = true
   await triggerRender()
+}
+
+// Keyboard/note-field entry point for "next wheel" (guarded so it can't double-fire).
+function advanceWheel() {
+  if (renderInProgress.value || !nextUnreviewedProduct.value) return
+  nextWheel()
 }
 
 function download(filename: string, text: string, mime: string) {
@@ -855,6 +936,7 @@ watch(selectedProductId, async (pid) => {
   variants.value = []
   variantsLoadedFor.value = null
   selectedVariantId.value = ''
+  refIndex.value = 0
   await Promise.all([fetchVariants(pid), fetchPromptPreview(pid)])
 })
 
@@ -1299,10 +1381,33 @@ onUnmounted(() => {
 
           <div class="rp-fs-stage">
             <button class="rp-fs-nav rp-fs-prev" :disabled="fullscreenIndex <= 0" @click="fullscreenPrev">&lsaquo;</button>
-            <div class="rp-fs-image">
-              <img v-if="currentResult?.imageUrl" :src="currentResult.imageUrl" :alt="fullscreenLabel" />
-              <div v-else-if="currentResult?.error" class="rp-fs-state rp-error">{{ currentResult.error }}</div>
-              <div v-else class="rp-fs-state"><div class="rp-spinner" /><span class="rp-muted">Rendering...</span></div>
+            <div class="rp-fs-compare">
+              <div class="rp-fs-pane">
+                <span v-if="referenceImages.length" class="rp-fs-pane-label">Render</span>
+                <div class="rp-fs-image">
+                  <img v-if="currentResult?.imageUrl" :src="currentResult.imageUrl" :alt="fullscreenLabel" />
+                  <div v-else-if="currentResult?.error" class="rp-fs-state rp-error">{{ currentResult.error }}</div>
+                  <div v-else class="rp-fs-state"><div class="rp-spinner" /><span class="rp-muted">Rendering...</span></div>
+                </div>
+              </div>
+              <div v-if="referenceImages.length" class="rp-fs-pane rp-fs-ref">
+                <span class="rp-fs-pane-label">Reference<template v-if="currentReference"> · {{ currentReference.label }}</template></span>
+                <div class="rp-fs-ref-main">
+                  <img v-if="currentReference" :src="currentReference.src" :alt="currentReference.label" />
+                </div>
+                <div v-if="referenceImages.length > 1" class="rp-fs-ref-thumbs">
+                  <button
+                    v-for="(refImg, ri) in referenceImages"
+                    :key="ri"
+                    class="rp-fs-ref-thumb"
+                    :class="{ active: ri === Math.min(refIndex, referenceImages.length - 1) }"
+                    :title="refImg.label"
+                    @click="refIndex = ri"
+                  >
+                    <img :src="refImg.src" :alt="refImg.label" />
+                  </button>
+                </div>
+              </div>
             </div>
             <button class="rp-fs-nav rp-fs-next" :disabled="fullscreenIndex >= renderResults.length - 1" @click="fullscreenNext">&rsaquo;</button>
           </div>
@@ -1311,7 +1416,15 @@ onUnmounted(() => {
             <span class="rp-fs-qc-label">This wheel:</span>
             <button class="rp-qc-btn good" :class="{ active: currentQc?.status === 'good' }" @click="setProductQc(currentQc?.status === 'good' ? null : 'good')">👍 Good <kbd>G</kbd></button>
             <button class="rp-qc-btn needs" :class="{ active: currentQc?.status === 'needs_work' }" @click="setProductQc(currentQc?.status === 'needs_work' ? null : 'needs_work')">🚩 Needs work <kbd>N</kbd></button>
-            <input class="rp-qc-note" :value="currentWheelNote" placeholder="Note — what to fix on this wheel" @input="setWheelNote(($event.target as HTMLInputElement).value)" />
+            <input class="rp-qc-note" :value="currentWheelNote" placeholder="Note — what to fix (Enter = next wheel)" @input="setWheelNote(($event.target as HTMLInputElement).value)" @keydown.enter.prevent="advanceWheel" />
+          </div>
+
+          <div class="rp-fs-keys">
+            <span><kbd>←</kbd><kbd>→</kbd> finish</span>
+            <span v-if="referenceImages.length > 1"><kbd>↑</kbd><kbd>↓</kbd> reference</span>
+            <span><kbd>G</kbd> good</span>
+            <span><kbd>N</kbd> needs work</span>
+            <span><kbd>Enter</kbd> next wheel</span>
           </div>
 
           <div class="rp-fs-strip">
@@ -1323,8 +1436,9 @@ onUnmounted(() => {
 
           <div class="rp-fs-foot">
             <span class="rp-fs-foot-status" :class="productStatus(selectedProductId)">{{ statusLabel(productStatus(selectedProductId)) }}</span>
-            <button class="rp-btn rp-btn-render" :disabled="!nextUnreviewedProduct || renderInProgress" @click="nextWheel">
-              {{ nextUnreviewedProduct ? 'Next wheel →' : 'All reviewed 🎉' }}
+            <button class="rp-btn rp-btn-render rp-fs-next-btn" :disabled="!nextUnreviewedProduct || renderInProgress" @click="nextWheel">
+              <span>{{ nextUnreviewedProduct ? 'Next wheel →' : 'All reviewed 🎉' }}</span>
+              <kbd v-if="nextUnreviewedProduct">Enter</kbd>
             </button>
           </div>
         </div>
