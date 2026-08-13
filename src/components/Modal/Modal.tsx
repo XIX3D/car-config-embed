@@ -159,6 +159,11 @@ export function Modal(props: ModalProps) {
     actions.initResults(initialResults);
 
     renderRequests.forEach((req, index) => {
+      // Set when onV2Error has already recorded a specific reason for THIS attempt, so the
+      // generic onError that follows does not overwrite it. Scoped per attempt on purpose:
+      // reading it back off the slot cannot distinguish this attempt's error from a previous
+      // one, and doing so left retries stuck in a loading state.
+      let hasV2Reason = false;
       const products: Array<{ product_id: string; variant_id?: string }> = [];
 
       if (selections?.wrap_id) {
@@ -219,6 +224,7 @@ export function Modal(props: ModalProps) {
             ? `${data.message} (${data.reasons.join("; ")})`
             : data.message;
 
+          hasV2Reason = true;
           actions.updateResult(index, {
             error: data.retryable
               ? `${detail} — retrying may help`
@@ -235,10 +241,11 @@ export function Modal(props: ModalProps) {
         },
         onError: (msg) => {
           console.error(`[SSE:${index}] Error:`, msg);
-          // Do not clobber a structured v2 reason with the generic message.
-          if (state.galleryResults[index]?.error) return;
+
+          // Never return early: updateResult is what clears `loading` and drives the view
+          // transition, so skipping it strands the slot. Only the message is conditional.
           actions.updateResult(index, {
-            error: msg,
+            error: hasV2Reason ? state.galleryResults[index]?.error : msg,
             success: false,
             loading: false,
           });
@@ -299,6 +306,25 @@ export function Modal(props: ModalProps) {
       {
         onDebug: (data) => {
           actions.setDebugData(data);
+        },
+        // A retry deserves the same explanation a first attempt gets, or the second failure
+        // looks like a different, unexplained one.
+        onV2Error: (data) => {
+          const detail = data.reasons?.length
+            ? `${data.message} (${data.reasons.join("; ")})`
+            : data.message;
+
+          actions.updateSingleResult(
+            index,
+            {
+              error: data.retryable
+                ? `${detail} — retrying may help`
+                : `${detail} — a retry would fail the same way`,
+              success: false,
+              loading: false,
+            },
+            requestId,
+          );
         },
         onComplete: (data) => {
           actions.updateSingleResult(
