@@ -306,22 +306,39 @@ function bindButtons() {
 
     if (!decodeJWT(jwt)) return
 
-    const theme = explicitTheme || detectTheme(button)
-    const wrapper = document.createElement('div')
+    // Validate against the v1 API exactly as src/index.tsx does, including honouring
+    // `is_active: false` by removing the button.
+    //
+    // This is not optional politeness. Skipping it made the v2 side render a button on a
+    // deactivated token while the v1 side correctly removed its own — so the comparison page
+    // showed one button and looked broken, when in fact v1 was right and v2 was ignoring a
+    // kill switch. A comparison that diverges on anything but the render is worse than none.
+    baseApi.validateToken(jwt).then((result) => {
+      if (!result) return
 
-    button.parentNode?.insertBefore(wrapper, button)
+      if (result.is_active === false) {
+        button.remove()
 
-    render(
-      () => (
-        <ZenoButton
-          text={buttonText}
-          theme={theme}
-          size={size}
-          onClick={() => openPreview(jwt, customBrand)}
-        />
-      ),
-      wrapper,
-    )
+        return
+      }
+
+      const theme = explicitTheme || detectTheme(button)
+      const wrapper = document.createElement('div')
+
+      button.parentNode?.insertBefore(wrapper, button)
+
+      render(
+        () => (
+          <ZenoButton
+            text={buttonText}
+            theme={theme}
+            size={size}
+            onClick={() => openPreview(jwt, customBrand)}
+          />
+        ),
+        wrapper,
+      )
+    }).catch(() => {})
   })
 }
 
