@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+scripts/
+
+# Widget bundle copied in by `docs:copy` at build time
+docs/public/widget/

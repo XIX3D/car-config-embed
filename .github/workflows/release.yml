@@ -29,8 +29,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build
-
       - name: Get version
         id: version
         run: |
@@ -38,6 +36,55 @@ jobs:
             echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
           else
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      # Which render pipeline this artifact may run, decided by tag.
+      #
+      # Only the `v2-test` tag gets the two-pass pipeline. EVERY other tag — including
+      # `latest`, which every embedded customer site loads — is built v1-only, so the v2
+      # branch is statically unreachable and the minifier drops it.
+      #
+      # The default is deliberately v1-only rather than a lookup: if this matching is ever
+      # wrong, the failure mode must be "v2 unavailable", never "v2 shipped to production".
+      - name: Select pipeline for tag
+        id: pipeline
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [ "$VERSION" = "v2-test" ]; then
+            echo "default=v2"        >> $GITHUB_OUTPUT
+            echo "allowed=v1,v2"     >> $GITHUB_OUTPUT
+            echo "expect_v2=true"    >> $GITHUB_OUTPUT
+            echo "::notice::Building v2-test — two-pass pipeline ENABLED, not for customer sites"
+          else
+            echo "default=v1"        >> $GITHUB_OUTPUT
+            echo "allowed=v1"        >> $GITHUB_OUTPUT
+            echo "expect_v2=false"   >> $GITHUB_OUTPUT
+            echo "::notice::Building $VERSION — v1 only, two-pass pipeline excluded"
+          fi
+
+      # Behavioural check on the resolver: a `latest` build asked for v2 must quietly
+      # yield v1 rather than throw, and misconfiguration must degrade toward production
+      # behaviour. Runs before the build so a broken resolver fails fast.
+      - name: Verify pipeline resolution
+        run: node tools/check-pipeline-resolution.mjs
+
+      - name: Build
+        env:
+          VITE_PIPELINE_DEFAULT: ${{ steps.pipeline.outputs.default }}
+          VITE_PIPELINE_ALLOWED: ${{ steps.pipeline.outputs.allowed }}
+          VITE_API_URL_V2: ${{ vars.VITE_API_URL_V2 }}
+        run: pnpm build
+
+      # Verify the isolation actually held rather than assuming the flag did its job.
+      # On a normal tag this fails the release if any v2 marker survived into the bundle
+      # customer sites load. On v2-test it fails if the v2 code is MISSING, which would
+      # silently make the A/B page compare v1 against itself.
+      - name: Verify bundle isolation
+        run: |
+          if [ "${{ steps.pipeline.outputs.expect_v2 }}" = "true" ]; then
+            node tools/check-bundle-isolation.mjs dist/car-config-embed.iife.js --expect-v2
+          else
+            node tools/check-bundle-isolation.mjs dist/car-config-embed.iife.js
           fi
 
       - uses: softprops/action-gh-release@v1
