@@ -188,12 +188,28 @@ const api: typeof baseApi = {
   },
 }
 
+/**
+ * Element ids and the global are namespaced so this bundle can share a document with the
+ * production one.
+ *
+ * The comparison page needs both widgets on ONE top-level page: the modal is a full-viewport
+ * overlay, and inside an iframe it is clipped to the frame, which is not how it behaves on a
+ * customer site. Unnamespaced, the two bundles would collide three ways — the shared
+ * `avacar-button-styles` guard makes the second injection a no-op, `avacar-embed-root` becomes
+ * a duplicate id, and whichever loads last wins `window.AvaCar`.
+ *
+ * Only this side is renamed. src/index.tsx keeps the original names, because that is the file
+ * customer sites load and its behaviour must not change.
+ */
+const STYLES_ID = 'avacar-v2-button-styles'
+const ROOT_ID = 'avacar-v2-embed-root'
+
 function injectButtonStyles() {
-  if (document.getElementById('avacar-button-styles')) return
+  if (document.getElementById(STYLES_ID)) return
 
   const styleEl = document.createElement('style')
 
-  styleEl.id = 'avacar-button-styles'
+  styleEl.id = STYLES_ID
   styleEl.textContent = widgetStyles
   document.head.appendChild(styleEl)
 }
@@ -202,7 +218,7 @@ function mountWidget() {
   if (rootEl) return
 
   rootEl = document.createElement('div')
-  rootEl.id = 'avacar-embed-root'
+  rootEl.id = ROOT_ID
   document.body.appendChild(rootEl)
 
   shadowRoot = rootEl.attachShadow({ mode: 'open' })
@@ -286,9 +302,15 @@ async function openPreview(jwt: string, customBrand?: string) {
 }
 
 function bindButtons() {
-  const buttons = document.querySelectorAll<HTMLElement>('.avacar-preview[data-jwt]')
+  // `.avacar-preview-v2`, so that on the comparison page — where both bundles share one
+  // document — each binds only its own button instead of both racing for every placeholder.
+  // A page hosting only this bundle can use either class.
+  const selector = document.querySelector('.avacar-preview-v2[data-jwt]')
+    ? '.avacar-preview-v2[data-jwt]'
+    : '.avacar-preview[data-jwt]'
+  const buttons = document.querySelectorAll<HTMLElement>(selector)
 
-  debugTrace(`bindButtons: ${buttons.length} candidate(s)`)
+  debugTrace(`bindButtons: ${buttons.length} candidate(s) via ${selector}`)
 
   buttons.forEach((button) => {
     if (boundButtons.has(button)) return
@@ -414,6 +436,13 @@ const AvaCar = {
   apiUrlV2: API_URL_V2,
 }
 
-;(window as unknown as Record<string, unknown>).AvaCar = AvaCar
+// `AvaCarV2`, not `AvaCar`: on the comparison page both bundles load into one document, and
+// the production one must keep the name it has always had. Also exposed as `AvaCar` only if
+// nothing has claimed it, so this bundle still works standalone on a page of its own.
+;(window as unknown as Record<string, unknown>).AvaCarV2 = AvaCar
+
+if (!(window as unknown as Record<string, unknown>).AvaCar) {
+  ;(window as unknown as Record<string, unknown>).AvaCar = AvaCar
+}
 
 export { AvaCar, openPreview, bindButtons }
