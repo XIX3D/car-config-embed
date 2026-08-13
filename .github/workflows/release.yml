@@ -68,9 +68,19 @@ jobs:
       - name: Verify pipeline resolution
         run: node tools/check-pipeline-resolution.mjs
 
+      # The loading display's stage arithmetic. A cached mask drops a stage mid-render and
+      # shifts every later index, and every wrong answer still shows plausible text — so this
+      # is checked rather than eyeballed. Also pins the rule that a v1 render on a v2-capable
+      # build ignores v2 stage events.
+      - name: Verify loading stages
+        run: node tools/check-loading-stages.mjs
+
       # Remove any prior artifact first. A failed build leaves the previous dist/ in place,
       # and the isolation check would then pass or fail against a stale bundle rather than
       # the one about to be published.
+      # On `v2-test` this builds BOTH artifacts (v1 from src/index.tsx, v2 from
+      # src/index-v2.tsx) and verifies each in the direction it should go. Every other tag
+      # builds only the production widget, so a v2 artifact cannot be published by accident.
       - name: Build
         env:
           VITE_PIPELINE_DEFAULT: ${{ steps.pipeline.outputs.default }}
@@ -78,23 +88,49 @@ jobs:
           VITE_API_URL_V2: ${{ vars.VITE_API_URL_V2 }}
         run: |
           rm -rf dist
-          pnpm build
+          if [ "${{ steps.pipeline.outputs.expect_v2 }}" = "true" ]; then
+            node tools/build-v2test.mjs
+            test -f dist/car-config-embed-v2.iife.js
+          else
+            pnpm build
+          fi
           test -f dist/car-config-embed.iife.js
 
       # Verify the isolation actually held rather than assuming the flag did its job.
       # On a normal tag this fails the release if any v2 marker survived into the bundle
       # customer sites load. On v2-test it fails if the v2 code is MISSING, which would
       # silently make the A/B page compare v1 against itself.
+      # The v1 artifact must be v2-free on EVERY tag, including v2-test — it is the file
+      # customer sites load, and the v2-test release publishes it alongside the v2 one. The v2
+      # artifact must conversely contain the v2 render path, or the comparison page would show
+      # v1 on both sides and read as "v2 makes no difference".
+      #
+      # build-v2test.mjs already runs both checks, but they are repeated here so a plain
+      # `pnpm build` path is covered too and the release cannot skip them.
       - name: Verify bundle isolation
         run: |
+          node tools/check-bundle-isolation.mjs dist/car-config-embed.iife.js
           if [ "${{ steps.pipeline.outputs.expect_v2 }}" = "true" ]; then
-            node tools/check-bundle-isolation.mjs dist/car-config-embed.iife.js --expect-v2
-          else
-            node tools/check-bundle-isolation.mjs dist/car-config-embed.iife.js
+            node tools/check-bundle-isolation.mjs dist/car-config-embed-v2.iife.js --expect-v2
           fi
+
+      # Only the v2-test release carries the v2 artifact. `latest` gets the v1 file alone, so
+      # there is no path by which a customer site can load a v2 bundle.
+      - name: Collect release files
+        id: files
+        run: |
+          # Multi-line output needs the heredoc form; a bare newline would break key=value.
+          {
+            echo 'list<<RELEASE_FILES'
+            echo 'dist/car-config-embed.iife.js'
+            if [ "${{ steps.pipeline.outputs.expect_v2 }}" = "true" ]; then
+              echo 'dist/car-config-embed-v2.iife.js'
+            fi
+            echo 'RELEASE_FILES'
+          } >> $GITHUB_OUTPUT
 
       - uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.version.outputs.version }}
-          files: dist/car-config-embed.iife.js
+          files: ${{ steps.files.outputs.list }}
           generate_release_notes: true

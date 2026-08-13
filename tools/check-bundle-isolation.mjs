@@ -62,27 +62,34 @@ console.log(`bundle: ${bundlePath} (${sizeKb} KB)`)
 console.log(`mode:   ${expectV2 ? 'v2-test — v2 markers REQUIRED' : 'production — v2 markers FORBIDDEN'}`)
 
 if (expectV2) {
-  // The WIDGET bundle contains v2 code only once something reachable from src/index.tsx
-  // imports src/utils/api-v2.ts. Today the only v2 consumer is the comparison page, which
-  // is part of the docs site rather than the widget — so a v2-test widget bundle carrying
-  // no v2 markers is expected, not a fault.
+  // This mode ENFORCES, because the v2 widget artifact is built from its own entry
+  // (src/index-v2.tsx) and therefore genuinely does contain v2. An artifact that lost its v2
+  // path would make the comparison page render v1 on both sides — a silent tie, and worse
+  // than no comparison at all, since it reads as "v2 changes nothing".
   //
-  // This mode therefore reports rather than enforces. It becomes meaningful if the widget
-  // itself ever gains a v2 path; until then it exists so a bundle can be inspected without
-  // the production check's inverted verdict.
-  if (found.length === 0) {
-    console.log('\nNOTE: no v2 markers in this bundle.')
-    console.log('Expected while the only v2 consumer is the docs comparison page — the')
-    console.log('widget bundle includes only what src/index.tsx reaches. Not a failure.')
-    process.exit(0)
+  // Requiring the render endpoint and the SSE events specifically: those are what prove the
+  // v2 pipeline is reachable, not merely that some v2-shaped string survived.
+  const REQUIRED = ['/render/v2/', 'mask_started', 'mask_complete', 'composite_complete']
+  const missingRequired = REQUIRED.filter((pattern) => !source.includes(pattern))
+
+  if (missingRequired.length > 0) {
+    console.error('\nFAIL: this artifact is missing the v2 render path.')
+    console.error('A v2 bundle without it renders through v1, so the comparison page would')
+    console.error('show v1 on both sides and read as "v2 makes no difference".\n')
+    for (const pattern of missingRequired) {
+      console.error(`  missing: ${JSON.stringify(pattern)}`)
+    }
+    console.error('\nCheck that the build used BUILD_ENTRY=v2 (see tools/build-v2test.mjs).')
+    process.exit(1)
   }
 
   console.log(`\nPASS: ${found.length}/${V2_MARKERS.length} v2 markers present.`)
   for (const { label } of found) console.log(`  present: ${label}`)
 
   if (missing.length) {
-    // Not fatal: markers land as v2 features are built out incrementally.
-    console.log('\nnot yet present (fine while v2 is being built out):')
+    // Non-required markers are informational: the v2 test host differs per deployment, and
+    // mask_gate_failed only appears once that error path is referenced.
+    console.log('\nnot required, absent:')
     for (const { label } of missing) console.log(`  absent:  ${label}`)
   }
 
