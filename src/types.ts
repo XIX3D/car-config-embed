@@ -209,8 +209,12 @@ export interface CompositeCompleteData {
  * uses. Parse before reading — see `parseV2ErrorEvent` in utils/api.ts.
  */
 export interface V2ErrorData {
-  /** `model_refused` and `mask_gate_failed` are terminal; `render_failed` is transport. */
-  error: 'model_refused' | 'render_failed' | 'mask_gate_failed'
+  /**
+   * `model_refused` and `mask_gate_failed` are terminal; `render_failed` is transport.
+   * `audit_failed` is the Gemini post-check rejecting the composited image — a model
+   * judgement on model output, so it genuinely can pass on a second attempt.
+   */
+  error: 'model_refused' | 'render_failed' | 'mask_gate_failed' | 'audit_failed'
   message: string
   stage?: 'mask' | 'fill'
   /**

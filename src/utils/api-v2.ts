@@ -56,8 +56,38 @@ export function parseV2ErrorEvent(data: unknown): V2ErrorData | null {
 
   const kind = inner.error
 
-  if (kind !== 'model_refused' && kind !== 'render_failed' && kind !== 'mask_gate_failed') {
+  if (
+    kind !== 'model_refused'
+    && kind !== 'render_failed'
+    && kind !== 'mask_gate_failed'
+    && kind !== 'audit_failed'
+  ) {
     return null
+  }
+
+  const reasons = Array.isArray(inner.reasons)
+    ? inner.reasons.filter((r): r is string => typeof r === 'string')
+    : undefined
+
+  // `audit_failed` is the Gemini post-check rejecting the COMPOSITED image, and it arrives in
+  // a different shape from the other three: its explanation is in `reason` (singular, with a
+  // `confidence`), not `reasons`. Omitting it here was a real gap — the gallery slot went to
+  // "failed, click to retry" with nothing anywhere saying why, which is indistinguishable from
+  // a broken render.
+  if (kind === 'audit_failed') {
+    const reason = typeof inner.reason === 'string' ? inner.reason : null
+    const confidence = typeof inner.confidence === 'number' ? inner.confidence : null
+
+    return {
+      error: kind,
+      message: typeof inner.message === 'string' ? inner.message : 'Render failed quality check',
+      // Retryable: the audit is a model judgement on model output, so both vary between
+      // attempts. Unlike a refusal, the same request can genuinely pass next time.
+      retryable: true,
+      reasons: reason
+        ? [confidence !== null ? `${reason} (confidence ${confidence})` : reason]
+        : reasons,
+    }
   }
 
   return {
@@ -66,9 +96,7 @@ export function parseV2ErrorEvent(data: unknown): V2ErrorData | null {
     stage: inner.stage === 'mask' || inner.stage === 'fill' ? inner.stage : undefined,
     // Absent means terminal. mask_gate_failed carries no flag and must never be retried.
     retryable: inner.retryable === true,
-    reasons: Array.isArray(inner.reasons)
-      ? inner.reasons.filter((r): r is string => typeof r === 'string')
-      : undefined,
+    reasons,
   }
 }
 

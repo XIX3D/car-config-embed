@@ -211,8 +211,26 @@ export function Modal(props: ModalProps) {
             loading: false,
           });
         },
+        // Structured two-pass failures. Runs before onError, which the v2 client also calls,
+        // so the slot ends up with the specific reason rather than a bare message. Inert on
+        // v1, which never emits it.
+        onV2Error: (data) => {
+          const detail = data.reasons?.length
+            ? `${data.message} (${data.reasons.join("; ")})`
+            : data.message;
+
+          actions.updateResult(index, {
+            error: data.retryable
+              ? `${detail} — retrying may help`
+              : `${detail} — a retry would fail the same way`,
+            success: false,
+            loading: false,
+          });
+        },
         onError: (msg) => {
           console.error(`[SSE:${index}] Error:`, msg);
+          // Do not clobber a structured v2 reason with the generic message.
+          if (state.galleryResults[index]?.error) return;
           actions.updateResult(index, {
             error: msg,
             success: false,

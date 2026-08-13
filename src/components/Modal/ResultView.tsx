@@ -622,7 +622,12 @@ export function ResultView(props: ResultViewProps) {
                       title={
                         result.loading
                           ? `${result.label} (loading...)`
-                          : result.label
+                          : !result.success
+                            ? // A failed slot shows the retry icon and nothing else, so
+                              // without the reason here there is no way to tell a quality
+                              // rejection from a broken render — hovering said only the label.
+                              `${result.label} — ${result.error || "failed"}\nClick to try again.`
+                            : result.label
                       }
                       onClick={() => {
                         if (result.loading || isRerendering()) return;
