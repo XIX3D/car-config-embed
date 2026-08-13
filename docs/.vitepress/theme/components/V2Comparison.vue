@@ -18,6 +18,8 @@
  * v1 and reading as a tie.
  */
 import { computed, ref } from 'vue'
+import { renderStreamV2 } from '../../../../src/utils/api-v2'
+import type { RenderStreamEvents, V2ErrorData } from '../../../../src/types'
 
 const V1_API = 'https://api.platform.xix3d.com'
 const V2_API = 'https://carconfig-api-v2test-rwqpwbfxnq-uc.a.run.app'
@@ -27,6 +29,7 @@ const V2_API = 'https://carconfig-api-v2test-rwqpwbfxnq-uc.a.run.app'
  * nothing on this page bills a customer account. Product 556 looks equivalent but its
  * reference image 404s in GCS and fails on v1 too — avoid it.
  */
+const TEST_MANUFACTURER_ID = 8
 const TEST_PRODUCT_ID = 559
 const TEST_VARIANTS = [
   { id: 22, name: 'Brushed Oxford Gold' },
@@ -155,48 +158,98 @@ function newSession() {
   sessionId.value = crypto.randomUUID()
 }
 
-/** Shared SSE reader. v2 adds events; unknown ones are ignored by both. */
-async function streamRender(side: Side, apiBase: string, path: string, blob: Blob) {
-  const started = performance.now()
-
+function beginRender(side: Side) {
   side.loading = true
   side.error = null
   side.errorRetryable = null
   side.imageUrl = null
   side.stage = 'starting'
   side.metrics = {}
+}
 
+function applyV2Error(side: Side, data: V2ErrorData) {
+  side.error = data.message
+  // model_refused and mask_gate_failed are terminal: the request bytes are identical next
+  // time, and one combination was measured refusing 12 consecutive times. Only
+  // render_failed is worth another attempt.
+  side.errorRetryable = data.retryable === true
+
+  if (data.reasons?.length) side.error += ` (${data.reasons.join('; ')})`
+}
+
+/** Event handlers shared by both columns. v2-only ones simply never fire on v1. */
+function handlersFor(side: Side, started: number): RenderStreamEvents {
+  return {
+    onVehicleDetected: (d) => {
+      side.stage = `detected ${d.year ?? ''} ${d.make ?? ''} ${d.model ?? ''}`.trim()
+    },
+    onMaskStarted: (d) => {
+      side.metrics.maskCached = d.cached
+      side.stage = d.cached ? 'mask (cached)' : 'isolating wheels'
+    },
+    onMaskComplete: (d) => {
+      side.metrics.maskCached = d.cached
+      side.metrics.maskAttempts = d.attempts
+      side.metrics.maskDurationMs = d.duration_ms
+      side.metrics.sockets = d.sockets
+      // Present only on a socket-count mismatch: the signature of an invented socket, the
+      // one failure every other gate is blind to.
+      if (d.blob_count_warning) side.metrics.blobCountWarning = d.blob_count_warning
+    },
+    onFillStarted: () => { side.stage = 'applying finish' },
+    onCompositeComplete: (d) => {
+      side.metrics.outsideVerdict = d.outside_verdict
+      side.metrics.outsideChangePct = d.outside_change_pct
+      side.metrics.residualChromaPct = d.residual_chroma_pct
+      side.metrics.compositeDurationMs = d.duration_ms
+      side.stage = 'quality check'
+    },
+    onComplete: (d) => {
+      if (!d.image_b64) return
+      side.imageUrl = `data:image/png;base64,${d.image_b64}`
+      side.elapsed = ((performance.now() - started) / 1000).toFixed(1)
+      side.stage = 'done'
+      side.loading = false
+    },
+    onV2Error: (d) => applyV2Error(side, d),
+    onError: (message) => {
+      // onV2Error fires first when the payload was structured, so do not overwrite the
+      // richer message with the generic one.
+      if (!side.error) side.error = message || 'Render error'
+      side.loading = false
+    },
+  }
+}
+
+/** v1 baseline: same SSE shape, minus the four v2 stages. */
+async function renderV1(side: Side, blob: Blob) {
+  const started = performance.now()
+
+  beginRender(side)
+
+  const handlers = handlersFor(side, started)
   const formData = new FormData()
 
   formData.append('vehicle_image', blob, 'vehicle.png')
   formData.append('products', JSON.stringify([
     { product_id: TEST_PRODUCT_ID, variant_id: selectedVariantId.value },
   ]))
-  formData.append('manufacturer_id', '8')
+  formData.append('manufacturer_id', String(TEST_MANUFACTURER_ID))
   formData.append('fast_mode', 'true')
   formData.append('debug', 'true')
 
   try {
-    const res = await fetch(`${apiBase}${path}`, {
+    const res = await fetch(`${V1_API}/api/v1/render/chain/stream`, {
       method: 'POST',
       headers: { 'X-Session-ID': sessionId.value },
       body: formData,
     })
 
-    if (!res.ok) {
-      side.error = `Request failed (${res.status})`
-      side.errorRetryable = res.status >= 500
-      side.loading = false
-      return
-    }
+    if (!res.ok) throw new Error(`Request failed (${res.status})`)
 
     const reader = res.body?.getReader()
 
-    if (!reader) {
-      side.error = 'Streaming not supported in this browser'
-      side.loading = false
-      return
-    }
+    if (!reader) throw new Error('Streaming not supported in this browser')
 
     const decoder = new TextDecoder()
     let buffer = ''
@@ -219,80 +272,52 @@ async function streamRender(side: Side, apiBase: string, path: string, blob: Blo
         if (!eventMatch || !dataMatch) continue
 
         try {
-          handleEvent(side, eventMatch[1], JSON.parse(dataMatch[1]), started)
+          const data = JSON.parse(dataMatch[1])
+
+          if (eventMatch[1] === 'complete') handlers.onComplete?.(data)
+          else if (eventMatch[1] === 'vehicle_detected') handlers.onVehicleDetected?.(data)
+          else if (eventMatch[1] === 'error') {
+            side.error = data.message || 'Render error'
+            side.loading = false
+          }
         } catch { /* malformed frame — skip */ }
       }
     }
-
+  } catch (e) {
+    side.error = e instanceof Error ? e.message : 'Unknown error'
+  } finally {
     if (side.loading) {
       side.loading = false
       if (!side.imageUrl && !side.error) side.error = 'Stream ended without a result'
     }
-  } catch (e) {
-    side.error = e instanceof Error ? e.message : 'Unknown error'
-    side.loading = false
   }
 }
 
-function handleEvent(side: Side, event: string, data: Record<string, any>, started: number) {
-  switch (event) {
-    case 'vehicle_detected':
-      side.stage = `detected ${data.year ?? ''} ${data.make ?? ''} ${data.model ?? ''}`.trim()
-      break
+/**
+ * v2, through the same client the widget will use. Going via src/utils/api-v2 rather than
+ * an inline fetch means this page exercises the shipping code path — including the error
+ * parsing, which is easy to get wrong: v2 failures arrive JSON-encoded inside the error
+ * event's `message`, not as top-level fields.
+ */
+async function renderV2(side: Side, blob: Blob) {
+  const started = performance.now()
 
-    // --- v2-only stages -----------------------------------------------------
-    case 'mask_started':
-      side.metrics.maskCached = !!data.cached
-      side.stage = data.cached ? 'mask (cached)' : 'isolating wheels'
-      break
+  beginRender(side)
 
-    case 'mask_complete':
-      side.metrics.maskCached = !!data.cached
-      side.metrics.maskAttempts = data.attempts
-      side.metrics.maskDurationMs = data.duration_ms
-      side.metrics.sockets = data.sockets
-      // Only present on a socket-count mismatch. This is the signature of an invented
-      // socket — the chroma-collision failure that every other gate is blind to.
-      if (data.blob_count_warning) side.metrics.blobCountWarning = data.blob_count_warning
-      break
+  const result = await renderStreamV2(
+    V2_API,
+    sessionId.value,
+    blob,
+    { product_id: TEST_PRODUCT_ID, variant_id: selectedVariantId.value },
+    TEST_MANUFACTURER_ID,
+    handlersFor(side, started),
+  )
 
-    case 'fill_started':
-      side.stage = 'applying finish'
-      break
-
-    case 'composite_complete':
-      side.metrics.outsideVerdict = data.outside_verdict
-      side.metrics.outsideChangePct = data.outside_change_pct
-      side.metrics.residualChromaPct = data.residual_chroma_pct
-      side.metrics.compositeDurationMs = data.duration_ms
-      side.stage = 'quality check'
-      break
-
-    // --- shared -------------------------------------------------------------
-    case 'complete':
-      if (data.image_b64) {
-        side.imageUrl = `data:image/png;base64,${data.image_b64}`
-        side.elapsed = ((performance.now() - started) / 1000).toFixed(1)
-        side.stage = 'done'
-        side.loading = false
-      }
-      break
-
-    case 'error':
-      side.error = data.message || 'Render error'
-      // model_refused and mask_gate_failed must NOT offer a retry: the request bytes are
-      // identical next time, and the reference measured one combination refusing 12
-      // consecutive times. Only render_failed is worth retrying.
-      side.errorRetryable = data.retryable === true
-      if (Array.isArray(data.reasons) && data.reasons.length) {
-        side.error += ` (${data.reasons.join('; ')})`
-      }
-      side.loading = false
-      break
-
-    default:
-      break
+  if (!result.success && !side.error) {
+    side.error = result.error ?? 'Render failed'
   }
+
+  side.loading = false
 }
 
 async function runComparison() {
@@ -303,10 +328,7 @@ async function runComparison() {
   const blob = uploadedFile.value
 
   // Both pipelines fire concurrently against identical inputs.
-  await Promise.all([
-    streamRender(left.value, V1_API, '/api/v1/render/chain/stream', blob),
-    streamRender(right.value, V2_API, '/api/v1/render/v2/chain/stream', blob),
-  ])
+  await Promise.all([renderV1(left.value, blob), renderV2(right.value, blob)])
 
   running.value = false
 }

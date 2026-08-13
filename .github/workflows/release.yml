@@ -68,12 +68,18 @@ jobs:
       - name: Verify pipeline resolution
         run: node tools/check-pipeline-resolution.mjs
 
+      # Remove any prior artifact first. A failed build leaves the previous dist/ in place,
+      # and the isolation check would then pass or fail against a stale bundle rather than
+      # the one about to be published.
       - name: Build
         env:
           VITE_PIPELINE_DEFAULT: ${{ steps.pipeline.outputs.default }}
           VITE_PIPELINE_ALLOWED: ${{ steps.pipeline.outputs.allowed }}
           VITE_API_URL_V2: ${{ vars.VITE_API_URL_V2 }}
-        run: pnpm build
+        run: |
+          rm -rf dist
+          pnpm build
+          test -f dist/car-config-embed.iife.js
 
       # Verify the isolation actually held rather than assuming the flag did its job.
       # On a normal tag this fails the release if any v2 marker survived into the bundle

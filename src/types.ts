@@ -159,6 +159,69 @@ export interface EmailGateResponse {
   free_sessions_limit: number
 }
 
+/**
+ * Two-pass (v2) pipeline events. See docs/plans/TWO_PASS_EMBED_PLAN.md.
+ *
+ * Pass 1 paints flat chroma sockets over the rims and is billed PER PHOTO, cached for the
+ * session; pass 2 fills those sockets and is billed per render. That split is why the 2nd
+ * and 3rd finishes a visitor tries are much faster than the 1st.
+ */
+export interface MaskStartedData {
+  /** True when the session already has a mask for this photo — pass 1 is skipped entirely. */
+  cached: boolean
+}
+
+export interface MaskCompleteData {
+  gate_passed: boolean
+  attempts: number
+  duration_ms: number
+  cached: boolean
+  /** Chroma sockets found in the mask. */
+  sockets: number
+  /**
+   * Present only when the socket count exceeds the wheels intake saw. This is the signature
+   * of an INVENTED socket — a false chroma blob that gets filled with wheel — and it is the
+   * one v2 failure invisible to every other gate, because compositing then treats those
+   * pixels as legitimately model-owned. Surface it.
+   */
+  blob_count_warning?: string
+}
+
+export interface CompositeCompleteData {
+  /**
+   * Measured on the model's RAW output at a coarse grid, not on the delivered image. 2-3%
+   * is normal and passes. Actual outside-socket change on the composited result is ~0.067%.
+   * Show `outside_verdict` instead — this number reads like damage when it is not.
+   */
+  outside_change_pct: number
+  residual_chroma_pct: number
+  duration_ms: number
+  outside_verdict: 'PASS' | 'REVIEW' | 'FAIL'
+  socket_px: number
+  written_px: number
+}
+
+/**
+ * v2 failure payloads.
+ *
+ * These arrive JSON-encoded inside the `error` event's `message` string rather than as
+ * top-level fields, because the backend routes them through the same SSE error writer v1
+ * uses. Parse before reading — see `parseV2ErrorEvent` in utils/api.ts.
+ */
+export interface V2ErrorData {
+  /** `model_refused` and `mask_gate_failed` are terminal; `render_failed` is transport. */
+  error: 'model_refused' | 'render_failed' | 'mask_gate_failed'
+  message: string
+  stage?: 'mask' | 'fill'
+  /**
+   * Absent on mask_gate_failed, which is never retryable. Treat absence as false: a
+   * refusal returns identical bytes next time, so retrying spends money to fail again.
+   */
+  retryable?: boolean
+  /** Why the mask gate rejected the photo, on `mask_gate_failed`. */
+  reasons?: string[]
+}
+
 export interface RenderStreamEvents {
   onStarted?: () => void
   onVehicleDetected?: (data: { make: string; model: string; year: string; vehicle_type: VehicleType }) => void
@@ -169,4 +232,13 @@ export interface RenderStreamEvents {
   onError?: (message: string) => void
   onQuotaExceeded?: (data: QuotaExceededError) => void
   onEmailGateRequired?: (data: EmailGateResponse) => void
+
+  // v2-only. All optional, so v1 call sites need no changes and the `latest` bundle is
+  // unaffected.
+  onMaskStarted?: (data: MaskStartedData) => void
+  onMaskComplete?: (data: MaskCompleteData) => void
+  onFillStarted?: () => void
+  onCompositeComplete?: (data: CompositeCompleteData) => void
+  /** Fires instead of onError when the failure carries a structured v2 payload. */
+  onV2Error?: (data: V2ErrorData) => void
 }
