@@ -26,6 +26,16 @@ export default defineConfig({
       output: { inlineDynamicImports: true },
     },
     minify: "terser",
-    terserOptions: { compress: { drop_console: true } },
+    terserOptions: {
+      compress: {
+        // Strip console noise from customer sites, but KEEP console.warn and console.error.
+        // Dropping everything meant the widget failed silently: a deactivated token, a
+        // network error or a bad JWT all produced an absent button and an empty console,
+        // which is unusable to debug from a deployed page. Diagnostics go through
+        // `debugLog`/`debugWarn` in src/utils/debug.ts, which compile to console.warn.
+        pure_funcs: ["console.log", "console.info", "console.debug", "console.trace"],
+        drop_console: false,
+      },
+    },
   },
 });

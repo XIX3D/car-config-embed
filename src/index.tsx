@@ -9,6 +9,7 @@ import { createApiClient } from './utils/api'
 import { decodeJWT } from './utils/jwt'
 import { createSession } from './utils/session'
 import { detectTheme, observeThemeChanges } from './utils/theme'
+import { debugError, debugWarn } from './utils/debug'
 import type { ButtonTheme, ButtonSize, WidgetConfig, EmailGateResponse } from './types'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.platform.xix3d.com'
@@ -30,6 +31,7 @@ function injectButtonStyles() {
   if (document.getElementById('avacar-button-styles')) return
 
   const styleEl = document.createElement('style')
+
   styleEl.id = 'avacar-button-styles'
   styleEl.textContent = widgetStyles
   document.head.appendChild(styleEl)
@@ -45,10 +47,12 @@ function mountWidget() {
   shadowRoot = rootEl.attachShadow({ mode: 'open' })
 
   const styleEl = document.createElement('style')
+
   styleEl.textContent = widgetStyles
   shadowRoot.appendChild(styleEl)
 
   const mountPoint = document.createElement('div')
+
   shadowRoot.appendChild(mountPoint)
 
   render(() => <Modal store={store} api={api} shadowRoot={shadowRoot!} />, mountPoint)
@@ -86,7 +90,9 @@ async function openPreview(jwt: string, customBrand?: string) {
 
     store.actions.open(selections, product, variants, customBrand)
     const gate = await api.getEmailGate(product?.manufacturer_id)
+
     store.actions.setEmailGate(gate ?? FAIL_CLOSED_GATE)
+
     return
   }
 
@@ -116,6 +122,7 @@ async function openPreview(jwt: string, customBrand?: string) {
 
   store.actions.open(selections, product, variants, customBrand)
   const gate = await api.getEmailGate(product?.manufacturer_id)
+
   store.actions.setEmailGate(gate ?? FAIL_CLOSED_GATE)
 }
 
@@ -170,14 +177,31 @@ function bindButtons() {
     const explicitTheme = button.getAttribute('data-button-theme') as ButtonTheme | null
 
     const originalDisplay = button.style.display
+
     button.style.display = 'none'
 
-    if (!decodeJWT(jwt)) return
+    if (!decodeJWT(jwt)) {
+      debugError('button skipped: data-jwt is not a decodable JWT')
+
+      return
+    }
 
     api.validateToken(jwt).then((result) => {
-      if (!result) return
+      if (!result) {
+        debugError(
+          'button hidden: /embed/validate returned no result. The request failed, was blocked '
+          + '(CORS/network), or the response was not JSON.',
+        )
+
+        return
+      }
       if (result.is_active === false) {
+        debugWarn(
+          'button removed: this embed token is deactivated (is_active: false). The token is '
+          + 'valid but switched off server-side.',
+        )
         button.remove()
+
         return
       }
 
@@ -214,7 +238,12 @@ function bindButtons() {
           openPreview(jwt, customBrand)
         })
       }
-    }).catch(() => {})
+    }).catch((err) => {
+      // Was `.catch(() => {})`. Swallowing this meant a failed validation produced an absent
+      // button and an empty console, indistinguishable from a deactivated token or a missing
+      // script — with nothing to go on from a deployed page.
+      debugError('button hidden: token validation threw', err)
+    })
   })
 }
 

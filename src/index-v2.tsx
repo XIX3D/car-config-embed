@@ -36,6 +36,7 @@ import { V2_LOADING_SCRIPTS } from './config/loading-v2'
 import { decodeJWT } from './utils/jwt'
 import { createSession } from './utils/session'
 import { detectTheme } from './utils/theme'
+import { debugError, debugWarn, debugTrace } from './utils/debug'
 import type {
   ButtonTheme,
   ButtonSize,
@@ -287,13 +288,19 @@ async function openPreview(jwt: string, customBrand?: string) {
 function bindButtons() {
   const buttons = document.querySelectorAll<HTMLElement>('.avacar-preview[data-jwt]')
 
+  debugTrace(`bindButtons: ${buttons.length} candidate(s)`)
+
   buttons.forEach((button) => {
     if (boundButtons.has(button)) return
     boundButtons.add(button)
 
     const jwt = button.getAttribute('data-jwt')
 
-    if (!jwt) return
+    if (!jwt) {
+      debugError('button skipped: data-jwt is empty')
+
+      return
+    }
 
     const customBrand = button.getAttribute('data-brand') || undefined
     const buttonText = button.textContent?.trim()
@@ -304,7 +311,13 @@ function bindButtons() {
 
     button.style.display = 'none'
 
-    if (!decodeJWT(jwt)) return
+    if (!decodeJWT(jwt)) {
+      debugError('button skipped: data-jwt is not a decodable JWT')
+
+      return
+    }
+
+    debugTrace('validating token', { jwt: `${jwt.slice(0, 12)}…` })
 
     // Validate against the v1 API exactly as src/index.tsx does, including honouring
     // `is_active: false` by removing the button.
@@ -314,13 +327,26 @@ function bindButtons() {
     // showed one button and looked broken, when in fact v1 was right and v2 was ignoring a
     // kill switch. A comparison that diverges on anything but the render is worse than none.
     baseApi.validateToken(jwt).then((result) => {
-      if (!result) return
+      if (!result) {
+        debugError(
+          'button hidden: /embed/validate returned no result. The request failed, was blocked '
+          + '(CORS/network), or the response was not JSON.',
+        )
+
+        return
+      }
 
       if (result.is_active === false) {
+        debugWarn(
+          'button removed: this embed token is deactivated (is_active: false). The token is '
+          + 'valid but switched off server-side — it needs reactivating, or use another.',
+        )
         button.remove()
 
         return
       }
+
+      debugTrace('token ok, rendering button', result)
 
       const theme = explicitTheme || detectTheme(button)
       const wrapper = document.createElement('div')
@@ -338,7 +364,9 @@ function bindButtons() {
         ),
         wrapper,
       )
-    }).catch(() => {})
+    }).catch((err) => {
+      debugError('button hidden: token validation threw', err)
+    })
   })
 }
 
