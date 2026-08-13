@@ -225,13 +225,22 @@ async function readStream(
           }
 
           state.v2Error = auditError
-          handlers.onV2Error?.(auditError)
-          // The rejected image is still delivered, so it can be judged by eye rather than
-          // taken on trust. The slot is marked failed by onV2Error above.
+
+          // DELIVER THE IMAGE. The audit rejected it, but the backend still sends it and it is
+          // the thing under evaluation — hiding it means judging the pipeline by a model's
+          // opinion of it rather than by looking. The rejection is not lost: onV2Error still
+          // fires, so the sidebar reports the failure and its reason alongside the render.
+          //
+          // This is deliberate for the comparison build. Production hides a rejected render,
+          // which is the right call when shipping to a customer and the wrong one when the
+          // whole point is deciding whether the audit is calibrated correctly.
           if (data.image_b64) {
-            handlers.onAuditFailedImage?.(`data:image/png;base64,${data.image_b64}`)
+            state.image = `data:image/png;base64,${data.image_b64}`
+            handlers.onAuditFailedImage?.(state.image)
+            handlers.onComplete?.({ image_b64: data.image_b64 })
           }
-          handlers.onError?.(auditError.message)
+
+          handlers.onV2Error?.(auditError)
           break
         }
         case 'error': {

@@ -426,11 +426,17 @@ export function createWidgetStore() {
       if (state.view !== 'loading') return
       if (state.quotaError) return
 
-      const firstResult = state.galleryResults[0]
+      // Show the gallery as soon as ANY finish has an image, not only when the first one does.
+      //
+      // Waiting specifically on slot 0 means one failed finish holds back every finish behind
+      // it — and on the two-pass pipeline, where renders are serialised and each takes ~30s,
+      // that is a long wait for results that already exist. Worse, if slot 0 fails the user is
+      // sent back to the upload screen and never sees the finishes that did succeed.
+      const firstReady = state.galleryResults.findIndex((r) => r.success && !r.loading)
 
-      if (firstResult?.success && !firstResult?.loading) {
+      if (firstReady !== -1) {
         actions.stopLoading()
-        setState({ view: 'result', currentIndex: 0, hasRendered: true })
+        setState({ view: 'result', currentIndex: firstReady, hasRendered: true })
 
         return
       }
@@ -441,13 +447,8 @@ export function createWidgetStore() {
 
       actions.stopLoading()
 
-      const firstSuccess = state.galleryResults.findIndex((r) => r.success)
-
-      if (firstSuccess !== -1) {
-        setState({ view: 'result', currentIndex: firstSuccess, hasRendered: true })
-      } else {
-        setState({ view: 'upload', error: 'Rendering failed. Please try again with a different image.' })
-      }
+      // Only every finish failing sends the user back — the gallery has nothing to show.
+      setState({ view: 'upload', error: 'Rendering failed. Please try again with a different image.' })
     },
 
     setDetectedVehicle(vehicle: VehicleInfo) {

@@ -225,12 +225,17 @@ export function Modal(props: ModalProps) {
             : data.message;
 
           hasV2Reason = true;
+
+          // An audit rejection still delivers its image, and onComplete has already marked
+          // the slot successful. Record why the audit objected, but leave the render
+          // viewable — overwriting success here would hide the very image being judged.
+          const delivered = state.galleryResults[index]?.image;
+
           actions.updateResult(index, {
             error: data.retryable
               ? `${detail} — retrying may help`
               : `${detail} — a retry would fail the same way`,
-            success: false,
-            loading: false,
+            ...(delivered ? {} : { success: false, loading: false }),
           });
         },
         // The audit rejected this image. Keep it on the slot rather than dropping it: the
