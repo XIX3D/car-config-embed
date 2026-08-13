@@ -227,6 +227,12 @@ export function Modal(props: ModalProps) {
             loading: false,
           });
         },
+        // The audit rejected this image. Keep it on the slot rather than dropping it: the
+        // audit is itself a model call and does get it wrong, so being able to look at what
+        // it rejected is the difference between judging the pipeline and trusting it.
+        onAuditFailedImage: (dataUrl) => {
+          actions.updateResult(index, { image: dataUrl });
+        },
         onError: (msg) => {
           console.error(`[SSE:${index}] Error:`, msg);
           // Do not clobber a structured v2 reason with the generic message.

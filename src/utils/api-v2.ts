@@ -200,6 +200,39 @@ async function readStream(
           state.image = `data:image/png;base64,${data.image_b64}`
           handlers.onComplete?.(data)
           break
+        // The audit rejecting the composited image, on a DEBUG request. The backend takes a
+        // different path here from the non-debug one: instead of an `error` event carrying
+        // `audit_failed`, it emits this — with the rejected image attached, so it can be
+        // inspected rather than merely counted.
+        //
+        // Unhandled, a debug render that fails the audit sends neither `complete` nor `error`,
+        // so the caller sees the stream simply end: no image, no reason, and a gallery slot
+        // stuck on "failed, click to retry" with nothing to explain it. That is exactly the
+        // symptom this was found from.
+        case 'audit_failed_debug': {
+          const auditError: V2ErrorData = {
+            error: 'audit_failed',
+            message: 'Render failed the quality check',
+            // A model judging model output: both vary between attempts, so unlike a refusal
+            // the same request can genuinely pass next time.
+            retryable: true,
+            reasons: data.reason
+              ? [typeof data.confidence === 'number'
+                ? `${data.reason} (confidence ${data.confidence})`
+                : String(data.reason)]
+              : undefined,
+          }
+
+          state.v2Error = auditError
+          handlers.onV2Error?.(auditError)
+          // The rejected image is still delivered, so it can be judged by eye rather than
+          // taken on trust. The slot is marked failed by onV2Error above.
+          if (data.image_b64) {
+            handlers.onAuditFailedImage?.(`data:image/png;base64,${data.image_b64}`)
+          }
+          handlers.onError?.(auditError.message)
+          break
+        }
         case 'error': {
           const gate = parseEmailGateEvent(data)
           const v2Error = gate ? null : parseV2ErrorEvent(data)

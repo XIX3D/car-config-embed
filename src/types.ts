@@ -245,4 +245,9 @@ export interface RenderStreamEvents {
   onCompositeComplete?: (data: CompositeCompleteData) => void
   /** Fires instead of onError when the failure carries a structured v2 payload. */
   onV2Error?: (data: V2ErrorData) => void
+  /**
+   * The image the audit rejected, on a debug request. Delivered so a rejection can be judged
+   * by eye instead of taken on trust — the audit is a model call and does get it wrong.
+   */
+  onAuditFailedImage?: (dataUrl: string) => void
 }
