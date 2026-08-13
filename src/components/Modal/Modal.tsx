@@ -41,6 +41,7 @@ export function Modal(props: ModalProps) {
     getBrandName,
     getModelName,
     getCurrentResult,
+    isV2LoadingEnabled,
   } = props.store;
   let modalRef: HTMLDivElement | undefined;
   const [modalStyle, setModalStyle] = createSignal<{
@@ -118,7 +119,9 @@ export function Modal(props: ModalProps) {
 
     if (!file) return;
 
-    actions.startLoading();
+    // v2 when a caller supplied the two-pass loading scripts, which only the v2 test page
+    // does. On every customer build this is false and the v1 script is used, unchanged.
+    actions.startLoading(isV2LoadingEnabled());
 
     const selections = state.selections;
 
@@ -178,6 +181,25 @@ export function Modal(props: ModalProps) {
       props.api.renderStream(file, products, state.product!.manufacturer_id, {
         onVehicleDetected: (data) => {
           actions.setDetectedVehicle(data);
+        },
+        // Two-pass stage events, used to drive the loading text from real progress instead
+        // of a timer. v1 never emits them, so these are inert there — and the stage names
+        // are plain strings, so nothing v2-specific is imported into this bundle. Only the
+        // first request drives the shared display; the rest would fight for the same
+        // stage pointer.
+        onMaskStarted: (data) => {
+          if (index !== 0) return;
+          actions.setMaskCached(data.cached);
+          actions.syncLoadingStage("mask");
+        },
+        onMaskComplete: (data) => {
+          if (index === 0) actions.setMaskCached(data.cached);
+        },
+        onFillStarted: () => {
+          if (index === 0) actions.syncLoadingStage("fill");
+        },
+        onCompositeComplete: () => {
+          if (index === 0) actions.syncLoadingStage("composite");
         },
         onDebug: (data) => {
           actions.setDebugData(data);

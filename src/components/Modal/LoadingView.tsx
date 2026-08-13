@@ -13,6 +13,27 @@ interface LoadingViewProps {
   onModalResize?: (width: number, height: number) => void;
 }
 
+/**
+ * Rough remaining time, from what is left of the script.
+ *
+ * Quoting a fixed "~30 seconds" was close enough on v1 (~23s) but is wrong for a cold
+ * two-pass render (~45s), and an estimate the user watches expire is worse than none.
+ * Rounding to a coarse bucket keeps it honest without implying precision the render does
+ * not have.
+ */
+function remainingLabel(steps: LoadingStep[], currentStep: number): string {
+  const remainingMs = steps
+    .slice(currentStep)
+    .reduce((total, step) => total + step.duration, 0);
+
+  if (remainingMs > 40000) return "About a minute";
+  if (remainingMs > 25000) return "~45 seconds";
+  if (remainingMs > 12000) return "~30 seconds";
+  if (remainingMs > 6000) return "Almost there";
+
+  return "Finishing up...";
+}
+
 function createLoadingText(text: string) {
   return text.split("").map((char, i) => ({
     char: char === " " ? "\u00A0" : char,
@@ -98,7 +119,9 @@ export function LoadingView(props: LoadingViewProps) {
 
       {/* Dynamic message */}
       <p class="mt-4 text-sm text-white/40 animate-pulse">
-        {isLongWait() ? "This may take a moment..." : "~30 seconds"}
+        {isLongWait()
+          ? "This may take a moment..."
+          : remainingLabel(props.loadingSteps, props.currentStep)}
       </p>
 
 

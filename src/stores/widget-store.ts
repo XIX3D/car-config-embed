@@ -1,6 +1,29 @@
 import { createStore, produce } from 'solid-js/store'
-import type { ViewState, RenderResult, Product, Variant, JWTPayload, DebugData, VehicleInfo, QuotaExceededError, EmailGateResponse } from '../types'
+import type { ViewState, RenderResult, Product, Variant, JWTPayload, DebugData, VehicleInfo, QuotaExceededError, EmailGateResponse, LoadingStep } from '../types'
 import { LOADING_STEPS, LOADING_STEPS_WRAPS, ZOOM, ASPECT_THRESHOLDS } from '../constants'
+
+/**
+ * An alternate loading script set, supplied by a caller instead of imported here.
+ *
+ * The two-pass (v2) pipeline has its own, much longer script. The store deliberately does
+ * not import it: `getLoadingSteps()` runs on every render, so a direct import would keep
+ * the v2 strings alive in the `latest` bundle that every customer site loads, which is
+ * exactly what src/config/pipeline.ts exists to prevent. A v2-capable entry point calls
+ * `enableV2Loading()` with src/config/loading-v2.ts's `V2_LOADING_SCRIPTS`; the production
+ * entry point never does, so v2 stays structurally absent.
+ */
+export type V2StageName = 'analyzing' | 'mask' | 'fill' | 'composite'
+
+export interface AltLoadingScripts {
+  /** Full script, every stage running. */
+  cold: LoadingStep[]
+  /** Script with the cacheable stage removed, for when the backend served it from cache. */
+  cached: LoadingStep[]
+  /** Index of each named stage within `cold`. */
+  stages: Record<V2StageName, number>
+  /** Which named stage `cached` omits. */
+  cachedOmits: V2StageName
+}
 
 export type ImageAspect = 'normal' | 'wide' | 'tall' | 'square' | null
 
@@ -31,6 +54,18 @@ export interface WidgetState {
   // Loading
   loadingStep: number
   loadingInterval: number | null
+  /**
+   * True while a two-pass (v2) render is in flight, which selects the longer loading
+   * script and enables the event-driven stage sync. Set by the render caller, not by the
+   * store, so v1 is untouched.
+   */
+  isV2Render: boolean
+  /**
+   * Set when the backend reports the mask came from the session cache. That render skips
+   * pass 1 entirely (~14s), so the "isolating wheels" stage is dropped from the script
+   * rather than shown for a stage that is not happening.
+   */
+  maskCached: boolean
 
   // Zoom
   zoomLevel: number
@@ -86,6 +121,8 @@ const initialState: WidgetState = {
 
   loadingStep: 0,
   loadingInterval: null,
+  isV2Render: false,
+  maskCached: false,
 
   zoomLevel: ZOOM.min,
   panX: 0,
@@ -115,7 +152,41 @@ const initialState: WidgetState = {
 export function createWidgetStore() {
   const [state, setState] = createStore<WidgetState>({ ...initialState })
 
-  const getLoadingSteps = () => state.isWraps ? LOADING_STEPS_WRAPS : LOADING_STEPS
+  /**
+   * The alternate script set for the two-pass pipeline, or null on a build that has no
+   * such pipeline. Held in a closure rather than in store state so the store never names
+   * the v2 module — see `AltLoadingScripts`.
+   */
+  let altScripts: AltLoadingScripts | null = null
+
+  /**
+   * The loading script for the render in flight.
+   *
+   * On a v2 render whose mask came from the session cache, pass 1 does not run at all, so
+   * the "isolating wheels" stage is dropped rather than displayed for work that is not
+   * happening. That also shortens the script to match the ~30s cached render instead of the
+   * ~45s cold one.
+   */
+  const getLoadingSteps = () => {
+    if (state.isWraps) return LOADING_STEPS_WRAPS
+    if (!altScripts || !state.isV2Render) return LOADING_STEPS
+
+    return state.maskCached ? altScripts.cached : altScripts.cold
+  }
+
+  /**
+   * Map a v2 stage index onto the script currently displayed.
+   *
+   * Dropping the mask stage on a cached render shifts every later stage down by one, so
+   * callers name the stage and this resolves the index. A `mask` event on a cached render
+   * resolves to the stage before it — the pointer must not move for a pass that is being
+   * skipped, and `syncLoadingStage` only ever moves forward, so this is a no-op there.
+   */
+  const resolveStageIndex = (stage: number) => {
+    if (!altScripts || !state.maskCached) return stage
+
+    return stage < altScripts.stages[altScripts.cachedOmits] ? stage : stage - 1
+  }
 
   const getBrandName = () =>
     state.customBrand ||
@@ -127,6 +198,15 @@ export function createWidgetStore() {
 
   const getCurrentResult = () =>
     state.galleryResults[state.currentIndex] || null
+
+  /**
+   * Whether the two-pass loading display is available, i.e. a caller supplied its scripts.
+   *
+   * This is how components ask "are we running v2?" without importing anything v2 — the
+   * presence of injected scripts IS the signal. Keeps Modal.tsx, which ships in the
+   * production bundle, free of v2 references.
+   */
+  const isV2LoadingEnabled = () => altScripts !== null
 
   const actions = {
     open(selections: JWTPayload, product: Product | null, variants: Variant[], customBrand?: string) {
@@ -202,24 +282,54 @@ export function createWidgetStore() {
       setState('imageAspect', aspect)
     },
 
-    startLoading() {
+    /**
+     * Supply the two-pass pipeline's loading scripts.
+     *
+     * Called once, at startup, by an entry point on a build that can actually run v2. Until
+     * it is called, `startLoading(true)` falls back to the v1 script rather than failing —
+     * a build without v2 never issues a v2 render in the first place.
+     */
+    enableV2Loading(scripts: AltLoadingScripts) {
+      altScripts = scripts
+    },
+
+    /**
+     * Begin the loading display.
+     *
+     * `isV2` selects the two-pass script, which is roughly 2.5x longer because a cold v2
+     * render measures ~45s against v1's ~23s. Reusing v1's 18.4s script for it would run
+     * the text out at 18s and leave a frozen final message for another 27 seconds.
+     *
+     * The timer advances the text WITHIN a stage so a long stage still looks alive, but on
+     * v2 the real SSE events drive which stage is showing — see `syncLoadingStage`. The
+     * timer never advances past the stage an event has established, so a slow backend can
+     * no longer be overtaken by an optimistic clock.
+     */
+    startLoading(isV2 = false) {
       setState({
         view: 'loading',
         loadingStep: 0,
         error: null,
+        isV2Render: isV2,
+        maskCached: false,
       })
 
       let elapsed = 0
-      const steps = getLoadingSteps()
 
+      // Reading store state inside a timer is deliberate, not a missed tracked scope: this
+      // is a fallback clock, and it must observe whatever the SSE events have already set.
+      // eslint-disable-next-line solid/reactivity
       const interval = window.setInterval(() => {
         elapsed += 100
         setState(produce((s) => {
+          // Re-read each tick: a cached-mask event can shorten the script mid-render.
+          const steps = getLoadingSteps()
           let total = 0
 
-          for (let i = 0; i <= s.loadingStep; i++) {
+          for (let i = 0; i <= s.loadingStep && i < steps.length; i++) {
             total += steps[i].duration
           }
+
           if (elapsed >= total && s.loadingStep < steps.length - 1) {
             s.loadingStep += 1
           }
@@ -227,6 +337,50 @@ export function createWidgetStore() {
       }, 100)
 
       setState('loadingInterval', interval)
+    },
+
+    /**
+     * Move the display to a real pipeline stage, reported by an SSE event.
+     *
+     * Takes a stage NAME rather than an index so callers never handle the numbers — those
+     * live only in the v2 module, which the production bundle must not reach.
+     *
+     * Only ever moves forward. The timer runs concurrently and may already have advanced
+     * past this stage on a fast backend; snapping backwards would read as the render
+     * regressing.
+     */
+    syncLoadingStage(stage: V2StageName) {
+      // Gated on the render in flight, not just on the build: a v2-capable build still runs
+      // v1 renders, and those show the v1 script, whose indices these stage names do not
+      // address. Ungated, a stray event would jump a v1 render to its final stage.
+      const scripts = altScripts
+
+      if (!scripts || !state.isV2Render) return
+
+      const target = resolveStageIndex(scripts.stages[stage])
+
+      setState(produce((s) => {
+        if (target > s.loadingStep) s.loadingStep = target
+      }))
+    },
+
+    /**
+     * Record that the mask came from the session cache, which drops the "isolating wheels"
+     * stage from the script — that pass is genuinely not running, and it is the ~14s that
+     * makes a second finish faster than the first.
+     */
+    setMaskCached(cached: boolean) {
+      // Same gate as syncLoadingStage: only a v2 render has a mask stage to drop.
+      if (!cached || state.maskCached || !altScripts || !state.isV2Render) return
+
+      setState('maskCached', true)
+
+      // The script just lost a stage; keep the pointer inside it. Clamped after the flag
+      // is committed, so getLoadingSteps() returns the shortened script rather than the
+      // one we are replacing.
+      const lastStep = getLoadingSteps().length - 1
+
+      if (state.loadingStep > lastStep) setState('loadingStep', lastStep)
     },
 
     stopLoading() {
@@ -453,6 +607,7 @@ export function createWidgetStore() {
     getBrandName,
     getModelName,
     getCurrentResult,
+    isV2LoadingEnabled,
   }
 }
 
