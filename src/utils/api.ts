@@ -1,6 +1,14 @@
 import type { Product, Variant, QuoteRequest, RenderStreamEvents, DecodeTokenResponse, ValidateTokenResponse, VehicleDetectionResult, SimilarProduct, QuotaExceededError, EmailGateResponse } from '../types'
 
-const parseQuotaBody = async (res: Response): Promise<QuotaExceededError | null> => {
+/**
+ * Exported so the two-pass client reuses this rather than reimplementing it.
+ *
+ * A render request can be refused with a body rather than a stream — 429 for quota, 428 for
+ * the email gate — and those must be handled as gate/quota events, not as a failed render.
+ * The v2 client threw on any non-ok response, so a 428 became "Render request failed (428)"
+ * and the email gate never opened.
+ */
+export const parseQuotaBody = async (res: Response): Promise<QuotaExceededError | null> => {
   if (res.status !== 429) return null
   try {
     const body = await res.clone().json()
@@ -11,7 +19,8 @@ const parseQuotaBody = async (res: Response): Promise<QuotaExceededError | null>
   return null
 }
 
-const parseEmailGateBody = async (res: Response): Promise<EmailGateResponse | null> => {
+/** See parseQuotaBody. Exported for the two-pass client. */
+export const parseEmailGateBody = async (res: Response): Promise<EmailGateResponse | null> => {
   try {
     const body = await res.clone().json()
     if (body && body.error === 'email_required' && typeof body.free_sessions_limit === 'number') {

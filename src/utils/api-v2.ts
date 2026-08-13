@@ -16,6 +16,7 @@
  *
  * See docs/plans/TWO_PASS_EMBED_PLAN.md for the pipeline itself.
  */
+import { parseEmailGateBody, parseQuotaBody } from './api'
 import type {
   RenderStreamEvents,
   V2ErrorData,
@@ -309,7 +310,28 @@ export async function renderStreamV2(
       signal,
     })
 
+    // A refusal arrives as a BODY, not a stream, and must be handled as a gate or quota event
+    // rather than a failed render. Throwing on any non-ok status turned the email gate's 428
+    // into "Render request failed (428)": the gate never opened, and every render died in a
+    // fraction of a second with no explanation. Same handling as the v1 client, reusing its
+    // parsers so the two cannot drift apart.
     if (!res.ok) {
+      const gate = await parseEmailGateBody(res)
+
+      if (gate) {
+        events.onEmailGateRequired?.(gate)
+
+        return { success: false, error: 'Email required' }
+      }
+
+      const quota = await parseQuotaBody(res)
+
+      if (quota) {
+        events.onQuotaExceeded?.(quota)
+
+        return { success: false, error: quota.message }
+      }
+
       throw new Error(`Render request failed (${res.status})`)
     }
 
