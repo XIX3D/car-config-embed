@@ -172,10 +172,45 @@ function bindButtons() {
     const originalDisplay = button.style.display
     button.style.display = 'none'
 
-    if (!decodeJWT(jwt)) return
+    // The button is hidden up front so the brand's own markup does not flash
+    // before the styled replacement renders. Every path that gives up after
+    // this point MUST put it back, or the brand's call to action silently
+    // disappears from their live site with nothing logged anywhere.
+    //
+    // That was the old behaviour: a cold start, a network blip, a non-2xx or a
+    // CORS failure all left the button hidden forever, and it looked identical
+    // to hitting the monthly render cap. Nobody could tell an outage from a
+    // quota, because neither said anything.
+    //
+    // Restoring it bare would be worse than useless (a visible button that
+    // does nothing), so the fallback also binds a click that just opens the
+    // preview. Validation runs again inside that flow, which means a load-time
+    // failure that has since recovered, exactly what a Cloud Run cold start
+    // looks like, resolves itself the moment a customer actually clicks.
+    let fallbackBound = false
+    const restoreButton = (why: string) => {
+      if (fallbackBound) return
+      fallbackBound = true
+      console.warn(`[avacar] preview button could not be initialised (${why}); leaving the original button in place`)
+      button.style.display = originalDisplay
+      button.addEventListener('click', (e) => {
+        e.preventDefault()
+        openPreview(jwt, customBrand)
+      })
+    }
+
+    if (!decodeJWT(jwt)) {
+      restoreButton('malformed token')
+      return
+    }
 
     api.validateToken(jwt).then((result) => {
-      if (!result) return
+      if (!result) {
+        restoreButton('token validation returned no result')
+        return
+      }
+      // The one deliberate removal: this account is switched off, so the brand
+      // is meant to lose the button. Everything else is a failure, not a state.
       if (result.is_active === false) {
         button.remove()
         return
@@ -208,13 +243,16 @@ function bindButtons() {
           }
         }
       } else {
+        fallbackBound = true
         button.style.display = originalDisplay
         button.addEventListener('click', (e) => {
           e.preventDefault()
           openPreview(jwt, customBrand)
         })
       }
-    }).catch(() => {})
+    }).catch((err) => {
+      restoreButton(`validation threw: ${err}`)
+    })
   })
 }
 
