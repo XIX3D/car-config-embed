@@ -123,15 +123,23 @@ function enqueue<T>(task: () => Promise<T>): Promise<T> {
 /**
  * Whether to ask the backend for reference image BYTES on this render.
  *
- * Read fresh each time rather than cached, so the flag can be flipped between renders without a
- * reload. Wrapped because storage throws in a sandboxed iframe or with cookies blocked, and a
+ * ON unless explicitly turned off — note `!== '0'`, not `=== '1'`. The reference images are what
+ * settle "wrong reference sent, or model ignored a correct one", and with them off by default
+ * every such question needed a SECOND render to answer, by which point the interesting render's
+ * inputs were already gone. Paying ~20 MB up front beats re-rendering to find out.
+ *
+ * Read fresh each time rather than cached, so the toggle takes effect on the next render without
+ * a reload. Wrapped because storage throws in a sandboxed iframe or with cookies blocked, and a
  * debug toggle must never take a render down with it.
+ *
+ * MUST agree with readImgFlag() in embed-compare/public/timing.js, which only reports the flag
+ * while this is what acts on it.
  */
 function readDebugImagesFlag(): boolean {
   try {
-    return window.localStorage?.getItem('avacar:debugImages') === '1'
+    return window.localStorage?.getItem('avacar:debugImages') !== '0'
   } catch {
-    return false
+    return true
   }
 }
 
@@ -153,9 +161,9 @@ async function renderOne(
     manufacturerId,
     events,
     undefined,
-    // Opt in per render from the page: `localStorage['avacar:debugImages'] = '1'`. Off by
-    // default because the reference bytes measured ~20 MB over SSE for a single render — worth
-    // paying to settle one specific "was it the wrong picture", not on every render.
+    // On by default; opt OUT from the page with `localStorage['avacar:debugImages'] = '0'` (the
+    // debug panel's "ref images" toggle writes exactly that). Costs ~20 MB over SSE per render,
+    // accepted so a bad render can be attributed without having to reproduce it first.
     { debugImages: readDebugImagesFlag() },
   )
 }
