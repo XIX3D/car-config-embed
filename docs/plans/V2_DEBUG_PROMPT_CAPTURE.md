@@ -94,6 +94,24 @@ did we send the wrong picture" — metadata narrows it, the image answers it. If
 concern, gating this behind a separate stronger flag (`debug_images=true`) would be fine; the
 metadata alone is still a large improvement.
 
+## Two smaller gaps in `mask_b64`, worth fixing at the same time
+
+`mask_b64` already ships `mask.Composited` — the customer photo with flat chroma sockets painted
+over the rims, which is byte-identical to the first image pass 2 receives. That is genuinely
+useful and the embed now displays it. Two gaps limit it:
+
+**1. Nothing is sent when the mask gate fails.** `Composited` is only built inside
+`if res.Verdict.Passed` (`twopass_service.go`, stage 3), so a `mask_gate_failed` render carries
+no image — exactly the case where seeing the mask matters most. Right now a gate failure gives a
+verdict and reasons with no way to look at what was rejected. Compositing after a failure costs
+one clone and one encode, which seems a fair price for making the failure inspectable; if that
+is unwelcome, sending the raw `maskImg` instead would still answer it.
+
+**2. `res.Mask` is built but never shipped.** That is the raw model output before compositing.
+Having both separates two different faults: the model painting sockets in the wrong place
+(`Mask` is wrong) versus our compositing placing them wrongly (`Mask` fine, `Composited`
+wrong). Adding `raw_mask_b64` alongside `mask_b64` would make that distinction visible.
+
 ## Notes
 
 - **Debug-only.** Same gate as the existing `debug` event. None of this should reach a customer
