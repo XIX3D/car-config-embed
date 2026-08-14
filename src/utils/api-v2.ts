@@ -289,6 +289,16 @@ export async function renderStreamV2(
   manufacturerId: number,
   events: RenderStreamEvents,
   signal?: AbortSignal,
+  options?: {
+    /**
+     * Send the reference image BYTES as well as their metadata.
+     *
+     * Off by default because the backend measured a ~20 MB SSE payload for one render with this
+     * on. Metadata alone (~6 KB) already names the wrong reference; the bytes are for when you
+     * need to look at it. Worth turning on for a single render, not for a whole session.
+     */
+    debugImages?: boolean
+  },
 ): Promise<V2RenderResult> {
   const formData = new FormData()
 
@@ -300,6 +310,12 @@ export async function renderStreamV2(
   formData.append('manufacturer_id', String(manufacturerId))
   formData.append('fast_mode', 'true')
   formData.append('debug', 'true')
+
+  // Model-input capture. `debug_prompts` is ~6 KB and answers most attribution questions on its
+  // own — which prompt was sent, and which reference asset each image slot pointed at — so it is
+  // always on for this comparison build. `debug_images` adds the bytes and is opt-in.
+  formData.append('debug_prompts', 'true')
+  if (options?.debugImages) formData.append('debug_images', 'true')
 
   let captured: V2ErrorData | undefined
 

@@ -120,6 +120,21 @@ function enqueue<T>(task: () => Promise<T>): Promise<T> {
   return run
 }
 
+/**
+ * Whether to ask the backend for reference image BYTES on this render.
+ *
+ * Read fresh each time rather than cached, so the flag can be flipped between renders without a
+ * reload. Wrapped because storage throws in a sandboxed iframe or with cookies blocked, and a
+ * debug toggle must never take a render down with it.
+ */
+function readDebugImagesFlag(): boolean {
+  try {
+    return window.localStorage?.getItem('avacar:debugImages') === '1'
+  } catch {
+    return false
+  }
+}
+
 /** One v2 render. Shared by both render methods, which differ only in what they return. */
 async function renderOne(
   file: File,
@@ -137,6 +152,11 @@ async function renderOne(
     },
     manufacturerId,
     events,
+    undefined,
+    // Opt in per render from the page: `localStorage['avacar:debugImages'] = '1'`. Off by
+    // default because the reference bytes measured ~20 MB over SSE for a single render — worth
+    // paying to settle one specific "was it the wrong picture", not on every render.
+    { debugImages: readDebugImagesFlag() },
   )
 }
 
