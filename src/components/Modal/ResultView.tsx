@@ -601,7 +601,7 @@ export function ResultView(props: ResultViewProps) {
                       }`}
                       style={{
                         "background-image": result.referenceImage
-                          ? `url(${result.referenceImage})`
+                          ? `url("${result.referenceImage}")`
                           : undefined,
                         "background-color": !result.referenceImage
                           ? result.hexColor || "#fff"

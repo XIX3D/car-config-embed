@@ -1374,7 +1374,7 @@ function FullscreenModal(props: FullscreenModalProps) {
                     }`}
                     style={{
                       "background-image": result.referenceImage
-                        ? `url(${result.referenceImage})`
+                        ? `url("${result.referenceImage}")`
                         : undefined,
                       "background-color": !result.referenceImage
                         ? result.hexColor || "#fff"

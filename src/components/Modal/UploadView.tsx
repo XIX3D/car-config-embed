@@ -295,6 +295,11 @@ export function UploadView(props: UploadViewProps) {
               {(variant, i) => {
                 const isSelected = () => selectionIndex(variant.id) !== -1;
                 const orderNumber = () => selectionIndex(variant.id) + 1;
+                // The swatch image. Interpolated into a CSS `url()` below, which MUST be quoted:
+                // an unquoted url() containing a parenthesis is invalid CSS and the whole
+                // declaration is dropped, leaving a blank swatch with no error anywhere. That is
+                // not hypothetical — a manufacturer named "Rohana (v2 Test)" produces asset paths
+                // like `products/rohana-(v2-test)/…`, and every finish swatch rendered empty.
                 const refImg = () =>
                   variant.reference_image_paths?.[0] ||
                   variant.reference_image ||
@@ -317,7 +322,7 @@ export function UploadView(props: UploadViewProps) {
                       class="flex-shrink-0 w-12 h-12 rounded-xl border-none transition-all relative cursor-pointer focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none hover:opacity-100"
                       style={{
                         "background-image": refImg()
-                          ? `url(${refImg()})`
+                          ? `url("${refImg()}")`
                           : undefined,
                         "background-color": !refImg()
                           ? variant.hex_color || "#fff"
