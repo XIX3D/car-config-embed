@@ -31,7 +31,10 @@ click PREVIEW ON YOUR CAR  (NEW side)
          │
          ├─ validation + vehicle detection          ~6s   → vehicle_detected
          ├─ product + variant lookup                      (which wheel, which finish)
-         ├─ LoadReferences()                        ~1-3s (ONE studio image fetched)
+         ├─ LoadReferences()                        ~1-3s  ← downloads the wheel's studio
+         │                                                  photo from cloud storage.
+         │                                                  ONE file now, not a list.
+         │                                                  Network time, no model involved.
          │
          ├─ PASS 1  mask                            ~14s  → mask_started
          │    model call:  in  1 image  (customer photo)
@@ -363,7 +366,116 @@ audit ~5s.
 
 ---
 
-## 7. Known weak points, for the discussion
+## 7. The two challenges we are actually facing
+
+These are the ones driving the current accuracy problem. Both are consequences of how v2 was
+narrowed, and both are open questions rather than settled bugs.
+
+### 7a. One image is doing two jobs
+
+Pass 2 receives a single wheel reference, and the prompt asks that one image to be authority on
+**both**:
+
+- **finish** — "the ONLY authority on finish"
+- **shape** — "also the authority on depth and part boundaries"
+
+There is no separate finish reference any more. Before `d75c3ee` the intent was a division of
+labour: the 3/4 view owned finish, an optional front view owned shape and was explicitly stripped
+of finish authority. Today one asset carries both, so **the quality of a render is bounded by the
+quality of that single file** — and studio assets vary. A 3/4 shot that is good at showing a
+finish is not necessarily well-lit or square-on enough to show spoke geometry, and vice versa.
+
+**The symptom being seen:** less accuracy *between finishes* on the same wheel. That is consistent
+with this cause. Each finish variant is a different photo, shot under different conditions, and
+each one is now solely responsible for both properties. Where two variants of one wheel have
+inconsistent photography, the renders diverge in shape as well as colour — and shape should not
+depend on which finish you picked.
+
+**What makes this hard to just revert:**
+
+- The measurement that motivated dropping the front view showed 3/4-only was *better*: mean error
+  **3.00 vs 3.50** over 52 wheels. Small margin, small sample, no stated interval — but it points
+  the wrong way for simply putting it back.
+- The prompt already warns hard against inferring finish from a second image, because that failed
+  badly: told image 3's finish "differs from the target", a model looking at a silver image 3
+  concluded the target could not be silver, and returned bronze for a brushed-aluminium request.
+- One finish reference measured **8/8** against **3/8** for two.
+
+So the history says *two finish authorities are worse*. What has not been tested is **one finish
+authority plus one shape-only reference where the shape asset is finish-neutral** — which is what
+`3_WHEEL_FRONT_STRUCTURE_ONLY` was built for and what `HasFrontView: false` currently disables.
+The prompt text for it already exists and is carefully worded.
+
+**Options worth weighing:**
+
+| option | cost | note |
+|---|---|---|
+| Re-enable the front view as shape-only | small — load the asset, set the flag from what loaded | the prompt support is already written; this is the cheapest experiment |
+| Per-finish photography QA | data work, no code | if variance between variant photos is the real driver, this fixes it at source |
+| Correct colour in code, not prompt | compositor work | already recommended in `prompts.go`; addresses finish accuracy without touching shape |
+| Accept and measure | none | but "less accuracy between finishes" needs a number before it can be traded off |
+
+### 7b. The per-wheel text prompt is gone
+
+**Confirmed in code.** v1 builds a prompt per product and variant. v2 builds one generic prompt
+for every wheel on the platform.
+
+v1: `BuildPrompt(product, variant)` → `buildWheelsPrompt` (`config/services.go:118`, `:144`), which
+draws on **four** per-wheel/per-variant inputs:
+
+| input | column | what it does |
+|---|---|---|
+| `variant.PromptOverride` | `product_variants.prompt_override` | replaces the whole prompt for that variant |
+| `product.RenderPrompt["text"]` | `products.render_prompt` | a custom prompt for that wheel |
+| `variant.PromptFinish` | `product_variants.prompt_finish` | substituted as `{FINISH}` |
+| `variant.HexColor` | `product_variants.hex_color` | substituted as `{HEX_COLOR}` |
+
+Plus **template selection by wheel type** — `wheels_monoblock`, `wheels_chrome_bolts`,
+`wheels_chrome_no_bolts`, `wheels_carbon_fiber_bolts`, `wheels_carbon_fiber_no_bolts`
+(`config/services.go:176`), chosen from `products.wheel_type`.
+
+v2: `FillPrompt(in, key)` uses **none of them**. `render_prompt`, `prompt_override`,
+`prompt_finish` and `hex_color` are not referenced anywhere on the v2 path — verified by grep
+across the handler, the two-pass service, and the prompt builder. What v2 does pass per-render is
+much thinner:
+
+- `Caliper` and `OldWheelColour` — from *vehicle detection*, not the wheel
+- `DesignClass` — `product.Finish`, defaulting to `"unclassified"`
+- `StructureDescription` — `product.Name`
+- `SpokeCount` — only when verified by measurement, otherwise omitted
+
+**Which is better is genuinely open, and the two designs disagree on principle.**
+
+The case for v2's generic prompt is that it is deliberate, not an oversight. The header comment
+records the finding: **naming a finish in words costs ~15 degrees of hue**, and the effect is
+binary rather than gradual. `prompt_finish` and `hex_color` are exactly the kind of text v2 was
+built to stop sending. A numeric colour anchor was then built and measured *worse* (−30.9 base vs
+−32.2 anchored, individual pairs swinging 13 points the wrong way). So on **finish**, v1's
+per-wheel text is not obviously an advantage and may be a liability.
+
+The case for v1's per-wheel text is **everything that is not finish**. Wheel type genuinely
+changes what the model needs to be told — a chrome wheel with exposed bolts and a carbon-fibre
+wheel without them are different rendering problems, and v1 has separate templates for them.
+`prompt_override` is also the escape hatch for a wheel that renders wrong for an idiosyncratic
+reason, and v2 currently has no equivalent: if one wheel misbehaves, there is nothing to tune
+short of changing the prompt for every wheel.
+
+**A resolution that fits both findings:** keep finish out of the text (v2's measured position) but
+restore per-wheel *structural* context — wheel-type template selection, and a per-product override
+for genuine one-offs. That is not what either pipeline does today.
+
+**Open questions to settle:**
+
+- How many wheels actually have a non-empty `render_prompt` or `prompt_override`? If it is a
+  handful, v1's per-wheel text was mostly unused and this matters less than it appears. One query.
+- Do v1 and v2 diverge more on **unusual wheel types** (chrome, carbon fibre) than on monoblocks?
+  If yes, that isolates the loss to template selection rather than to text generally.
+- Is `product.WheelType` populated for the Velos catalogue? Template selection is worthless
+  without it.
+
+---
+
+## 8. Other known weak points
 
 ### Fixed in `d75c3ee` — listed so old reports can be recognised
 
@@ -402,7 +514,7 @@ audit ~5s.
 
 ---
 
-## 8. Reading it live
+## 9. Reading it live
 
 Open `embed-compare2.vercel.app`, pick a wheel, click **PREVIEW ON YOUR CAR** on the NEW side. The
 right-hand sidebar fills in live, one card per render:
@@ -419,7 +531,7 @@ right-hand sidebar fills in live, one card per render:
 
 ---
 
-## 9. File map
+## 10. File map
 
 **Backend** (`CarConfig/`)
 
@@ -433,6 +545,8 @@ right-hand sidebar fills in live, one card per render:
 | `internal/platform/adapters/compositor/repair.go` | convex-hull repair between pass 1 and the gate |
 | `internal/platform/adapters/postgres/variant_repository.go` | `product_variants.reference_image` |
 | `internal/platform/adapters/postgres/product_repository.go` | `products.reference_image_paths` |
+| `config/services.go` | **v1's** per-wheel prompt building — the thing v2 does not do (§7b) |
+| `prompts/wheels*.md` | v1 wheel-type prompt templates (6 files); `internal/pkg/prompts/loader.go` loads them |
 
 **Widget** (`car-config-embed/`)
 
