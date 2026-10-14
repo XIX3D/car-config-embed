@@ -9,7 +9,7 @@ import { createApiClient } from './utils/api'
 import { decodeJWT } from './utils/jwt'
 import { createSession } from './utils/session'
 import { detectTheme, observeThemeChanges } from './utils/theme'
-import { debugError, debugWarn } from './utils/debug'
+import { debugWarn } from './utils/debug'
 import type { ButtonTheme, ButtonSize, WidgetConfig, EmailGateResponse } from './types'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.platform.xix3d.com'
@@ -180,21 +180,45 @@ function bindButtons() {
 
     button.style.display = 'none'
 
-    if (!decodeJWT(jwt)) {
-      debugError('button skipped: data-jwt is not a decodable JWT')
+    // The button is hidden up front so the brand's own markup does not flash
+    // before the styled replacement renders. Every path that gives up after
+    // this point MUST put it back, or the brand's call to action silently
+    // disappears from their live site with nothing logged anywhere.
+    //
+    // That was the old behaviour: a cold start, a network blip, a non-2xx or a
+    // CORS failure all left the button hidden forever, and it looked identical
+    // to hitting the monthly render cap. Nobody could tell an outage from a
+    // quota, because neither said anything.
+    //
+    // Restoring it bare would be worse than useless (a visible button that
+    // does nothing), so the fallback also binds a click that just opens the
+    // preview. Validation runs again inside that flow, which means a load-time
+    // failure that has since recovered, exactly what a Cloud Run cold start
+    // looks like, resolves itself the moment a customer actually clicks.
+    let fallbackBound = false
+    const restoreButton = (why: string) => {
+      if (fallbackBound) return
+      fallbackBound = true
+      console.warn(`[avacar] preview button could not be initialised (${why}); leaving the original button in place`)
+      button.style.display = originalDisplay
+      button.addEventListener('click', (e) => {
+        e.preventDefault()
+        openPreview(jwt, customBrand)
+      })
+    }
 
+    if (!decodeJWT(jwt)) {
+      restoreButton('malformed token')
       return
     }
 
     api.validateToken(jwt).then((result) => {
       if (!result) {
-        debugError(
-          'button hidden: /embed/validate returned no result. The request failed, was blocked '
-          + '(CORS/network), or the response was not JSON.',
-        )
-
+        restoreButton('token validation returned no result')
         return
       }
+      // The one deliberate removal: this account is switched off, so the brand
+      // is meant to lose the button. Everything else is a failure, not a state.
       if (result.is_active === false) {
         debugWarn(
           'button removed: this embed token is deactivated (is_active: false). The token is '
@@ -232,6 +256,7 @@ function bindButtons() {
           }
         }
       } else {
+        fallbackBound = true
         button.style.display = originalDisplay
         button.addEventListener('click', (e) => {
           e.preventDefault()
@@ -239,10 +264,7 @@ function bindButtons() {
         })
       }
     }).catch((err) => {
-      // Was `.catch(() => {})`. Swallowing this meant a failed validation produced an absent
-      // button and an empty console, indistinguishable from a deactivated token or a missing
-      // script — with nothing to go on from a deployed page.
-      debugError('button hidden: token validation threw', err)
+      restoreButton(`validation threw: ${err}`)
     })
   })
 }
