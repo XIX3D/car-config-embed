@@ -119,8 +119,8 @@ export function Modal(props: ModalProps) {
 
     if (!file) return;
 
-    // v2 when a caller supplied the two-pass loading scripts, which only the v2 test page
-    // does. On every customer build this is false and the v1 script is used, unchanged.
+    // v2 when the entry point supplied the two-pass loading scripts. Wraps keep their own
+    // script regardless (see getLoadingSteps).
     actions.startLoading(isV2LoadingEnabled());
 
     const selections = state.selections;

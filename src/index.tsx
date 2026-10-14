@@ -6,6 +6,8 @@ import { Modal } from './components/Modal'
 import { ZenoButton } from './components/ZenoButton'
 import { createWidgetStore } from './stores/widget-store'
 import { createApiClient } from './utils/api'
+import { renderStreamV2 } from './utils/api-v2'
+import { V2_LOADING_SCRIPTS } from './config/loading-v2'
 import { decodeJWT } from './utils/jwt'
 import { createSession } from './utils/session'
 import { detectTheme, observeThemeChanges } from './utils/theme'
@@ -21,7 +23,86 @@ const FAIL_CLOSED_GATE: EmailGateResponse = {
 }
 
 const store = createWidgetStore()
-const api = createApiClient(API_URL)
+const baseApi = createApiClient(API_URL)
+
+store.actions.enableV2Loading(V2_LOADING_SCRIPTS)
+
+/**
+ * The X-Session-ID of the open preview. v2 keys its wheel-outline (pass 1) cache on it, so
+ * every finish tried on one photo in one preview reuses the first finish's outline.
+ */
+let sessionId = ''
+
+/**
+ * Serialises v2 renders. The modal fires one request per selected finish at once; run
+ * concurrently, each would miss the outline cache and pay pass 1 again (~14 s and a model
+ * call). Queued, the first builds it and the rest reuse it.
+ */
+let queue: Promise<unknown> = Promise.resolve()
+
+function enqueue<T>(task: () => Promise<T>): Promise<T> {
+  const run = queue.then(task, task)
+
+  // Keep the chain alive when a render rejects, or one failure stalls every finish behind it.
+  queue = run.catch(() => {})
+
+  return run
+}
+
+type RenderProducts = Array<{ product_id: string; variant_id?: string }>
+
+/**
+ * Wheels render through the two-pass (v2) pipeline, the one render.xix3D runs. v2 takes
+ * exactly one wheel product per request, so wraps and wheel + wrap combinations stay on the
+ * single-pass route.
+ */
+const rendersOnV2 = (products: RenderProducts) => products.length === 1 && !store.state.isWraps
+
+function renderOnV2(
+  file: File,
+  products: RenderProducts,
+  manufacturerId: number,
+  events: Parameters<typeof baseApi.renderStream>[3],
+  signal?: AbortSignal,
+) {
+  return enqueue(() => renderStreamV2(
+    API_URL,
+    sessionId,
+    file,
+    {
+      product_id: parseInt(products[0].product_id, 10),
+      ...(products[0].variant_id ? { variant_id: parseInt(products[0].variant_id, 10) } : {}),
+    },
+    manufacturerId,
+    events,
+    signal,
+  ))
+}
+
+const api: typeof baseApi = {
+  ...baseApi,
+
+  setSessionId: (id) => {
+    sessionId = id
+    baseApi.setSessionId(id)
+  },
+
+  renderStream: async (file, products, manufacturerId, events, signal) => {
+    if (!rendersOnV2(products)) return baseApi.renderStream(file, products, manufacturerId, events, signal)
+
+    const result = await renderOnV2(file, products, manufacturerId, events, signal)
+
+    return { success: result.success, final_image: result.image, error: result.error }
+  },
+
+  renderSingleVariant: async (file, products, manufacturerId, events, signal) => {
+    if (!rendersOnV2(products)) return baseApi.renderSingleVariant(file, products, manufacturerId, events, signal)
+
+    const result = await renderOnV2(file, products, manufacturerId, events, signal)
+
+    return { success: result.success, image: result.image, error: result.error }
+  },
+}
 
 let rootEl: HTMLElement | null = null
 let shadowRoot: ShadowRoot | null = null
@@ -209,12 +290,14 @@ function bindButtons() {
 
     if (!decodeJWT(jwt)) {
       restoreButton('malformed token')
+
       return
     }
 
     api.validateToken(jwt).then((result) => {
       if (!result) {
         restoreButton('token validation returned no result')
+
         return
       }
       // The one deliberate removal: this account is switched off, so the brand

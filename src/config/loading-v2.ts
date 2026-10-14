@@ -4,19 +4,8 @@ import type { AltLoadingScripts } from '../stores/widget-store'
 /**
  * The two-pass (v2) loading script, and the stage names the SSE handlers use to drive it.
  *
- * WHY THIS IS ITS OWN MODULE
- *
- * The same reason src/utils/api-v2.ts is: `latest` must not merely default v2 off, it must
- * not CONTAIN v2. A build-time flag can gate behaviour, but it cannot make these arrays
- * provably dead once a module the widget always loads refers to them — the store's
- * `getLoadingSteps()` is called on every render, so a direct import from constants.ts kept
- * the v2 strings in the production bundle even with the v2 branch unreachable. Verified:
- * importing from constants.ts leaked "Isolating wheels", `LOADING_STEPS_V2` and friends
- * into dist/car-config-embed.iife.js.
- *
- * Because only the v2 entry path imports this file, the exclusion from `latest` is
- * structural rather than dependent on minifier cleverness. Do not re-export any of this
- * from constants.ts.
+ * Supplied to the store by the entry point (`enableV2Loading`) rather than imported by it,
+ * so the store stays pipeline-agnostic.
  */
 
 /**

@@ -5,12 +5,8 @@ import { LOADING_STEPS, LOADING_STEPS_WRAPS, ZOOM, ASPECT_THRESHOLDS } from '../
 /**
  * An alternate loading script set, supplied by a caller instead of imported here.
  *
- * The two-pass (v2) pipeline has its own, much longer script. The store deliberately does
- * not import it: `getLoadingSteps()` runs on every render, so a direct import would keep
- * the v2 strings alive in the `latest` bundle that every customer site loads, which is
- * exactly what src/config/pipeline.ts exists to prevent. A v2-capable entry point calls
- * `enableV2Loading()` with src/config/loading-v2.ts's `V2_LOADING_SCRIPTS`; the production
- * entry point never does, so v2 stays structurally absent.
+ * The two-pass (v2) pipeline has its own, much longer script. Entry points that render
+ * through v2 call `enableV2Loading()` with src/config/loading-v2.ts's `V2_LOADING_SCRIPTS`.
  */
 export type V2StageName = 'analyzing' | 'mask' | 'fill' | 'composite'
 
@@ -203,8 +199,7 @@ export function createWidgetStore() {
    * Whether the two-pass loading display is available, i.e. a caller supplied its scripts.
    *
    * This is how components ask "are we running v2?" without importing anything v2 — the
-   * presence of injected scripts IS the signal. Keeps Modal.tsx, which ships in the
-   * production bundle, free of v2 references.
+   * presence of injected scripts IS the signal.
    */
   const isV2LoadingEnabled = () => altScripts !== null
 
@@ -343,7 +338,7 @@ export function createWidgetStore() {
      * Move the display to a real pipeline stage, reported by an SSE event.
      *
      * Takes a stage NAME rather than an index so callers never handle the numbers — those
-     * live only in the v2 module, which the production bundle must not reach.
+     * live only in the v2 module.
      *
      * Only ever moves forward. The timer runs concurrently and may already have advanced
      * past this stage on a fast backend; snapping backwards would read as the render

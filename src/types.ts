@@ -237,8 +237,7 @@ export interface RenderStreamEvents {
   onQuotaExceeded?: (data: QuotaExceededError) => void
   onEmailGateRequired?: (data: EmailGateResponse) => void
 
-  // v2-only. All optional, so v1 call sites need no changes and the `latest` bundle is
-  // unaffected.
+  // v2-only. All optional, so v1 call sites need no changes.
   onMaskStarted?: (data: MaskStartedData) => void
   onMaskComplete?: (data: MaskCompleteData) => void
   onFillStarted?: () => void

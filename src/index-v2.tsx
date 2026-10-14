@@ -1,6 +1,11 @@
 /**
  * Two-pass (v2) widget entry point — FOR COMPARISON TESTING ONLY.
  *
+ * The production widget (src/index.tsx) now renders wheels through v2 as well. This entry
+ * remains the debug build: it asks for the model-input capture, shows audit-rejected renders,
+ * and can point at a separate v2 host. The isolation history below explains why it is a
+ * separate entry; the production bundle no longer needs to be v2-free.
+ *
  * WHY THIS IS A SEPARATE ENTRY
  *
  * `latest`, the artifact every embedded customer site loads, is built from src/index.tsx and
@@ -164,7 +169,7 @@ async function renderOne(
     // On by default; opt OUT from the page with `localStorage['avacar:debugImages'] = '0'` (the
     // debug panel's "ref images" toggle writes exactly that). Costs ~20 MB over SSE per render,
     // accepted so a bad render can be attributed without having to reproduce it first.
-    { debugImages: readDebugImagesFlag() },
+    { debug: true, debugImages: readDebugImagesFlag() },
   )
 }
 

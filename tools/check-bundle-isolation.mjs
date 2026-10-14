@@ -1,21 +1,14 @@
 #!/usr/bin/env node
 /**
- * Prove that a production (`latest`) bundle cannot reach the v2 render pipeline.
- *
- * Every live customer site loads the widget from the `latest` GitHub release, so anything
- * in that artifact is running on every embedded site worldwide. v2 is an experiment; it
- * must be absent from that bundle, not merely switched off inside it.
- *
- * src/config/pipeline.ts gates v2 behind a build-time allowlist so the minifier drops the
- * dead branch. This script checks that actually happened, rather than trusting that it
- * did — the guarantee is worth more as a test than as a convention.
+ * Check whether a widget bundle contains the v2 (two-pass) render path.
  *
  * Usage:
- *   node scripts/check-bundle-isolation.mjs <bundle-path> [--expect-v2]
+ *   node tools/check-bundle-isolation.mjs <bundle-path> [--expect-v2]
  *
- * Default is to require v2 be ABSENT. Pass --expect-v2 for the v2-test build, where the
- * same markers must be PRESENT — a v2-test bundle that lost its v2 code would otherwise
- * silently A/B v1 against itself.
+ * With --expect-v2 (what the release runs on every artifact) the v2 render endpoint and SSE
+ * events must be PRESENT: the production widget renders wheels through v2, and a bundle that
+ * lost that path would quietly ship something else. Without the flag the markers must be
+ * ABSENT, for checking a deliberately v1-only build.
  *
  * Exits non-zero on failure so CI fails the release.
  */
@@ -103,7 +96,6 @@ if (found.length > 0) {
   for (const { label, pattern } of found) {
     console.error(`  found: ${label}  (matched ${JSON.stringify(pattern)})`)
   }
-  console.error('\nBuild `latest` with VITE_PIPELINE_ALLOWED=v1 so the minifier drops it.')
   process.exit(1)
 }
 

@@ -61,15 +61,12 @@ run('Build v1 widget', 'npx', ['--yes', 'pnpm@9', 'build'], {
 
 run('Build v2 widget', 'npx', ['--yes', 'pnpm@9', 'exec', 'vite', 'build'], {
   BUILD_ENTRY: 'v2',
-  VITE_PIPELINE_DEFAULT: 'v2',
-  VITE_PIPELINE_ALLOWED: 'v1,v2',
   VITE_API_URL_V2: V2_API_URL,
 })
 
-// The v1 artifact is the one customers load. It must carry no v2 code even here, so a slip
-// in the entry split is caught locally rather than at release time.
-run('Verify v1 artifact is v2-free', 'node', [
-  'tools/check-bundle-isolation.mjs', V1_BUNDLE,
+// The production artifact is the one customers load, and it renders wheels through v2.
+run('Verify production artifact renders through v2', 'node', [
+  'tools/check-bundle-isolation.mjs', V1_BUNDLE, '--expect-v2',
 ])
 
 // And the v2 artifact must actually contain v2. A v2 build that silently lost its v2 path
@@ -80,5 +77,5 @@ run('Verify v2 artifact contains v2', 'node', [
 
 console.log('')
 console.log('Both artifacts built and verified.')
-console.log(`  ${V1_BUNDLE}     — safe to publish as \`latest\``)
+console.log(`  ${V1_BUNDLE}     — production widget, publish as \`latest\``)
 console.log(`  ${V2_BUNDLE}  — comparison site only, publish under \`v2-test\``)

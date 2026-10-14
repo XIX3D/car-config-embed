@@ -1,18 +1,9 @@
 /**
- * Two-pass (v2) render client.
+ * Two-pass (v2) render client: the pipeline render.xix3D runs.
  *
- * DELIBERATELY A SEPARATE MODULE, not a function on the main API client.
- *
- * The widget entry point (src/index.tsx) constructs `createApiClient` unconditionally, so
- * anything living inside it ships in every bundle — including `latest`, which every
- * embedded customer site loads. A build-time allowlist can gate a URL, but it cannot make
- * a method on an always-constructed object provably unreachable, so the minifier keeps it
- * and the v2 strings land in production. That is not theoretical: it happened, and
- * tools/check-bundle-isolation.mjs caught it.
- *
- * Keeping v2 in its own module means the guarantee is structural. `latest` never imports
- * this file, so none of it can reach that bundle no matter what the minifier decides. Only
- * the comparison page imports it.
+ * The production widget (src/index.tsx) renders wheels through it; the comparison entry
+ * (src/index-v2.tsx) uses it with debug capture on. Kept out of the main API client so the
+ * v1 client stays as it was for wraps.
  *
  * See docs/plans/TWO_PASS_EMBED_PLAN.md for the pipeline itself.
  */
@@ -291,7 +282,13 @@ export async function renderStreamV2(
   signal?: AbortSignal,
   options?: {
     /**
-     * Send the reference image BYTES as well as their metadata.
+     * Ask the backend for the debug stream: the model-input capture (`debug_prompts`, ~6 KB)
+     * and, on an audit rejection, the rejected image instead of an error. The comparison
+     * build only. A customer must never be shown an image the audit rejected.
+     */
+    debug?: boolean
+    /**
+     * Send the reference image BYTES as well as their metadata. Needs `debug`.
      *
      * Off by default because the backend measured a ~20 MB SSE payload for one render with this
      * on. Metadata alone (~6 KB) already names the wrong reference; the bytes are for when you
@@ -309,13 +306,15 @@ export async function renderStreamV2(
   }]))
   formData.append('manufacturer_id', String(manufacturerId))
   formData.append('fast_mode', 'true')
-  formData.append('debug', 'true')
 
   // Model-input capture. `debug_prompts` is ~6 KB and answers most attribution questions on its
-  // own — which prompt was sent, and which reference asset each image slot pointed at — so it is
-  // always on for this comparison build. `debug_images` adds the bytes and is opt-in.
-  formData.append('debug_prompts', 'true')
-  if (options?.debugImages) formData.append('debug_images', 'true')
+  // own — which prompt was sent, and which reference asset each image slot pointed at.
+  // `debug_images` adds the bytes and is opt-in.
+  if (options?.debug) {
+    formData.append('debug', 'true')
+    formData.append('debug_prompts', 'true')
+    if (options.debugImages) formData.append('debug_images', 'true')
+  }
 
   let captured: V2ErrorData | undefined
 
