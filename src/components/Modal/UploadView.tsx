@@ -1,4 +1,12 @@
-import { createSignal, For, Show } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  For,
+  on,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
 import type { Variant } from "../../types";
 import {
   VALID_IMAGE_TYPES,
@@ -25,6 +33,9 @@ interface UploadViewProps {
 }
 
 const MAX_SELECTIONS = 3;
+// The photo never shrinks below this. On a short phone the finishes and the button already
+// fill the screen, and the photo would shrink to a stamp; the view scrolls instead.
+const MIN_PREVIEW_HEIGHT = 180;
 
 export function UploadView(props: UploadViewProps) {
   const [isDragover, setIsDragover] = createSignal(false);
@@ -32,10 +43,61 @@ export function UploadView(props: UploadViewProps) {
   const [uploadError, setUploadError] = createSignal<string | null>(null);
   let fileInputRef: HTMLInputElement | undefined;
   let listboxRef: HTMLDivElement | undefined;
+  let rootRef: HTMLDivElement | undefined;
+  let uploadBoxRef: HTMLDivElement | undefined;
+  let previewRef: HTMLImageElement | undefined;
 
   const selectionIndex = (id: string) => props.selectedVariantIds.indexOf(id);
   const selectedCount = () => props.selectedVariantIds.length;
   const canContinue = () => !!props.previewUrl && selectedCount() > 0;
+
+  // The modal is capped in height, and when the photo plus the finishes and button do not fit,
+  // the upload box is what gives way (it clips its overflow). Left alone that cut off the bottom
+  // of the photo, which is where the wheels are. Cap the photo at the room the box really has,
+  // so the whole photo always shows and the box still hugs it.
+  const fitPreview = () => {
+    if (!uploadBoxRef) return;
+
+    uploadBoxRef.style.minHeight = "";
+    if (!previewRef?.isConnected) return;
+
+    previewRef.style.maxHeight = "";
+    const room = uploadBoxRef.clientHeight;
+    const full = previewRef.offsetHeight;
+
+    if (full > room) {
+      const height = Math.max(room, Math.min(full, MIN_PREVIEW_HEIGHT));
+
+      // min-height counts the box's border (the light theme draws one); the photo must not.
+      const border = uploadBoxRef.offsetHeight - uploadBoxRef.clientHeight;
+
+      previewRef.style.maxHeight = `${height}px`;
+      uploadBoxRef.style.minHeight = `${height + border}px`;
+    }
+  };
+
+  // The room changes while the modal animates to its wide size, with the window, and with the
+  // "N selected" line. The observer's refit waits a frame: resizing inside its callback is
+  // reported as an error on the brand's page.
+  onMount(() => {
+    const observer = new ResizeObserver(() =>
+      requestAnimationFrame(fitPreview),
+    );
+
+    if (rootRef) observer.observe(rootRef);
+
+    window.addEventListener("resize", fitPreview);
+    onCleanup(() => {
+      observer.disconnect();
+      window.removeEventListener("resize", fitPreview);
+    });
+  });
+  createEffect(
+    on(
+      [selectedCount, () => props.variants.length, () => props.previewUrl],
+      fitPreview,
+    ),
+  );
 
   const handleFile = (file: File) => {
     if (
@@ -150,7 +212,8 @@ export function UploadView(props: UploadViewProps) {
 
   return (
     <div
-      class="relative z-1 p-6 flex flex-col gap-6 items-center text-center min-h-[520px]"
+      ref={rootRef}
+      class="relative z-1 p-6 flex flex-col gap-6 items-center text-center min-h-[520px] overflow-y-auto [scrollbar-width:thin]"
       tabindex="0"
       onPaste={handlePaste}
     >
@@ -168,6 +231,7 @@ export function UploadView(props: UploadViewProps) {
 
       {/* Upload Box */}
       <div
+        ref={uploadBoxRef}
         class={`avacar-upload-box ${isDragover() || isPasting() ? "dragover" : ""} ${props.previewUrl ? "has-file" : ""}`}
         onClick={handleUploadClick}
         onDragOver={handleDragOver}
@@ -218,9 +282,11 @@ export function UploadView(props: UploadViewProps) {
         <div class="relative z-2 flex flex-col items-center w-full">
           {props.previewUrl ? (
             <img
+              ref={previewRef}
               class="max-w-full max-h-[50vh] sm:max-h-[65vh] w-auto h-auto object-contain rounded-xl block"
               src={props.previewUrl}
               alt="Preview"
+              onLoad={fitPreview}
               draggable={false}
             />
           ) : (

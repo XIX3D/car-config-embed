@@ -62,7 +62,7 @@ export function LoadingView(props: LoadingViewProps) {
 
       {/* Image Container with Generating State */}
       <div
-        class={`relative rounded-2xl overflow-hidden mb-4 animate-fadeInUp ${isMobile ? "w-full" : "inline-block max-w-full"}`}
+        class={`relative rounded-2xl overflow-hidden mb-4 animate-fadeInUp bg-black ${isMobile ? "w-full" : "inline-block max-w-full"}`}
         style={{ height: isMobile ? "min(calc(95svh - 380px), 400px)" : undefined }}
       >
         <Show when={props.previewDataUrl}>
@@ -71,6 +71,9 @@ export function LoadingView(props: LoadingViewProps) {
             src={props.previewDataUrl!}
             alt="Processing"
             class="avacar-result-img generating-image"
+            // On a phone the box has a fixed height, so `cover` cut a wide photo down to under
+            // half of it. Show the whole photo, letterboxed on black, as the result view does.
+            style={{ "object-fit": "contain" }}
             onLoad={handleImageLoad}
             draggable={false}
           />
