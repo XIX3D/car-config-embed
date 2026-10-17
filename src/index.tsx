@@ -7,6 +7,7 @@ import { ZenoButton } from './components/ZenoButton'
 import { createWidgetStore } from './stores/widget-store'
 import { createApiClient } from './utils/api'
 import { renderStreamV2 } from './utils/api-v2'
+import { prepareVehiclePhoto } from './utils/vehicle-photo'
 import { V2_LOADING_SCRIPTS } from './config/loading-v2'
 import { decodeJWT } from './utils/jwt'
 import { createSession } from './utils/session'
@@ -65,10 +66,10 @@ function renderOnV2(
   events: Parameters<typeof baseApi.renderStream>[3],
   signal?: AbortSignal,
 ) {
-  return enqueue(() => renderStreamV2(
+  return enqueue(async () => renderStreamV2(
     API_URL,
     sessionId,
-    file,
+    await prepareVehiclePhoto(file),
     {
       product_id: parseInt(products[0].product_id, 10),
       ...(products[0].variant_id ? { variant_id: parseInt(products[0].variant_id, 10) } : {}),
