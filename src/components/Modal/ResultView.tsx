@@ -317,7 +317,7 @@ export function ResultView(props: ResultViewProps) {
   const canNavigate = () => props.results.length > 1;
 
   return (
-    <div class="relative z-1 flex flex-col items-center pt-6 pb-4 px-6 min-h-[520px]">
+    <div class="relative z-1 flex flex-col items-center pt-6 pb-4 px-6 min-h-[min(520px,90vh)] overflow-y-auto [scrollbar-width:thin]">
       <ModalHeader
         brandName={props.brandName}
         modelName={props.modelName}
@@ -332,7 +332,7 @@ export function ResultView(props: ResultViewProps) {
           ref={wrapperRef}
           class={`relative rounded-2xl overflow-hidden mb-4 animate-fadeInUp bg-black flex items-center justify-center ${isMobile ? "w-full" : "inline-block max-w-full"}`}
           style={{
-            height: isMobile ? "min(calc(95svh - 380px), 400px)" : undefined,
+            height: isMobile ? "min(max(calc(95svh - 380px), 180px), 400px)" : undefined,
             "touch-action": "none",
           }}
           onWheel={handleWheel}

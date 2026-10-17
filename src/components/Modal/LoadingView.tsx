@@ -48,7 +48,7 @@ export function LoadingView(props: LoadingViewProps) {
   });
 
   return (
-    <div class="relative z-1 p-6 flex flex-col gap-6 items-center text-center min-h-[520px]">
+    <div class="relative z-1 p-6 flex flex-col gap-6 items-center text-center min-h-[min(520px,90vh)] overflow-y-auto [scrollbar-width:thin]">
       <ModalHeader
         brandName={props.brandName}
         modelName={props.modelName}
@@ -62,8 +62,8 @@ export function LoadingView(props: LoadingViewProps) {
 
       {/* Image Container with Generating State */}
       <div
-        class={`relative rounded-2xl overflow-hidden mb-4 animate-fadeInUp bg-black ${isMobile ? "w-full" : "inline-block max-w-full"}`}
-        style={{ height: isMobile ? "min(calc(95svh - 380px), 400px)" : undefined }}
+        class={`relative shrink-0 rounded-2xl overflow-hidden mb-4 animate-fadeInUp bg-black ${isMobile ? "w-full" : "inline-block max-w-full"}`}
+        style={{ height: isMobile ? "min(max(calc(95svh - 380px), 180px), 400px)" : undefined }}
       >
         <Show when={props.previewDataUrl}>
           <img
