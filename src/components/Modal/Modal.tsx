@@ -61,7 +61,8 @@ export function Modal(props: ModalProps) {
 
     const viewportHeight = window.innerHeight;
     const reservedHeight = 380;
-    const maxImgHeight = viewportHeight * 0.95 - reservedHeight;
+    // Same 180px floor as .avacar-result-img: a landscape phone leaves no room otherwise.
+    const maxImgHeight = Math.max(180, viewportHeight * 0.95 - reservedHeight);
     const maxImgWidth = viewportWidth * 0.92;
 
     const aspectRatio = imgWidth / imgHeight;

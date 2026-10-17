@@ -629,9 +629,10 @@
   max-height: 95vh !important;
 }
 
+/* Never below 180px: on a landscape phone 95vh - 380px goes negative and the photo vanished. */
 .avacar-expanded .avacar-result-img {
-  max-height: calc(95vh - 380px);
-  max-height: calc(95svh - 380px);
+  max-height: max(180px, calc(95vh - 380px));
+  max-height: max(180px, calc(95svh - 380px));
 }
 
 /* ===== Result Image ===== */
