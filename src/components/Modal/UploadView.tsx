@@ -213,7 +213,7 @@ export function UploadView(props: UploadViewProps) {
   return (
     <div
       ref={rootRef}
-      class="relative z-1 p-6 flex flex-col gap-6 items-center text-center min-h-[520px] overflow-y-auto [scrollbar-width:thin]"
+      class="relative z-1 p-6 flex flex-col gap-6 items-center text-center min-h-[min(520px,90vh)] overflow-y-auto [scrollbar-width:thin]"
       tabindex="0"
       onPaste={handlePaste}
     >
