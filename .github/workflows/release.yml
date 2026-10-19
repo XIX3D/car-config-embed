@@ -29,8 +29,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build
-
       - name: Get version
         id: version
         run: |
@@ -40,8 +38,65 @@ jobs:
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
+      # `v2-test` additionally builds the comparison/debug widget (src/index-v2.tsx). Every tag,
+      # `latest` included, builds the production widget, which renders wheels through v2.
+      - name: Select artifacts for tag
+        id: pipeline
+        run: |
+          if [ "${{ steps.version.outputs.version }}" = "v2-test" ]; then
+            echo "expect_v2=true"  >> $GITHUB_OUTPUT
+          else
+            echo "expect_v2=false" >> $GITHUB_OUTPUT
+          fi
+
+      # The loading display's stage arithmetic. A cached mask drops a stage mid-render and
+      # shifts every later index, and every wrong answer still shows plausible text — so this
+      # is checked rather than eyeballed. Also pins the rule that a v1 render on a v2-capable
+      # build ignores v2 stage events.
+      - name: Verify loading stages
+        run: node tools/check-loading-stages.mjs
+
+      # Remove any prior artifact first. A failed build leaves the previous dist/ in place,
+      # and the bundle check would then pass or fail against a stale bundle rather than the
+      # one about to be published.
+      - name: Build
+        env:
+          VITE_API_URL_V2: ${{ vars.VITE_API_URL_V2 }}
+        run: |
+          rm -rf dist
+          if [ "${{ steps.pipeline.outputs.expect_v2 }}" = "true" ]; then
+            node tools/build-v2test.mjs
+            test -f dist/car-config-embed-v2.iife.js
+          else
+            pnpm build
+          fi
+          test -f dist/car-config-embed.iife.js
+
+      # The production widget must contain the v2 render path: without it, wheels silently
+      # fall back to nothing newer than the single-pass route. Checked on every tag.
+      - name: Verify the widget renders through v2
+        run: |
+          node tools/check-bundle-isolation.mjs dist/car-config-embed.iife.js --expect-v2
+          if [ "${{ steps.pipeline.outputs.expect_v2 }}" = "true" ]; then
+            node tools/check-bundle-isolation.mjs dist/car-config-embed-v2.iife.js --expect-v2
+          fi
+
+      # Only the v2-test release carries the comparison/debug artifact.
+      - name: Collect release files
+        id: files
+        run: |
+          # Multi-line output needs the heredoc form; a bare newline would break key=value.
+          {
+            echo 'list<<RELEASE_FILES'
+            echo 'dist/car-config-embed.iife.js'
+            if [ "${{ steps.pipeline.outputs.expect_v2 }}" = "true" ]; then
+              echo 'dist/car-config-embed-v2.iife.js'
+            fi
+            echo 'RELEASE_FILES'
+          } >> $GITHUB_OUTPUT
+
       - uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.version.outputs.version }}
-          files: dist/car-config-embed.iife.js
+          files: ${{ steps.files.outputs.list }}
           generate_release_notes: true

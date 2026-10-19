@@ -6,9 +6,13 @@ import { Modal } from './components/Modal'
 import { ZenoButton } from './components/ZenoButton'
 import { createWidgetStore } from './stores/widget-store'
 import { createApiClient } from './utils/api'
+import { renderStreamV2 } from './utils/api-v2'
+import { prepareVehiclePhoto } from './utils/vehicle-photo'
+import { V2_LOADING_SCRIPTS } from './config/loading-v2'
 import { decodeJWT } from './utils/jwt'
 import { createSession } from './utils/session'
 import { detectTheme, observeThemeChanges } from './utils/theme'
+import { debugWarn } from './utils/debug'
 import type { ButtonTheme, ButtonSize, WidgetConfig, EmailGateResponse } from './types'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.platform.xix3d.com'
@@ -20,7 +24,86 @@ const FAIL_CLOSED_GATE: EmailGateResponse = {
 }
 
 const store = createWidgetStore()
-const api = createApiClient(API_URL)
+const baseApi = createApiClient(API_URL)
+
+store.actions.enableV2Loading(V2_LOADING_SCRIPTS)
+
+/**
+ * The X-Session-ID of the open preview. v2 keys its wheel-outline (pass 1) cache on it, so
+ * every finish tried on one photo in one preview reuses the first finish's outline.
+ */
+let sessionId = ''
+
+/**
+ * Serialises v2 renders. The modal fires one request per selected finish at once; run
+ * concurrently, each would miss the outline cache and pay pass 1 again (~14 s and a model
+ * call). Queued, the first builds it and the rest reuse it.
+ */
+let queue: Promise<unknown> = Promise.resolve()
+
+function enqueue<T>(task: () => Promise<T>): Promise<T> {
+  const run = queue.then(task, task)
+
+  // Keep the chain alive when a render rejects, or one failure stalls every finish behind it.
+  queue = run.catch(() => {})
+
+  return run
+}
+
+type RenderProducts = Array<{ product_id: string; variant_id?: string }>
+
+/**
+ * Wheels render through the two-pass (v2) pipeline, the one render.xix3D runs. v2 takes
+ * exactly one wheel product per request, so wraps and wheel + wrap combinations stay on the
+ * single-pass route.
+ */
+const rendersOnV2 = (products: RenderProducts) => products.length === 1 && !store.state.isWraps
+
+function renderOnV2(
+  file: File,
+  products: RenderProducts,
+  manufacturerId: number,
+  events: Parameters<typeof baseApi.renderStream>[3],
+  signal?: AbortSignal,
+) {
+  return enqueue(async () => renderStreamV2(
+    API_URL,
+    sessionId,
+    await prepareVehiclePhoto(file),
+    {
+      product_id: parseInt(products[0].product_id, 10),
+      ...(products[0].variant_id ? { variant_id: parseInt(products[0].variant_id, 10) } : {}),
+    },
+    manufacturerId,
+    events,
+    signal,
+  ))
+}
+
+const api: typeof baseApi = {
+  ...baseApi,
+
+  setSessionId: (id) => {
+    sessionId = id
+    baseApi.setSessionId(id)
+  },
+
+  renderStream: async (file, products, manufacturerId, events, signal) => {
+    if (!rendersOnV2(products)) return baseApi.renderStream(file, products, manufacturerId, events, signal)
+
+    const result = await renderOnV2(file, products, manufacturerId, events, signal)
+
+    return { success: result.success, final_image: result.image, error: result.error }
+  },
+
+  renderSingleVariant: async (file, products, manufacturerId, events, signal) => {
+    if (!rendersOnV2(products)) return baseApi.renderSingleVariant(file, products, manufacturerId, events, signal)
+
+    const result = await renderOnV2(file, products, manufacturerId, events, signal)
+
+    return { success: result.success, image: result.image, error: result.error }
+  },
+}
 
 let rootEl: HTMLElement | null = null
 let shadowRoot: ShadowRoot | null = null
@@ -30,6 +113,7 @@ function injectButtonStyles() {
   if (document.getElementById('avacar-button-styles')) return
 
   const styleEl = document.createElement('style')
+
   styleEl.id = 'avacar-button-styles'
   styleEl.textContent = widgetStyles
   document.head.appendChild(styleEl)
@@ -45,10 +129,12 @@ function mountWidget() {
   shadowRoot = rootEl.attachShadow({ mode: 'open' })
 
   const styleEl = document.createElement('style')
+
   styleEl.textContent = widgetStyles
   shadowRoot.appendChild(styleEl)
 
   const mountPoint = document.createElement('div')
+
   shadowRoot.appendChild(mountPoint)
 
   render(() => <Modal store={store} api={api} shadowRoot={shadowRoot!} />, mountPoint)
@@ -86,7 +172,9 @@ async function openPreview(jwt: string, customBrand?: string) {
 
     store.actions.open(selections, product, variants, customBrand)
     const gate = await api.getEmailGate(product?.manufacturer_id)
+
     store.actions.setEmailGate(gate ?? FAIL_CLOSED_GATE)
+
     return
   }
 
@@ -116,6 +204,7 @@ async function openPreview(jwt: string, customBrand?: string) {
 
   store.actions.open(selections, product, variants, customBrand)
   const gate = await api.getEmailGate(product?.manufacturer_id)
+
   store.actions.setEmailGate(gate ?? FAIL_CLOSED_GATE)
 }
 
@@ -170,14 +259,57 @@ function bindButtons() {
     const explicitTheme = button.getAttribute('data-button-theme') as ButtonTheme | null
 
     const originalDisplay = button.style.display
+
     button.style.display = 'none'
 
-    if (!decodeJWT(jwt)) return
+    // The button is hidden up front so the brand's own markup does not flash
+    // before the styled replacement renders. Every path that gives up after
+    // this point MUST put it back, or the brand's call to action silently
+    // disappears from their live site with nothing logged anywhere.
+    //
+    // That was the old behaviour: a cold start, a network blip, a non-2xx or a
+    // CORS failure all left the button hidden forever, and it looked identical
+    // to hitting the monthly render cap. Nobody could tell an outage from a
+    // quota, because neither said anything.
+    //
+    // Restoring it bare would be worse than useless (a visible button that
+    // does nothing), so the fallback also binds a click that just opens the
+    // preview. Validation runs again inside that flow, which means a load-time
+    // failure that has since recovered, exactly what a Cloud Run cold start
+    // looks like, resolves itself the moment a customer actually clicks.
+    let fallbackBound = false
+    const restoreButton = (why: string) => {
+      if (fallbackBound) return
+      fallbackBound = true
+      console.warn(`[avacar] preview button could not be initialised (${why}); leaving the original button in place`)
+      button.style.display = originalDisplay
+      button.addEventListener('click', (e) => {
+        e.preventDefault()
+        openPreview(jwt, customBrand)
+      })
+    }
+
+    if (!decodeJWT(jwt)) {
+      restoreButton('malformed token')
+
+      return
+    }
 
     api.validateToken(jwt).then((result) => {
-      if (!result) return
+      if (!result) {
+        restoreButton('token validation returned no result')
+
+        return
+      }
+      // The one deliberate removal: this account is switched off, so the brand
+      // is meant to lose the button. Everything else is a failure, not a state.
       if (result.is_active === false) {
+        debugWarn(
+          'button removed: this embed token is deactivated (is_active: false). The token is '
+          + 'valid but switched off server-side.',
+        )
         button.remove()
+
         return
       }
 
@@ -208,13 +340,16 @@ function bindButtons() {
           }
         }
       } else {
+        fallbackBound = true
         button.style.display = originalDisplay
         button.addEventListener('click', (e) => {
           e.preventDefault()
           openPreview(jwt, customBrand)
         })
       }
-    }).catch(() => {})
+    }).catch((err) => {
+      restoreButton(`validation threw: ${err}`)
+    })
   })
 }
 

@@ -41,6 +41,7 @@ export function Modal(props: ModalProps) {
     getBrandName,
     getModelName,
     getCurrentResult,
+    isV2LoadingEnabled,
   } = props.store;
   let modalRef: HTMLDivElement | undefined;
   const [modalStyle, setModalStyle] = createSignal<{
@@ -119,7 +120,9 @@ export function Modal(props: ModalProps) {
 
     if (!file) return;
 
-    actions.startLoading();
+    // v2 when the entry point supplied the two-pass loading scripts. Wraps keep their own
+    // script regardless (see getLoadingSteps).
+    actions.startLoading(isV2LoadingEnabled());
 
     const selections = state.selections;
 
@@ -157,6 +160,11 @@ export function Modal(props: ModalProps) {
     actions.initResults(initialResults);
 
     renderRequests.forEach((req, index) => {
+      // Set when onV2Error has already recorded a specific reason for THIS attempt, so the
+      // generic onError that follows does not overwrite it. Scoped per attempt on purpose:
+      // reading it back off the slot cannot distinguish this attempt's error from a previous
+      // one, and doing so left retries stuck in a loading state.
+      let hasV2Reason = false;
       const products: Array<{ product_id: string; variant_id?: string }> = [];
 
       if (selections?.wrap_id) {
@@ -180,6 +188,25 @@ export function Modal(props: ModalProps) {
         onVehicleDetected: (data) => {
           actions.setDetectedVehicle(data);
         },
+        // Two-pass stage events, used to drive the loading text from real progress instead
+        // of a timer. v1 never emits them, so these are inert there — and the stage names
+        // are plain strings, so nothing v2-specific is imported into this bundle. Only the
+        // first request drives the shared display; the rest would fight for the same
+        // stage pointer.
+        onMaskStarted: (data) => {
+          if (index !== 0) return;
+          actions.setMaskCached(data.cached);
+          actions.syncLoadingStage("mask");
+        },
+        onMaskComplete: (data) => {
+          if (index === 0) actions.setMaskCached(data.cached);
+        },
+        onFillStarted: () => {
+          if (index === 0) actions.syncLoadingStage("fill");
+        },
+        onCompositeComplete: () => {
+          if (index === 0) actions.syncLoadingStage("composite");
+        },
         onDebug: (data) => {
           actions.setDebugData(data);
         },
@@ -190,10 +217,41 @@ export function Modal(props: ModalProps) {
             loading: false,
           });
         },
+        // Structured two-pass failures. Runs before onError, which the v2 client also calls,
+        // so the slot ends up with the specific reason rather than a bare message. Inert on
+        // v1, which never emits it.
+        onV2Error: (data) => {
+          const detail = data.reasons?.length
+            ? `${data.message} (${data.reasons.join("; ")})`
+            : data.message;
+
+          hasV2Reason = true;
+
+          // An audit rejection still delivers its image, and onComplete has already marked
+          // the slot successful. Record why the audit objected, but leave the render
+          // viewable — overwriting success here would hide the very image being judged.
+          const delivered = state.galleryResults[index]?.image;
+
+          actions.updateResult(index, {
+            error: data.retryable
+              ? `${detail} — retrying may help`
+              : `${detail} — a retry would fail the same way`,
+            ...(delivered ? {} : { success: false, loading: false }),
+          });
+        },
+        // The audit rejected this image. Keep it on the slot rather than dropping it: the
+        // audit is itself a model call and does get it wrong, so being able to look at what
+        // it rejected is the difference between judging the pipeline and trusting it.
+        onAuditFailedImage: (dataUrl) => {
+          actions.updateResult(index, { image: dataUrl });
+        },
         onError: (msg) => {
           console.error(`[SSE:${index}] Error:`, msg);
+
+          // Never return early: updateResult is what clears `loading` and drives the view
+          // transition, so skipping it strands the slot. Only the message is conditional.
           actions.updateResult(index, {
-            error: msg,
+            error: hasV2Reason ? state.galleryResults[index]?.error : msg,
             success: false,
             loading: false,
           });
@@ -254,6 +312,25 @@ export function Modal(props: ModalProps) {
       {
         onDebug: (data) => {
           actions.setDebugData(data);
+        },
+        // A retry deserves the same explanation a first attempt gets, or the second failure
+        // looks like a different, unexplained one.
+        onV2Error: (data) => {
+          const detail = data.reasons?.length
+            ? `${data.message} (${data.reasons.join("; ")})`
+            : data.message;
+
+          actions.updateSingleResult(
+            index,
+            {
+              error: data.retryable
+                ? `${detail} — retrying may help`
+                : `${detail} — a retry would fail the same way`,
+              success: false,
+              loading: false,
+            },
+            requestId,
+          );
         },
         onComplete: (data) => {
           actions.updateSingleResult(
@@ -1298,7 +1375,7 @@ function FullscreenModal(props: FullscreenModalProps) {
                     }`}
                     style={{
                       "background-image": result.referenceImage
-                        ? `url(${result.referenceImage})`
+                        ? `url("${result.referenceImage}")`
                         : undefined,
                       "background-color": !result.referenceImage
                         ? result.hexColor || "#fff"
