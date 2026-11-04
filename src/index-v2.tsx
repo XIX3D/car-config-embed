@@ -31,6 +31,7 @@
  */
 import { render } from 'solid-js/web'
 import widgetStyles from './styles/index.css?inline'
+import pageStyles from './styles/page.css?inline'
 
 import { Modal } from './components/Modal'
 import { ZenoButton } from './components/ZenoButton'
@@ -230,7 +231,7 @@ function injectButtonStyles() {
   const styleEl = document.createElement('style')
 
   styleEl.id = STYLES_ID
-  styleEl.textContent = widgetStyles
+  styleEl.textContent = pageStyles
   document.head.appendChild(styleEl)
 }
 

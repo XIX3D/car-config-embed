@@ -298,10 +298,6 @@
 }
 
 /* ===== Zeno Button Animations ===== */
-@keyframes avacar-orbitSpin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
 
 /* ===== Zoom Hint Animations ===== */
 @keyframes zoomHintFadeIn {

@@ -1,6 +1,7 @@
 import { render } from 'solid-js/web'
 import { createSignal, onCleanup } from 'solid-js'
 import widgetStyles from './styles/index.css?inline'
+import pageStyles from './styles/page.css?inline'
 
 import { Modal } from './components/Modal'
 import { ZenoButton } from './components/ZenoButton'
@@ -129,7 +130,7 @@ function injectButtonStyles() {
   const styleEl = document.createElement('style')
 
   styleEl.id = 'avacar-button-styles'
-  styleEl.textContent = widgetStyles
+  styleEl.textContent = pageStyles
   document.head.appendChild(styleEl)
 }
 
