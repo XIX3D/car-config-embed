@@ -27,9 +27,12 @@ const TAKING_LONG_MS = 90_000;
 /** Photo problems end on the upload screen: that photo will fail the same way again. */
 const PHOTO_PROBLEMS: ProblemKind[] = ["nocar", "nowheels", "badfile"];
 
-/** Phone layout: the window fills the screen, buttons pinned at the bottom. */
+/**
+ * Phone layout: the picture on top, buttons pinned at the bottom. Width only: a phone on its
+ * side keeps the desk layout (picture with its bar under it), only full screen.
+ */
 function usePhone() {
-  const mq = window.matchMedia("(max-width: 700px), (max-height: 520px)");
+  const mq = window.matchMedia("(max-width: 700px)");
   const [phone, setPhone] = createSignal(mq.matches);
   const update = () => setPhone(mq.matches);
 
