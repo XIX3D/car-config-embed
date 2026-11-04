@@ -1,8 +1,1 @@
 export { Modal } from './Modal'
-export { UploadView } from './UploadView'
-export { LoadingView } from './LoadingView'
-export { ResultView } from './ResultView'
-export { QuoteView } from './QuoteView'
-export { SuccessView } from './SuccessView'
-export { GlowOrbs } from './GlowOrbs'
-export { AmbientParticles } from './AmbientParticles'

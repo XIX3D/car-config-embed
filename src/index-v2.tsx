@@ -193,6 +193,7 @@ const api: typeof baseApi = {
 
     if (rejection) {
       events.onError?.(rejection)
+      events.onProblem?.({ kind: 'fail' })
 
       return { success: false, error: rejection }
     }
@@ -204,20 +205,6 @@ const api: typeof baseApi = {
       final_image: result.image,
       error: result.error,
     }
-  },
-
-  renderSingleVariant: async (file, products, manufacturerId, events) => {
-    const rejection = v2Rejection(products.length)
-
-    if (rejection) {
-      events.onError?.(rejection)
-
-      return { success: false, error: rejection }
-    }
-
-    const result = await enqueue(() => renderOne(file, products, manufacturerId, events))
-
-    return { success: result.success, image: result.image, error: result.error }
   },
 }
 

@@ -11,6 +11,7 @@ import { prepareVehiclePhoto } from './utils/vehicle-photo'
 import { V2_LOADING_SCRIPTS } from './config/loading-v2'
 import { decodeJWT } from './utils/jwt'
 import { createSession } from './utils/session'
+import { getVisitorId } from './utils/visitor'
 import { detectTheme, observeThemeChanges } from './utils/theme'
 import { debugWarn } from './utils/debug'
 import type { ButtonTheme, ButtonSize, WidgetConfig, EmailGateResponse } from './types'
@@ -66,18 +67,23 @@ function renderOnV2(
   events: Parameters<typeof baseApi.renderStream>[3],
   signal?: AbortSignal,
 ) {
-  return enqueue(async () => renderStreamV2(
-    API_URL,
-    sessionId,
-    await prepareVehiclePhoto(file),
-    {
-      product_id: parseInt(products[0].product_id, 10),
-      ...(products[0].variant_id ? { variant_id: parseInt(products[0].variant_id, 10) } : {}),
-    },
-    manufacturerId,
-    events,
-    signal,
-  ))
+  return enqueue(async () => {
+    const visitor = baseApi.getVisitor()
+
+    return renderStreamV2(
+      API_URL,
+      sessionId,
+      await prepareVehiclePhoto(file),
+      {
+        product_id: parseInt(products[0].product_id, 10),
+        ...(products[0].variant_id ? { variant_id: parseInt(products[0].variant_id, 10) } : {}),
+      },
+      manufacturerId,
+      events,
+      signal,
+      { visitorId: visitor?.id, visitorHeader: visitor?.header },
+    )
+  })
 }
 
 const api: typeof baseApi = {
@@ -95,15 +101,23 @@ const api: typeof baseApi = {
 
     return { success: result.success, final_image: result.image, error: result.error }
   },
-
-  renderSingleVariant: async (file, products, manufacturerId, events, signal) => {
-    if (!rendersOnV2(products)) return baseApi.renderSingleVariant(file, products, manufacturerId, events, signal)
-
-    const result = await renderOnV2(file, products, manufacturerId, events, signal)
-
-    return { success: result.success, image: result.image, error: result.error }
-  },
 }
+
+/**
+ * Read the email-required answer: the gate, and (backend R2, R3, R7) the visitor's limit, the
+ * details-first setting and which new features the backend has. The X-Visitor-ID header is only
+ * sent once that answer carries `visitor_limit`, the field that ships with the per-visitor limit
+ * (R1); before then the backend's CORS list would refuse the header and every render with it.
+ */
+async function loadGate(manufacturerId?: number) {
+  const gate = await api.getEmailGate(manufacturerId)
+
+  api.setVisitor(getVisitorId(), !!gate && 'visitor_limit' in gate)
+
+  return gate ?? FAIL_CLOSED_GATE
+}
+
+let lastOpen: { jwt: string; brand?: string } | null = null
 
 let rootEl: HTMLElement | null = null
 let shadowRoot: ShadowRoot | null = null
@@ -137,7 +151,12 @@ function mountWidget() {
 
   shadowRoot.appendChild(mountPoint)
 
-  render(() => <Modal store={store} api={api} shadowRoot={shadowRoot!} />, mountPoint)
+  // Reload (Session ended, E7) opens the same preview again: a new session, bound afresh.
+  const reload = () => {
+    if (lastOpen) openPreview(lastOpen.jwt, lastOpen.brand)
+  }
+
+  render(() => <Modal store={store} api={api} shadowRoot={shadowRoot!} onReload={reload} />, mountPoint)
 }
 
 async function openPreview(jwt: string, customBrand?: string) {
@@ -147,6 +166,7 @@ async function openPreview(jwt: string, customBrand?: string) {
     return
   }
 
+  lastOpen = { jwt, brand: customBrand }
   mountWidget()
 
   api.setSessionId(createSession())
@@ -170,10 +190,11 @@ async function openPreview(jwt: string, customBrand?: string) {
       variants = await api.fetchVariants(productId, variantIds)
     }
 
-    store.actions.open(selections, product, variants, customBrand)
-    const gate = await api.getEmailGate(product?.manufacturer_id)
+    // Asked before the window opens, so a brand that wants details first never flashes the photo screen.
+    const gate = await loadGate(product?.manufacturer_id)
 
-    store.actions.setEmailGate(gate ?? FAIL_CLOSED_GATE)
+    store.actions.open(selections, product, variants, customBrand)
+    store.actions.setEmailGate(gate)
 
     return
   }
@@ -202,10 +223,10 @@ async function openPreview(jwt: string, customBrand?: string) {
     variants = v
   }
 
-  store.actions.open(selections, product, variants, customBrand)
-  const gate = await api.getEmailGate(product?.manufacturer_id)
+  const gate = await loadGate(product?.manufacturer_id)
 
-  store.actions.setEmailGate(gate ?? FAIL_CLOSED_GATE)
+  store.actions.open(selections, product, variants, customBrand)
+  store.actions.setEmailGate(gate)
 }
 
 function createZenoButton(

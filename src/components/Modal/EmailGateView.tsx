@@ -1,147 +1,86 @@
 import { createSignal, Show } from "solid-js";
-import type { EmailGateResponse } from "../../types";
-import { ModalHeader } from "./ModalHeader";
-
-interface CustomerData {
-  name: string;
-  email: string;
-  phone?: string;
-  address?: string;
-}
+import type { Lead } from "../../stores/widget-store";
+import { okEmail } from "./QuoteView";
 
 interface EmailGateViewProps {
-  productImgUrl: string;
   brandName: string;
-  modelName: string;
-  data: EmailGateResponse;
-  onClose: () => void;
-  onSubmit: (customer: CustomerData) => Promise<void>;
+  lead: Lead;
+  /** Before the photo, the line under the title says what comes next. */
+  beforePhoto: boolean;
+  onLead: (lead: Lead) => void;
+  /** Resolves when taken; rejects to show "Couldn't send. Try again." with the form kept. */
+  onSubmit: (lead: Lead) => Promise<void>;
 }
 
+/**
+ * G1, "Your details": name, email, phone (optional), asked before the photo when the brand turns
+ * it on (backend R3), and the same screen when the long-standing email gate asks. What is typed
+ * here fills the quote form later.
+ */
 export function EmailGateView(props: EmailGateViewProps) {
-  const [name, setName] = createSignal("");
-  const [email, setEmail] = createSignal("");
-  const [phone, setPhone] = createSignal("");
-  const [address, setAddress] = createSignal("");
-  const [isSubmitting, setIsSubmitting] = createSignal(false);
-  const [error, setError] = createSignal<string | null>(null);
+  // The form starts from what the visitor already typed elsewhere, then owns its own values.
+  // eslint-disable-next-line solid/reactivity
+  const [form, setForm] = createSignal<Lead>({ ...props.lead });
+  const [badEmail, setBadEmail] = createSignal(false);
+  const [failed, setFailed] = createSignal(false);
+  const [sending, setSending] = createSignal(false);
 
-  const isValid = () => email().trim().length > 0 && name().trim().length > 0;
+  const set = (k: keyof Lead, v: string) => {
+    setForm({ ...form(), [k]: v });
+    props.onLead(form());
+  };
+  const filled = () => !!form().name.trim() && !!form().email.trim() && !sending();
 
-  const handleSubmit = async (e: Event) => {
+  const submit = async (e: Event) => {
     e.preventDefault();
-    if (!isValid()) return;
-    setError(null);
-    setIsSubmitting(true);
+    if (!filled()) return;
+    setFailed(false);
+    if (!okEmail(form().email)) {
+      setBadEmail(true);
+
+      return;
+    }
+    setBadEmail(false);
+    setSending(true);
     try {
-      await props.onSubmit({
-        name: name().trim(),
-        email: email().trim(),
-        phone: phone().trim() || undefined,
-        address: address().trim() || undefined,
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit");
+      await props.onSubmit(form());
+    } catch {
+      setFailed(true);
     } finally {
-      setIsSubmitting(false);
+      setSending(false);
     }
   };
 
   return (
-    <div class="relative z-1 pt-6 pb-3 px-6 flex flex-col min-h-[520px] max-h-[90vh] overflow-y-auto scrollbar-hide">
-      <ModalHeader
-        brandName={props.brandName}
-        modelName={props.modelName}
-        productImgUrl={props.productImgUrl}
-        onClose={props.onClose}
-      />
-
-      <div class="animate-fadeInUp opacity-0 [animation-delay:0.1s] mt-4 mb-5 text-center">
-        <h3 class="text-xl font-semibold text-white m-0 mb-2">
-          Welcome back
-        </h3>
-        <p class="text-sm text-white/50">
-          Enter your details to continue rendering
-        </p>
-      </div>
-
-      <form
-        class="flex flex-col gap-2.5 max-w-[400px] w-full mx-auto"
-        onSubmit={handleSubmit}
-      >
-        <div class="animate-fadeInUp opacity-0 [animation-delay:0.2s]">
-          <input
-            type="text"
-            name="name"
-            class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-dinpro transition-all outline-none focus:border-[var(--theme-primary)]/60 focus:bg-white/[0.08] placeholder:text-white/30"
-            placeholder="Your Name *"
-            required
-            value={name()}
-            onInput={(e) => setName(e.currentTarget.value)}
-          />
-        </div>
-
-        <div class="animate-fadeInUp opacity-0 [animation-delay:0.25s]">
-          <input
-            type="email"
-            name="email"
-            class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-dinpro transition-all outline-none focus:border-[var(--theme-primary)]/60 focus:bg-white/[0.08] placeholder:text-white/30"
-            placeholder="Your Email *"
-            required
-            value={email()}
-            onInput={(e) => setEmail(e.currentTarget.value)}
-          />
-        </div>
-
-        <div class="animate-fadeInUp opacity-0 [animation-delay:0.3s]">
-          <input
-            type="tel"
-            name="phone"
-            class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-dinpro transition-all outline-none focus:border-[var(--theme-primary)]/60 focus:bg-white/[0.08] placeholder:text-white/30"
-            placeholder="Phone (optional)"
-            value={phone()}
-            onInput={(e) => setPhone(e.currentTarget.value)}
-          />
-        </div>
-
-        <div class="animate-fadeInUp opacity-0 [animation-delay:0.35s]">
-          <input
-            type="text"
-            name="address"
-            autocomplete="street-address"
-            class="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-dinpro transition-all outline-none focus:border-[var(--theme-primary)]/60 focus:bg-white/[0.08] placeholder:text-white/30"
-            placeholder="Address (optional)"
-            value={address()}
-            onInput={(e) => setAddress(e.currentTarget.value)}
-          />
-        </div>
-
-        <Show when={error()}>
-          <div class="text-xs text-red-400 mt-1 ml-1">{error()}</div>
+    <div class="xw-gt">
+      <form class="xw-gtc" onSubmit={submit} novalidate>
+        <h3 style={props.beforePhoto ? undefined : { "margin-bottom": "22px" }}>Your details</h3>
+        <Show when={props.beforePhoto}>
+          <p class="xw-gts">Then add your car photo.</p>
         </Show>
-
-        <div class="relative w-full animate-fadeInUp opacity-0 [animation-delay:0.4s] mt-1">
-          <button
-            type="submit"
-            class="relative w-full py-3.5 rounded-2xl text-[15px] font-medium cursor-pointer flex items-center justify-center gap-3 transition-all bg-zeno-electric text-white border-none hover:opacity-90 hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-            disabled={isSubmitting() || !isValid()}
-          >
-            {isSubmitting() ? "Submitting..." : "Resume"}
-          </button>
-        </div>
+        <input class="xw-in" placeholder="Your name" autocomplete="name" value={form().name} onInput={(e) => set("name", e.currentTarget.value)} />
+        <input
+          class={`xw-in ${badEmail() ? "bad" : ""}`}
+          placeholder="Email"
+          type="email"
+          inputmode="email"
+          autocomplete="email"
+          value={form().email}
+          onInput={(e) => set("email", e.currentTarget.value)}
+        />
+        <input class="xw-in" placeholder="Phone (optional)" type="tel" inputmode="tel" autocomplete="tel" value={form().phone} onInput={(e) => set("phone", e.currentTarget.value)} />
+        <Show when={badEmail()}>
+          <p class="xw-err">Check your email.</p>
+        </Show>
+        <Show when={failed()}>
+          <p class="xw-err">Couldn't send. Try again.</p>
+        </Show>
+        <button type="submit" class="xw-btn" disabled={!filled()}>Continue</button>
+        <p class="xw-foot">
+          {props.brandName} will contact you ·{" "}
+          <a href="https://xix3d.com/privacy.html" target="_blank" rel="noopener noreferrer">Privacy</a>
+        </p>
       </form>
-
-      <div class="text-white/40 text-xs text-center pt-3 mt-auto">
-        Powered by{" "}
-        <a
-          href="https://xix3d.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-white/60 font-semibold no-underline cursor-pointer"
-        >
-          <strong>XIX3D</strong>
-        </a>
-      </div>
     </div>
   );
 }
