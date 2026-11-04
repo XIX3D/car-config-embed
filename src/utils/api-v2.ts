@@ -7,11 +7,11 @@
  *
  * See docs/plans/TWO_PASS_EMBED_PLAN.md for the pipeline itself.
  */
-import { parseEmailGateBody, parseQuotaBody } from './api'
+import { parseEmailGateBody, parseVisitorUsage } from './api'
+import { problemFromResponse, problemFromStreamError } from './render-problems'
 import type {
   RenderStreamEvents,
   V2ErrorData,
-  QuotaExceededError,
   EmailGateResponse,
 } from '../types'
 
@@ -121,6 +121,8 @@ function parseEmailGateEvent(data: unknown): EmailGateResponse | null {
 interface V2StreamState {
   image: string
   v2Error?: V2ErrorData
+  /** True once the failure has been reported to the caller, so it is never reported twice. */
+  reported?: boolean
 }
 
 /**
@@ -133,10 +135,15 @@ interface V2StreamState {
 async function readStream(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   handlers: RenderStreamEvents,
+  state: V2StreamState,
 ): Promise<V2StreamState> {
   const decoder = new TextDecoder()
-  const state: V2StreamState = { image: '' }
   let buffer = ''
+  const usage = (data: unknown) => {
+    const u = parseVisitorUsage(data)
+
+    if (u) handlers.onVisitorUsage?.(u)
+  }
 
   while (true) {
     const { done, value } = await reader.read()
@@ -169,6 +176,13 @@ async function readStream(
       switch (event) {
         case 'started':
           handlers.onStarted?.()
+          usage(data)
+          break
+        // The render_logs ids of the delivered render: what "Email my renders" sends (R7).
+        case 'recorded':
+          if (Array.isArray(data.render_log_ids)) {
+            handlers.onRecorded?.(data.render_log_ids.filter((id: unknown): id is number => typeof id === 'number'))
+          }
           break
         case 'vehicle_detected':
           handlers.onVehicleDetected?.(data)
@@ -191,6 +205,7 @@ async function readStream(
         case 'complete':
           state.image = `data:image/png;base64,${data.image_b64}`
           handlers.onComplete?.(data)
+          usage(data)
           break
         // The audit rejecting the composited image, on a DEBUG request. The backend takes a
         // different path here from the non-debug one: instead of an `error` event carrying
@@ -239,16 +254,19 @@ async function readStream(
           const v2Error = gate ? null : parseV2ErrorEvent(data)
           const message: string = data.message
 
+          state.reported = true
+
           if (gate) {
             handlers.onEmailGateRequired?.(gate)
-          } else if (v2Error) {
-            state.v2Error = v2Error
-            handlers.onV2Error?.(v2Error)
-            handlers.onError?.(v2Error.message)
-          } else if (typeof data.retry_after_seconds === 'number') {
-            handlers.onQuotaExceeded?.(data as QuotaExceededError)
           } else {
-            handlers.onError?.(message)
+            // The structured detail still goes to onV2Error, which the comparison build shows;
+            // the visitor's screen comes from onProblem.
+            if (v2Error) {
+              state.v2Error = v2Error
+              handlers.onV2Error?.(v2Error)
+            }
+            handlers.onError?.(v2Error?.message || message)
+            handlers.onProblem?.(problemFromStreamError(data))
           }
 
           throw new Error(v2Error?.message || message || 'Stream error')
@@ -295,9 +313,23 @@ export async function renderStreamV2(
      * need to look at it. Worth turning on for a single render, not for a whole session.
      */
     debugImages?: boolean
+    /** This browser's visitor id (utils/visitor.ts), sent for the per-visitor limit (R1). */
+    visitorId?: string
+    /**
+     * Also send it as the X-Visitor-ID header. Only once the backend says it reads it: today's
+     * CORS allow-list does not name that header, and a preflight refusal would fail every render.
+     */
+    visitorHeader?: boolean
   },
 ): Promise<V2RenderResult> {
   const formData = new FormData()
+  const headers: Record<string, string> = { 'X-Session-ID': sessionId }
+
+  if (options?.visitorId) {
+    // A form field never triggers CORS, so the backend can count from this field on day one.
+    formData.append('visitor_id', options.visitorId)
+    if (options.visitorHeader) headers['X-Visitor-ID'] = options.visitorId
+  }
 
   formData.append('vehicle_image', file, 'vehicle.png')
   formData.append('products', JSON.stringify([{
@@ -316,31 +348,23 @@ export async function renderStreamV2(
     if (options.debugImages) formData.append('debug_images', 'true')
   }
 
-  let captured: V2ErrorData | undefined
-
-  const wrapped: RenderStreamEvents = {
-    ...events,
-    onV2Error: (data) => {
-      captured = data
-      events.onV2Error?.(data)
-    },
-  }
+  const state: V2StreamState = { image: '' }
 
   try {
     const res = await fetch(`${baseUrl}/api/v1/render/v2/chain/stream`, {
       method: 'POST',
-      headers: { 'X-Session-ID': sessionId },
+      headers,
       body: formData,
       signal,
     })
 
-    // A refusal arrives as a BODY, not a stream, and must be handled as a gate or quota event
-    // rather than a failed render. Throwing on any non-ok status turned the email gate's 428
-    // into "Render request failed (428)": the gate never opened, and every render died in a
-    // fraction of a second with no explanation. Same handling as the v1 client, reusing its
-    // parsers so the two cannot drift apart.
+    // A refusal arrives as a BODY, not a stream. Throwing on any non-ok status turned the email
+    // gate's 428 into "Render request failed (428)" and a 402 into the same raw text; each
+    // status now goes to its own screen (utils/render-problems.ts).
     if (!res.ok) {
       const gate = await parseEmailGateBody(res)
+
+      state.reported = true
 
       if (gate) {
         events.onEmailGateRequired?.(gate)
@@ -348,20 +372,17 @@ export async function renderStreamV2(
         return { success: false, error: 'Email required' }
       }
 
-      const quota = await parseQuotaBody(res)
+      const problem = await problemFromResponse(res)
 
-      if (quota) {
-        events.onQuotaExceeded?.(quota)
+      events.onError?.(`Render refused (${res.status} ${problem.code || ''})`)
+      events.onProblem?.(problem)
 
-        return { success: false, error: quota.message }
-      }
-
-      throw new Error(`Render request failed (${res.status})`)
+      return { success: false, error: problem.kind }
     }
 
     if (!res.body) throw new Error('No response body')
 
-    const state = await readStream(res.body.getReader(), wrapped)
+    await readStream(res.body.getReader(), events, state)
 
     if (!state.image) {
       throw new Error('Stream ended before a complete image was received')
@@ -375,9 +396,12 @@ export async function renderStreamV2(
 
     const error = e instanceof Error ? e.message : 'Unknown error'
 
-    // Already reported through onV2Error with its retryability intact.
-    if (!captured) events.onError?.(error)
+    // A dropped connection, a stream that ended early: the visitor sees "Render failed".
+    if (!state.reported) {
+      events.onError?.(error)
+      events.onProblem?.({ kind: 'fail' })
+    }
 
-    return { success: false, error, v2Error: captured }
+    return { success: false, error, v2Error: state.v2Error }
   }
 }

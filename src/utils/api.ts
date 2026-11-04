@@ -1,25 +1,26 @@
-import type { Product, Variant, QuoteRequest, RenderStreamEvents, DecodeTokenResponse, ValidateTokenResponse, VehicleDetectionResult, SimilarProduct, QuotaExceededError, EmailGateResponse } from '../types'
+import type { Product, Variant, QuoteRequest, RenderStreamEvents, DecodeTokenResponse, ValidateTokenResponse, VehicleDetectionResult, SimilarProduct, EmailGateResponse, VisitorUsage } from '../types'
+import { problemFromResponse, problemFromStreamError } from './render-problems'
+
+/**
+ * The visitor's limit and use, from a `started` or `complete` event or the email-required
+ * response (backend R2). Either naming is accepted; null when either number is missing, which
+ * is every response today.
+ */
+export const parseVisitorUsage = (data: unknown): VisitorUsage | null => {
+  if (!data || typeof data !== 'object') return null
+  const d = data as Record<string, unknown>
+  const limit = d.visitor_limit ?? d.limit
+  const used = d.visitor_used ?? d.used
+
+  return typeof limit === 'number' && typeof used === 'number' ? { limit, used } : null
+}
 
 /**
  * Exported so the two-pass client reuses this rather than reimplementing it.
  *
- * A render request can be refused with a body rather than a stream — 429 for quota, 428 for
- * the email gate — and those must be handled as gate/quota events, not as a failed render.
- * The v2 client threw on any non-ok response, so a 428 became "Render request failed (428)"
- * and the email gate never opened.
+ * A render request can be refused with a body rather than a stream (428 for the email gate)
+ * and that must open the gate, not fail the render.
  */
-export const parseQuotaBody = async (res: Response): Promise<QuotaExceededError | null> => {
-  if (res.status !== 429) return null
-  try {
-    const body = await res.clone().json()
-    if (body && typeof body.retry_after_seconds === 'number' && typeof body.message === 'string') {
-      return body as QuotaExceededError
-    }
-  } catch { /* fall through */ }
-  return null
-}
-
-/** See parseQuotaBody. Exported for the two-pass client. */
 export const parseEmailGateBody = async (res: Response): Promise<EmailGateResponse | null> => {
   try {
     const body = await res.clone().json()
@@ -59,6 +60,8 @@ interface SSEStreamResult {
 
 interface SSEStreamOptions {
   detectVehicle?: boolean
+  /** Set once a failure has been reported, so the caller's catch does not report it again. */
+  state?: { reported?: boolean }
 }
 
 async function processSSEStream(
@@ -91,6 +94,9 @@ async function processSSEStream(
         case 'started':
           handlers.onStarted?.()
           break
+        case 'recorded':
+          if (Array.isArray(data.render_log_ids)) handlers.onRecorded?.(data.render_log_ids)
+          break
         case 'vehicle_detected':
           if (options.detectVehicle) {
             detectedVehicle = `${data.year} ${data.make} ${data.model}`
@@ -106,18 +112,21 @@ async function processSSEStream(
         case 'debug':
           handlers.onDebug?.(data)
           break
-        case 'complete':
+        case 'complete': {
           finalImage = `data:image/png;base64,${data.image_b64}`
           handlers.onComplete?.(data)
+          const usage = parseVisitorUsage(data)
+          if (usage) handlers.onVisitorUsage?.(usage)
           break
+        }
         case 'error': {
           const gate = parseEmailGateEvent(data)
+          if (options.state) options.state.reported = true
           if (gate) {
             handlers.onEmailGateRequired?.(gate)
-          } else if (data && typeof data.retry_after_seconds === 'number' && typeof data.message === 'string') {
-            handlers.onQuotaExceeded?.(data as QuotaExceededError)
           } else {
             handlers.onError?.(data.message)
+            handlers.onProblem?.(problemFromStreamError(data))
           }
           throw new Error(data.message || 'Stream error')
         }
@@ -130,11 +139,21 @@ async function processSSEStream(
 
 export function createApiClient(baseUrl: string) {
   let _sessionId: string | null = null
+  let _visitor: { id: string; header: boolean } | null = null
 
   const setSessionId = (id: string) => { _sessionId = id }
 
+  /** See renderStreamV2's `visitorHeader` for why the header waits for the backend to ask. */
+  const setVisitor = (id: string, header: boolean) => { _visitor = { id, header } }
+  const getVisitor = () => _visitor
+
   const sessionHeaders = (): Record<string, string> =>
     _sessionId ? { 'X-Session-ID': _sessionId } : {}
+
+  const renderHeaders = (): Record<string, string> => ({
+    ...sessionHeaders(),
+    ...(_visitor?.header ? { 'X-Visitor-ID': _visitor.id } : {}),
+  })
 
   const decodeToken = async (token: string): Promise<DecodeTokenResponse | null> => {
     try {
@@ -305,33 +324,39 @@ export function createApiClient(baseUrl: string) {
     }
   }
 
-  const submitQuote = async (request: QuoteRequest): Promise<{ success: boolean; error?: string }> => {
+  /**
+   * A JSON POST that only reports whether it worked, and the status when it did not. The
+   * visitor sees one line for any failure ("Couldn't send. Try again."), never the server's
+   * text; a 401 means the embed session ended and goes to that screen instead.
+   */
+  const postJson = async (path: string, body: unknown): Promise<{ success: boolean; status?: number }> => {
     try {
-      const res = await fetch(`${baseUrl}/api/v1/quote/request`, {
+      const res = await fetch(`${baseUrl}/api/v1${path}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
-        body: JSON.stringify(request),
+        body: JSON.stringify(body),
       })
 
-      return await res.json()
+      if (!res.ok) return { success: false, status: res.status }
+
+      const data = await res.json().catch(() => ({}))
+
+      return { success: data?.success !== false }
     } catch {
-      return { success: false, error: 'Network error. Please try again.' }
+      return { success: false }
     }
   }
 
-  const submitLead = async (request: QuoteRequest): Promise<{ success: boolean; error?: string }> => {
-    try {
-      const res = await fetch(`${baseUrl}/api/v1/quote/lead`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
-        body: JSON.stringify(request),
-      })
+  const submitQuote = (request: QuoteRequest) => postJson('/quote/request', request)
 
-      return await res.json()
-    } catch {
-      return { success: false, error: 'Network error. Please try again.' }
-    }
-  }
+  const submitLead = (request: QuoteRequest) => postJson('/quote/lead', request)
+
+  /**
+   * "Email my renders" (backend R7). The endpoint does not exist yet; the widget only calls it
+   * when the backend has said so with `features.email_renders` on GET /render/email-required.
+   */
+  const emailRenders = (email: string, renderLogIds: number[]) =>
+    postJson('/embed/email-renders', { email, render_log_ids: renderLogIds })
 
   const getStorageUrl = (path: string) =>
     `${baseUrl}/storage/${path}`
@@ -383,32 +408,34 @@ export function createApiClient(baseUrl: string) {
     formData.append('manufacturer_id', String(manufacturerId))
     formData.append('fast_mode', 'true')
     formData.append('debug', 'true')
+    if (_visitor) formData.append('visitor_id', _visitor.id)
+
+    const state: { reported?: boolean } = {}
 
     try {
       const res = await fetch(`${baseUrl}/api/v1/render/chain/stream`, {
         method: 'POST',
-        headers: sessionHeaders(),
+        headers: renderHeaders(),
         body: formData,
         signal,
       })
 
       if (!res.ok) {
         const gate = await parseEmailGateBody(res)
+        state.reported = true
         if (gate) {
           events.onEmailGateRequired?.(gate)
           return { success: false, error: 'Email required' }
         }
-        const quota = await parseQuotaBody(res)
-        if (quota) {
-          events.onQuotaExceeded?.(quota)
-          return { success: false, error: quota.message }
-        }
-        throw new Error(`Render request failed (${res.status})`)
+        const problem = await problemFromResponse(res)
+        events.onError?.(`Render refused (${res.status} ${problem.code || ''})`)
+        events.onProblem?.(problem)
+        return { success: false, error: problem.kind }
       }
 
       if (!res.body) throw new Error('No response body')
 
-      const result = await processSSEStream(res.body.getReader(), events, { detectVehicle: true })
+      const result = await processSSEStream(res.body.getReader(), events, { detectVehicle: true, state })
 
       if (!result.image) {
         throw new Error('Stream ended before a complete image was received')
@@ -420,75 +447,18 @@ export function createApiClient(baseUrl: string) {
         return { success: false, error: 'Request cancelled' }
       }
       const error = e instanceof Error ? e.message : 'Unknown error'
-      events.onError?.(error)
-      return { success: false, error }
-    }
-  }
-
-  const renderSingleVariant = async (
-    file: File,
-    products: Array<{ product_id: string; variant_id?: string }>,
-    manufacturerId: number,
-    events: RenderStreamEvents,
-    signal?: AbortSignal,
-  ): Promise<{ success: boolean; image?: string; error?: string }> => {
-    const formData = new FormData()
-    formData.append('vehicle_image', file)
-
-    const productsPayload = products.map(p => ({
-      product_id: parseInt(p.product_id, 10),
-      ...(p.variant_id ? { variant_id: parseInt(p.variant_id, 10) } : {}),
-    }))
-    formData.append('products', JSON.stringify(productsPayload))
-    formData.append('manufacturer_id', String(manufacturerId))
-    formData.append('fast_mode', 'true')
-    formData.append('debug', 'true')
-
-    try {
-      const res = await fetch(`${baseUrl}/api/v1/render/chain/stream`, {
-        method: 'POST',
-        headers: sessionHeaders(),
-        body: formData,
-        signal,
-      })
-
-      if (!res.ok) {
-        const gate = await parseEmailGateBody(res)
-        if (gate) {
-          events.onEmailGateRequired?.(gate)
-          return { success: false, error: 'Email required' }
-        }
-        const quota = await parseQuotaBody(res)
-        if (quota) {
-          events.onQuotaExceeded?.(quota)
-          return { success: false, error: quota.message }
-        }
-        throw new Error(`Render request failed (${res.status})`)
+      if (!state.reported) {
+        events.onError?.(error)
+        events.onProblem?.({ kind: 'fail' })
       }
-
-      if (!res.body) throw new Error('No response body')
-
-      const result = await processSSEStream(res.body.getReader(), events, { detectVehicle: false })
-
-      if (!result.image) {
-        throw new Error('Stream ended before a complete image was received')
-      }
-
-      return { success: true, image: result.image }
-    } catch (e) {
-      if (e instanceof Error && e.name === 'AbortError') {
-        return { success: false, error: 'Request cancelled' }
-      }
-
-      const error = e instanceof Error ? e.message : 'Unknown error'
-      events.onError?.(error)
-
       return { success: false, error }
     }
   }
 
   return {
     setSessionId,
+    setVisitor,
+    getVisitor,
     decodeToken,
     validateToken,
     fetchProduct,
@@ -500,9 +470,9 @@ export function createApiClient(baseUrl: string) {
     render,
     renderSingle,
     renderStream,
-    renderSingleVariant,
     submitQuote,
     submitLead,
+    emailRenders,
     getEmailGate,
     getStorageUrl,
   }

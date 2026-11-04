@@ -78,10 +78,16 @@ export interface SimilarProduct {
 }
 
 export interface RenderResult {
+  /** Stable across removals, unlike the index: a failed slot leaves the strip. */
+  id: number
   label: string
   variantId: string | null
   hexColor: string | null
   referenceImage: string | null
+  /** The visitor's photo this render was made from, for the compare button. */
+  photo: string | null
+  /** Which photo, so finishes already rendered on it are not offered again. */
+  photoKey: number
   image?: string
   error?: string
   success: boolean
@@ -105,6 +111,8 @@ export interface QuoteRequest {
   images?: string[]
   final_image_url?: string
   final_image_urls?: string[]
+  /** The finishes the visitor picked (backend R8). Ignored by a backend that does not read it yet. */
+  variant_ids?: number[]
   manufacturer_id: number
 }
 
@@ -114,7 +122,8 @@ export interface WidgetConfig {
   brand?: string
 }
 
-export type ViewState = 'upload' | 'loading' | 'result' | 'quote' | 'success'
+/** `details` is G1, "Your details", asked before the photo when the brand turns it on. */
+export type ViewState = 'details' | 'upload' | 'loading' | 'result' | 'quote'
 
 export type ButtonTheme = 'light' | 'dark'
 
@@ -146,17 +155,37 @@ export interface DebugData {
   missing_references?: string[]
 }
 
-export interface QuotaExceededError {
-  error: string
-  limit: number
-  message: string
-  retry_after_seconds: number
-}
-
+/**
+ * GET /render/email-required. The last four fields are new (backend R2, R3, R7) and absent on
+ * today's backend; every one of them is optional and the widget does nothing without it.
+ */
 export interface EmailGateResponse {
   email_required: boolean
   free_sessions_used: number
   free_sessions_limit: number
+  visitor_limit?: number | null
+  visitor_used?: number | null
+  details_required?: boolean
+  features?: { email_renders?: boolean }
+}
+
+/** Which screen a refused or failed render ends on. See utils/render-problems.ts. */
+export type ProblemKind =
+  | 'limit' | 'paused' | 'slow' | 'fail' | 'timeout'
+  | 'nocar' | 'nowheels' | 'badfile' | 'expired'
+
+export interface RenderProblem {
+  kind: ProblemKind
+  /** The backend's error code, for the console. Never shown. */
+  code?: string
+  limit?: number
+  used?: number
+}
+
+/** The visitor's render limit and how much of it is used (backend R2). */
+export interface VisitorUsage {
+  limit: number
+  used: number
 }
 
 /**
@@ -234,8 +263,13 @@ export interface RenderStreamEvents {
   onDebug?: (data: DebugData) => void
   onComplete?: (data: { image_b64: string }) => void
   onError?: (message: string) => void
-  onQuotaExceeded?: (data: QuotaExceededError) => void
+  /** Fires once for every render that ends without an image, except a cancelled one. */
+  onProblem?: (problem: RenderProblem) => void
   onEmailGateRequired?: (data: EmailGateResponse) => void
+  /** The render_logs ids of a delivered render (SSE `recorded`). */
+  onRecorded?: (ids: number[]) => void
+  /** Limit and use, when the backend sends them on `started` or `complete` (backend R2). */
+  onVisitorUsage?: (usage: VisitorUsage) => void
 
   // v2-only. All optional, so v1 call sites need no changes.
   onMaskStarted?: (data: MaskStartedData) => void

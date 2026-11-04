@@ -1,6 +1,7 @@
+import { batch } from 'solid-js'
 import { createStore, produce } from 'solid-js/store'
-import type { ViewState, RenderResult, Product, Variant, JWTPayload, DebugData, VehicleInfo, QuotaExceededError, EmailGateResponse, LoadingStep } from '../types'
-import { LOADING_STEPS, LOADING_STEPS_WRAPS, ZOOM, ASPECT_THRESHOLDS } from '../constants'
+import type { ViewState, RenderResult, Product, Variant, JWTPayload, DebugData, VehicleInfo, EmailGateResponse, LoadingStep, ProblemKind, VisitorUsage } from '../types'
+import { LOADING_STEPS, LOADING_STEPS_WRAPS } from '../constants'
 
 /**
  * An alternate loading script set, supplied by a caller instead of imported here.
@@ -21,7 +22,14 @@ export interface AltLoadingScripts {
   cachedOmits: V2StageName
 }
 
-export type ImageAspect = 'normal' | 'wide' | 'tall' | 'square' | null
+/** The small cards over the window: a sent quote, leaving, renders emailed. */
+export type Popup = 'sent' | 'leave' | 'emailed'
+
+export interface Lead {
+  name: string
+  email: string
+  phone: string
+}
 
 export interface WidgetState {
   view: ViewState
@@ -34,17 +42,19 @@ export interface WidgetState {
   variants: Variant[]
   customBrand: string | null
 
-  // File handling
+  // The visitor's photo. photoKey changes with every new photo, so a finish rendered on one
+  // photo is offered again on the next.
   selectedFile: File | null
   previewDataUrl: string | null
-  imageAspect: ImageAspect
+  photoKey: number
 
-  // Results
+  // Results, across every photo of this visit. Ids, not indexes: a failed slot leaves the strip.
   galleryResults: RenderResult[]
-  currentIndex: number
+  currentId: number | null
   hasRendered: boolean
   detectedVehicle: VehicleInfo | null
-  interestedFinishes: number[]
+  /** The renders the visitor wants a quote for (hearts on the quote screen). */
+  interested: number[]
   selectedVariantIds: string[]
 
   // Loading
@@ -63,35 +73,29 @@ export interface WidgetState {
    */
   maskCached: boolean
 
-  // Zoom
-  zoomLevel: number
-  panX: number
-  panY: number
-  isDragging: boolean
+  // Over the window
+  notice: ProblemKind | null
+  popup: Popup | null
+  showFullscreen: boolean
+  /** The compare button: the visitor's own photo in place of the render. */
+  showOriginal: boolean
+  /** Where the quote screen's back chevron returns to. */
+  quoteBack: ViewState
 
-  // Modals
-  showExitModal: boolean
-  showFullscreenModal: boolean
-  showShareModal: boolean
-  showRestartModal: boolean
-  showRerenderModal: boolean
-  pendingRerenderIndex: number | null
-
-  // Quote view
-  quoteViewIndex: number
-
-  // Error
-  error: string | null
-  quotaError: QuotaExceededError | null
+  // Gate, limit, features (backend R2, R3, R7: all optional)
   emailGate: EmailGateResponse | null
+  detailsRequired: boolean
+  visitorLimit: number | null
+  visitorUsed: number | null
+  emailRendersOn: boolean
+  /** What the visitor typed in Your details or the quote form, so they never type it twice. */
+  lead: Lead
+  renderLogIds: number[]
+  quoteSent: boolean
+  rendersEmailed: boolean
 
   // Debug
   debugData: DebugData | null
-  showQuotaModal: boolean
-
-  // Single re-render
-  rerenderingIndex: number | null
-  rerenderRequestId: string | null
 }
 
 const initialState: WidgetState = {
@@ -106,13 +110,13 @@ const initialState: WidgetState = {
 
   selectedFile: null,
   previewDataUrl: null,
-  imageAspect: null,
+  photoKey: 0,
 
   galleryResults: [],
-  currentIndex: 0,
+  currentId: null,
   hasRendered: false,
   detectedVehicle: null,
-  interestedFinishes: [],
+  interested: [],
   selectedVariantIds: [],
 
   loadingStep: 0,
@@ -120,29 +124,23 @@ const initialState: WidgetState = {
   isV2Render: false,
   maskCached: false,
 
-  zoomLevel: ZOOM.min,
-  panX: 0,
-  panY: 0,
-  isDragging: false,
+  notice: null,
+  popup: null,
+  showFullscreen: false,
+  showOriginal: false,
+  quoteBack: 'result',
 
-  showExitModal: false,
-  showFullscreenModal: false,
-  showShareModal: false,
-  showRestartModal: false,
-  showRerenderModal: false,
-  pendingRerenderIndex: null,
-
-  quoteViewIndex: 0,
-
-  error: null,
-  quotaError: null,
   emailGate: null,
+  detailsRequired: false,
+  visitorLimit: null,
+  visitorUsed: null,
+  emailRendersOn: false,
+  lead: { name: '', email: '', phone: '' },
+  renderLogIds: [],
+  quoteSent: false,
+  rendersEmailed: false,
 
   debugData: null,
-  showQuotaModal: true,
-
-  rerenderingIndex: null,
-  rerenderRequestId: null,
 }
 
 export function createWidgetStore() {
@@ -184,16 +182,25 @@ export function createWidgetStore() {
     return stage < altScripts.stages[altScripts.cachedOmits] ? stage : stage - 1
   }
 
+  /** The brand, for the header ("Brand - Wheel") and the quote footer. */
   const getBrandName = () =>
     state.customBrand ||
+    state.product?.manufacturer?.company_name ||
     state.product?.category ||
-    (state.isWraps ? 'WRAPS' : 'WHEELS')
+    (state.isWraps ? 'Wraps' : 'Wheels')
 
   const getModelName = () =>
     state.product?.name || (state.isWraps ? 'Wrap' : 'Wheel')
 
   const getCurrentResult = () =>
-    state.galleryResults[state.currentIndex] || null
+    state.galleryResults.find((r) => r.id === state.currentId) || null
+
+  /** The renders that finished, in the order they were made. */
+  const getDoneResults = () => state.galleryResults.filter((r) => r.success && r.image)
+
+  /** True once the visitor has used every render the brand allows (backend R2). */
+  const isLimitReached = () =>
+    state.visitorLimit !== null && state.visitorUsed !== null && state.visitorUsed >= state.visitorLimit
 
   /**
    * Whether the two-pass loading display is available, i.e. a caller supplied its scripts.
@@ -203,10 +210,41 @@ export function createWidgetStore() {
    */
   const isV2LoadingEnabled = () => altScripts !== null
 
+  let nextId = 1
+
+  const restartTimer = () => {
+    if (state.loadingInterval) clearInterval(state.loadingInterval)
+
+    let elapsed = 0
+
+    // Reading store state inside a timer is deliberate, not a missed tracked scope: this
+    // is a fallback clock, and it must observe whatever the SSE events have already set.
+    // eslint-disable-next-line solid/reactivity
+    const interval = window.setInterval(() => {
+      elapsed += 100
+      setState(produce((s) => {
+        // Re-read each tick: a cached-mask event can shorten the script mid-render.
+        const steps = getLoadingSteps()
+        let total = 0
+
+        for (let i = 0; i <= s.loadingStep && i < steps.length; i++) {
+          total += steps[i].duration
+        }
+
+        if (elapsed >= total && s.loadingStep < steps.length - 1) {
+          s.loadingStep += 1
+        }
+      }))
+    }, 100)
+
+    setState('loadingInterval', interval)
+  }
+
   const actions = {
     open(selections: JWTPayload, product: Product | null, variants: Variant[], customBrand?: string) {
       const isWraps = !!(selections.wrap_id && !selections.wheel_id)
 
+      if (state.loadingInterval) clearInterval(state.loadingInterval)
       setState({
         ...initialState,
         isOpen: true,
@@ -215,6 +253,8 @@ export function createWidgetStore() {
         variants,
         customBrand: customBrand || null,
         isWraps,
+        // A brand with one finish has nothing to pick: it is picked.
+        selectedVariantIds: variants.length === 1 ? [variants[0].id] : [],
       })
     },
 
@@ -226,14 +266,17 @@ export function createWidgetStore() {
     },
 
     setView(view: ViewState) {
-      setState('view', view)
+      setState({ view, showOriginal: false })
     },
 
-    setFile(file: File, dataUrl: string) {
+    /** A new photo: the first finish is picked for it, as the studio does. */
+    setFile(file: File, dataUrl: string, firstVariantId?: string) {
       setState({
         selectedFile: file,
         previewDataUrl: dataUrl,
-        selectedVariantIds: [],
+        photoKey: state.photoKey + 1,
+        selectedVariantIds: firstVariantId ? [firstVariantId] : [],
+        view: 'upload',
       })
     },
 
@@ -241,8 +284,8 @@ export function createWidgetStore() {
       setState({
         selectedFile: null,
         previewDataUrl: null,
-        selectedVariantIds: [],
-        error: null,
+        selectedVariantIds: state.variants.length === 1 ? [state.variants[0].id] : [],
+        view: 'upload',
       })
     },
 
@@ -258,23 +301,6 @@ export function createWidgetStore() {
         list.push(id)
         if (list.length > 3) list.shift()
       }))
-    },
-
-    setImageAspect(width: number, height: number) {
-      if (width <= 0 || height <= 0) {
-        setState('imageAspect', null)
-
-        return
-      }
-
-      const ratio = width / height
-      let aspect: ImageAspect = 'square'
-
-      if (ratio > ASPECT_THRESHOLDS.wide) aspect = 'wide'
-      else if (ratio > ASPECT_THRESHOLDS.normal) aspect = 'normal'
-      else if (ratio < ASPECT_THRESHOLDS.tall) aspect = 'tall'
-
-      setState('imageAspect', aspect)
     },
 
     /**
@@ -304,34 +330,21 @@ export function createWidgetStore() {
       setState({
         view: 'loading',
         loadingStep: 0,
-        error: null,
         isV2Render: isV2,
         maskCached: false,
+        notice: null,
+        showOriginal: false,
       })
+      restartTimer()
+    },
 
-      let elapsed = 0
-
-      // Reading store state inside a timer is deliberate, not a missed tracked scope: this
-      // is a fallback clock, and it must observe whatever the SSE events have already set.
-      // eslint-disable-next-line solid/reactivity
-      const interval = window.setInterval(() => {
-        elapsed += 100
-        setState(produce((s) => {
-          // Re-read each tick: a cached-mask event can shorten the script mid-render.
-          const steps = getLoadingSteps()
-          let total = 0
-
-          for (let i = 0; i <= s.loadingStep && i < steps.length; i++) {
-            total += steps[i].duration
-          }
-
-          if (elapsed >= total && s.loadingStep < steps.length - 1) {
-            s.loadingStep += 1
-          }
-        }))
-      }, 100)
-
-      setState('loadingInterval', interval)
+    /**
+     * A queued render has started: the next finish after the first. The script starts over
+     * for it, without leaving the result screen the visitor is on.
+     */
+    restartLoading() {
+      setState({ loadingStep: 0, maskCached: false })
+      restartTimer()
     },
 
     /**
@@ -385,214 +398,138 @@ export function createWidgetStore() {
       }
     },
 
-    setResults(results: RenderResult[], detectedVehicle?: VehicleInfo) {
-      actions.stopLoading()
+    /** New render slots, one per finish, shown as skeletons until they arrive. Returns their ids. */
+    addSlots(slots: Array<Omit<RenderResult, 'id' | 'success' | 'loading'>>) {
+      const added = slots.map((s) => ({ ...s, id: nextId++, success: false, loading: true }))
 
-      const successfulResults = results.filter((r) => r.success)
+      setState('galleryResults', (prev) => [...prev, ...added])
 
-      if (successfulResults.length === 0) {
-        setState({
-          view: 'upload',
-          error: 'All render requests failed. Please try again.',
-        })
-
-        return
-      }
-
-      setState({
-        view: 'result',
-        galleryResults: successfulResults,
-        currentIndex: 0,
-        hasRendered: true,
-        detectedVehicle: detectedVehicle || null,
-      })
+      return added.map((s) => s.id)
     },
 
-    initResults(results: RenderResult[]) {
-      setState({
-        galleryResults: results,
-        currentIndex: 0,
-      })
+    /** A render arrived: it fills the window at once. */
+    completeSlot(id: number, image: string) {
+      setState('galleryResults', (r) => r.id === id, { image, success: true, loading: false })
+      setState({ currentId: id, hasRendered: true, showOriginal: false })
+      if (state.view === 'loading') setState('view', 'result')
     },
 
-    updateResult(index: number, result: Partial<RenderResult>) {
-      setState('galleryResults', index, (prev) => ({ ...prev, ...result }))
+    /** A render failed or was cancelled: its slot leaves the strip (no empty boxes). */
+    dropSlot(id: number) {
+      setState(produce((s) => {
+        s.galleryResults = s.galleryResults.filter((r) => r.id !== id)
+        s.interested = s.interested.filter((i) => i !== id)
+        if (s.currentId === id) {
+          const done = s.galleryResults.filter((r) => r.success)
 
-      if (state.view !== 'loading') return
-      if (state.quotaError) return
-
-      // Show the gallery as soon as ANY finish has an image, not only when the first one does.
-      //
-      // Waiting specifically on slot 0 means one failed finish holds back every finish behind
-      // it — and on the two-pass pipeline, where renders are serialised and each takes ~30s,
-      // that is a long wait for results that already exist. Worse, if slot 0 fails the user is
-      // sent back to the upload screen and never sees the finishes that did succeed.
-      const firstReady = state.galleryResults.findIndex((r) => r.success && !r.loading)
-
-      if (firstReady !== -1) {
-        actions.stopLoading()
-        setState({ view: 'result', currentIndex: firstReady, hasRendered: true })
-
-        return
-      }
-
-      const allDone = state.galleryResults.every((r) => !r.loading)
-
-      if (!allDone) return
-
-      actions.stopLoading()
-
-      // Only every finish failing sends the user back — the gallery has nothing to show.
-      setState({ view: 'upload', error: 'Rendering failed. Please try again with a different image.' })
+          s.currentId = done.length ? done[done.length - 1].id : null
+        }
+      }))
     },
 
     setDetectedVehicle(vehicle: VehicleInfo) {
       setState('detectedVehicle', vehicle)
     },
 
-    setCurrentIndex(index: number) {
-      setState({
-        currentIndex: index,
-        zoomLevel: ZOOM.min,
-        panX: 0,
-        panY: 0,
-      })
+    select(id: number) {
+      setState({ currentId: id, showOriginal: false })
     },
 
+    toggleOriginal() {
+      setState('showOriginal', (v) => !v)
+    },
+
+    /** Request quote: the render on screen is the one it is for, until the visitor adds more. */
     showQuote() {
-      const current = getCurrentResult()
+      let back = state.view === 'quote' ? state.quoteBack : state.view
 
-      if (current && !state.interestedFinishes.includes(state.currentIndex)) {
-        setState('interestedFinishes', [...state.interestedFinishes, state.currentIndex])
-      }
-      setState('view', 'quote')
-    },
-
-    toggleFinishInterest(index: number) {
-      const idx = state.interestedFinishes.indexOf(index)
-
-      if (idx > -1) {
-        setState('interestedFinishes', state.interestedFinishes.filter((_, i) => i !== idx))
-      } else {
-        setState('interestedFinishes', [...state.interestedFinishes, index])
-      }
-    },
-
-    showSuccess() {
-      setState('view', 'success')
-    },
-
-    resetToUpload() {
+      // The loading screen is gone by the time the visitor comes back.
+      if (back === 'loading') back = getDoneResults().length ? 'result' : 'upload'
       setState({
-        view: 'upload',
-        selectedFile: null,
-        previewDataUrl: null,
-        galleryResults: [],
-        currentIndex: 0,
-        hasRendered: false,
-        interestedFinishes: [],
-        selectedVariantIds: [],
-        error: null,
-        debugData: null,
-        zoomLevel: ZOOM.min,
-        panX: 0,
-        panY: 0,
-        rerenderingIndex: null,
-        rerenderRequestId: null,
+        view: 'quote',
+        quoteBack: back,
+        interested: state.currentId !== null ? [state.currentId] : [],
+        notice: null,
+        popup: null,
+        showOriginal: false,
       })
     },
 
-    setZoom(level: number) {
-      const newZoom = Math.max(ZOOM.min, Math.min(ZOOM.max, level))
+    toggleInterest(id: number) {
+      const has = state.interested.includes(id)
 
-      setState('zoomLevel', newZoom)
-      if (newZoom <= ZOOM.min) {
-        setState({ panX: 0, panY: 0 })
-      }
+      // Never none: the quote is always for at least one render.
+      if (has && state.interested.length < 2) return
+      setState('interested', has ? state.interested.filter((i) => i !== id) : [...state.interested, id])
     },
 
-    setPan(x: number, y: number) {
-      setState({ panX: x, panY: y })
+    /** Picking a render on the quote screen shows it and puts it in the quote. */
+    focusInterest(id: number) {
+      setState({ currentId: id })
+      if (!state.interested.includes(id)) setState('interested', [...state.interested, id])
     },
 
-    setDragging(dragging: boolean) {
-      setState('isDragging', dragging)
+    markQuoteSent() {
+      setState({ quoteSent: true, popup: 'sent', view: state.quoteBack })
+    },
+
+    setLead(lead: Partial<Lead>) {
+      setState('lead', (prev) => ({ ...prev, ...lead }))
+    },
+
+    setNotice(kind: ProblemKind | null) {
+      setState('notice', kind)
+    },
+
+    setPopup(popup: Popup | null) {
+      setState('popup', popup)
+    },
+
+    markRendersEmailed() {
+      setState({ rendersEmailed: true, popup: 'emailed' })
+    },
+
+    toggleFullscreen(show: boolean) {
+      setState('showFullscreen', show)
     },
 
     setDebugData(data: DebugData) {
       setState('debugData', data)
     },
 
-    toggleShowQuotaModal() {
-      setState('showQuotaModal', (v) => !v)
-    },
-
-    setError(error: string | null) {
-      setState('error', error)
-    },
-
-    setQuotaError(data: QuotaExceededError | null) {
-      setState('quotaError', data)
-    },
-
+    /**
+     * The email-required answer. Besides the long-standing gate it may carry the visitor's limit
+     * (R2), details-first (R3) and new features (R7); each is ignored when absent.
+     */
     setEmailGate(gate: EmailGateResponse | null) {
-      setState('emailGate', gate)
-    },
-
-    removeResult(index: number) {
-      setState('galleryResults', (prev) => prev.filter((_, i) => i !== index))
-    },
-
-    toggleExitModal(show: boolean) {
-      setState('showExitModal', show)
-    },
-
-    toggleFullscreenModal(show: boolean) {
-      setState('showFullscreenModal', show)
-    },
-
-    toggleShareModal(show: boolean) {
-      setState('showShareModal', show)
-    },
-
-    toggleRestartModal(show: boolean) {
-      setState('showRestartModal', show)
-    },
-
-    toggleRerenderModal(show: boolean, index?: number) {
-      setState({
-        showRerenderModal: show,
-        pendingRerenderIndex: show ? (index ?? null) : null,
+      // One update, so anything watching the gate sees the limit and the view that came with it.
+      batch(() => {
+        if (gate && typeof gate.visitor_limit === 'number' && typeof gate.visitor_used === 'number') {
+          setState({ visitorLimit: gate.visitor_limit, visitorUsed: gate.visitor_used })
+        }
+        if (gate?.features?.email_renders === true) setState('emailRendersOn', true)
+        if (gate && (gate.details_required === true || gate.email_required)) {
+          setState({ detailsRequired: true, view: 'details' })
+        }
+        setState('emailGate', gate)
       })
     },
 
-    setQuoteViewIndex(index: number) {
-      setState('quoteViewIndex', index)
-    },
-
-    setRerenderingIndex(index: number | null, requestId?: string) {
+    /** The details were taken (G1 or the old email gate): on to the photo. */
+    detailsDone() {
       setState({
-        rerenderingIndex: index,
-        rerenderRequestId: requestId || null,
+        detailsRequired: false,
+        emailGate: state.emailGate ? { ...state.emailGate, email_required: false, details_required: false } : null,
+        view: 'upload',
       })
     },
 
-    updateSingleResult(index: number, result: Partial<RenderResult>, requestId?: string) {
-      if (requestId && state.rerenderRequestId !== requestId) {
-        return
-      }
+    setVisitorUsage(usage: VisitorUsage) {
+      setState({ visitorLimit: usage.limit, visitorUsed: usage.used })
+    },
 
-      const updatedResult = { ...result }
-
-      if (result.success) {
-        delete updatedResult.error
-      }
-
-      setState('galleryResults', index, (prev) => ({ ...prev, ...updatedResult }))
-      setState({
-        rerenderingIndex: null,
-        rerenderRequestId: null,
-      })
+    addRenderLogIds(ids: number[]) {
+      setState('renderLogIds', (prev) => [...prev, ...ids])
     },
   }
 
@@ -603,6 +540,8 @@ export function createWidgetStore() {
     getBrandName,
     getModelName,
     getCurrentResult,
+    getDoneResults,
+    isLimitReached,
     isV2LoadingEnabled,
   }
 }

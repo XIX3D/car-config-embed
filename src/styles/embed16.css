@@ -1,0 +1,623 @@
+/* =====================================================================
+   The brand embed window, CD round 16 (4 Nov 2026).
+
+   Measurements are copied from the round 16 mock's own CSS (r16.css and the
+   base sheet it builds on), not eyeballed: a 1100 x 712 window, a 56px header,
+   the picture 58px in from the sides, one 56px control height whose left and
+   right edges sit on the picture's edges. Everything is namespaced `xw-`
+   because this sheet is also injected into the brand's own page.
+   ===================================================================== */
+
+.xw {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(10, 12, 20, 0.55);
+  font-family: 'xix3D Manrope', Manrope, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  color: #12141c;
+  line-height: 1.4;
+  text-align: left;
+  -webkit-font-smoothing: antialiased;
+  animation: xw-fade 0.2s ease;
+}
+.xw *, .xw *::before, .xw *::after { box-sizing: border-box; }
+.xw button, .xw input { font-family: inherit; }
+@keyframes xw-fade { from { opacity: 0; } }
+
+.xw-sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(1100px, 100%);
+  height: min(712px, 100%);
+  border-radius: 26px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #ecf0f6, #c3d4e8);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.5);
+}
+
+/* ---------- header: "Brand - Wheel", Powered by xix3D, the one X ---------- */
+.xw-hd {
+  position: relative;
+  flex: none;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px 0 16px;
+}
+.xw-mark {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid rgba(18, 20, 28, 0.12);
+}
+.xw-mark img { display: block; width: 100%; height: 100%; object-fit: contain; padding: 2px; }
+.xw-name {
+  min-width: 0;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: normal;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.xw-name small {
+  display: block;
+  font-weight: 500;
+  font-size: 11px;
+  line-height: 1.1;
+  color: #6b7487;
+  margin-top: 1px;
+}
+.xw-round {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(18, 20, 28, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  color: #12141c;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.xw-round svg { width: 16px; height: 16px; }
+.xw-hd .xw-round { margin-left: auto; }
+/* a pop-up dims the whole window, header included */
+.xw-sheet.dim .xw-hd::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+  background: rgba(18, 24, 40, 0.4);
+  animation: xw-fade 0.2s;
+}
+
+.xw-stage { position: relative; flex: 1; min-height: 0; }
+
+/* ---------- the picture and the bar under it (desktop) ----------
+   The picture keeps the photo's own shape (--ar) and is as big as the window
+   allows; the bar is exactly as wide, so its edges sit on the picture's. */
+.xw-fit {
+  position: absolute;
+  inset: 8px 58px 14px;
+  container-type: size;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.xw-col {
+  width: min(100cqw, max(640px, (100cqh - 88px) * var(--ar, 1.5)));
+  display: flex;
+  flex-direction: column;
+}
+.xw-pic {
+  position: relative;
+  width: min(100%, (100cqh - 88px) * var(--ar, 1.5));
+  aspect-ratio: var(--ar, 1.5);
+  margin: 0 auto;
+  border-radius: 24px;
+  overflow: hidden;
+  background: #cfd8e6;
+  line-height: 0;
+}
+.xw-pic > img.xw-fg { display: block; width: 100%; height: 100%; object-fit: cover; user-select: none; }
+.xw-pic.nx { cursor: pointer; }
+.xw-ctl {
+  height: 76px;
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  line-height: 1.2;
+}
+
+/* round buttons on the picture: compare (top right), full screen (bottom right) */
+.xw-ib {
+  position: absolute;
+  z-index: 3;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(18, 20, 28, 0.64);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.xw-ib svg { width: 19px; height: 19px; }
+.xw-ib.tr { right: 14px; top: 14px; }
+.xw-ib.br { right: 14px; bottom: 14px; }
+
+/* ---------- buttons ---------- */
+.xw-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 24px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: normal;
+  color: #fff;
+  white-space: nowrap;
+  cursor: pointer;
+  background: #191c1e;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+}
+.xw-btn:hover { background: #2a2e31; }
+.xw-btn svg { width: 18px; height: 18px; flex: none; }
+.xw-btn:disabled { opacity: 0.4; cursor: default; }
+.xw-btn:disabled:hover { background: #191c1e; }
+.xw-btn.full { width: 100%; }
+.xw-ctl .xw-btn { flex: none; height: 56px; padding: 0 30px; }
+.xw-more {
+  flex: none;
+  height: 56px;
+  padding: 0 26px;
+  border-radius: 28px;
+  border: 1px solid rgba(18, 20, 28, 0.18);
+  background: rgba(255, 255, 255, 0.8);
+  font-weight: 700;
+  font-size: 15px;
+  color: #12141c;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.xw-more:hover { background: #fff; }
+
+/* The Render button: the studio's animated Render look, the one gradient allowed. */
+.xw-btn.ai {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: #0b0415;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  box-shadow: 0 8px 24px rgba(40, 10, 90, 0.32);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+}
+.xw-btn.ai:hover { background: #0b0415; filter: brightness(1.12); }
+.xw-btn.ai::before {
+  content: "";
+  position: absolute;
+  inset: -45% -12%;
+  z-index: -1;
+  filter: blur(10px);
+  background:
+    radial-gradient(15% 60% at 14% 62%, #1257e8 0, rgba(18, 87, 232, 0) 100%),
+    radial-gradient(13% 55% at 38% 100%, #7fc6dc 0, rgba(127, 198, 220, 0) 100%),
+    radial-gradient(20% 80% at 68% 30%, #8a58c4 0, rgba(138, 88, 196, 0) 100%),
+    radial-gradient(11% 70% at 94% 70%, #c2441a 0, rgba(194, 68, 26, 0) 100%);
+  animation: xw-aiflow 7s ease-in-out infinite alternate;
+}
+@keyframes xw-aiflow {
+  from { transform: translateX(-14%) scaleX(1.05); }
+  to { transform: translateX(14%) scaleX(1.12); }
+}
+@media (prefers-reduced-motion: reduce) { .xw-btn.ai::before { animation: none; } }
+.xw-btn.ai:disabled { opacity: 0.38; filter: saturate(0.6); }
+.xw-ctl .xw-btn.ai { width: 250px; }
+.xw-chip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(18, 20, 28, 0.55);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-shadow: none;
+}
+
+/* ---------- upload (the studio's own screen) ---------- */
+.xw-drop {
+  position: absolute;
+  inset: 32px 28px 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 24px;
+  cursor: pointer;
+  text-align: center;
+}
+.xw-drop > svg.xw-dash { position: absolute; left: 0.75px; top: 0.75px; width: calc(100% - 1.5px); height: calc(100% - 1.5px); overflow: visible; pointer-events: none; }
+.xw-dash rect { fill: none; stroke: #4a9aea; stroke-width: 1.5; stroke-dasharray: 5 4; stroke-linecap: round; }
+.xw-drop.drag .xw-dash rect { stroke: #12141c; }
+.xw-drop.drag { background: rgba(255, 255, 255, 0.35); }
+.xw-orb {
+  position: relative;
+  width: 124px;
+  height: 124px;
+  margin: 0 auto;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.85), 0 0 0 2.5px rgba(140, 144, 150, 0.6), 0 4px 12px rgba(20, 22, 26, 0.45);
+}
+/* the studio's orb is live metal; here its colours turn slowly, on the compositor */
+.xw-orb::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 70% 30%, #e8452f 0, rgba(232, 69, 47, 0) 42%),
+    radial-gradient(circle at 30% 72%, #e6c3e4 0, rgba(230, 195, 228, 0) 40%),
+    radial-gradient(circle at 62% 76%, #d9b10f 0, rgba(217, 177, 15, 0) 46%),
+    conic-gradient(from 200deg, #f0a43a, #e4602f, #c53a4a, #d58bc7, #e9c64a, #f0a43a);
+  animation: xw-turn 14s linear infinite;
+}
+@keyframes xw-turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .xw-orb::before { animation: none; } }
+.xw-orb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 7px rgba(255, 255, 255, 0.55), inset 0 0 14px 6px rgba(255, 255, 255, 0.35);
+}
+.xw-orb svg { position: relative; z-index: 1; width: 48px; height: 48px; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4)); }
+.xw-drop h2 {
+  margin: 28px 0 0;
+  font-weight: 300;
+  font-size: 64px;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  color: #12141c;
+}
+
+/* ---------- photo and finishes (B3) ---------- */
+.xw-bcol { flex: 1; min-width: 0; height: 56px; display: flex; align-items: center; gap: 22px; overflow-x: auto; scrollbar-width: none; }
+.xw-bcol::-webkit-scrollbar { display: none; }
+.xw-pickl { flex: none; margin-right: 4px; font-weight: 600; font-size: 14px; color: #5b6475; white-space: nowrap; }
+.xw-sw {
+  flex: none;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 4px 0 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  color: #5b6475;
+  text-align: left;
+}
+.xw-sw b { font-weight: bolder; }
+.xw-sw.on { color: #12141c; font-weight: 700; }
+.xw-wc {
+  position: relative;
+  flex: none;
+  display: block;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid rgba(18, 20, 28, 0.14);
+}
+.xw-wc img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: contain; }
+.xw-sw.on .xw-wc { border-color: #1f87f5; }
+.xw-tk {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #1f87f5;
+  color: #fff;
+  display: none;
+  place-items: center;
+}
+.xw-tk svg { width: 10px; height: 10px; }
+.xw-sw.on .xw-tk { display: grid; }
+.xw-sw.done { opacity: 0.55; cursor: default; }
+/* one wheel, one finish: nothing to choose, so no ring and no tick */
+.xw-sw.solo { cursor: default; color: #12141c; }
+.xw-sw.solo .xw-wc { border-color: rgba(18, 20, 28, 0.14); }
+.xw-sw.solo .xw-tk { display: none; }
+
+/* ---------- result bar: strip, caption, More finishes, Request quote ---------- */
+.xw-ths { display: flex; gap: 8px; flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; padding: 0; }
+.xw-ths::-webkit-scrollbar { display: none; }
+.xw-th {
+  position: relative;
+  flex: none;
+  width: 72px;
+  height: 41px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #cfd8e6;
+  box-shadow: 0 0 0 1px rgba(18, 20, 28, 0.08);
+}
+.xw-th img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.xw-th.on { box-shadow: none; }
+.xw-th.on::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 3px #1f87f5; }
+.xw-th.sk {
+  cursor: default;
+  background: linear-gradient(100deg, #c7d3e4 30%, #dfe7f2 50%, #c7d3e4 70%);
+  background-size: 300% 100%;
+  animation: xw-shim 1.1s linear infinite;
+}
+@keyframes xw-shim { from { background-position: 100% 0; } to { background-position: 0 0; } }
+.xw-cap { flex: 1; min-width: 0; padding: 0 8px; line-height: 1.3; }
+.xw-cap b { display: block; font-size: 14px; color: #12141c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.xw-cap span { display: block; font-size: 13px; color: #5b6475; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the limit, in the bar: plain words, an icon, a card so it cannot be missed */
+.xw-cap.capped {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 9px 14px;
+  box-shadow: 0 2px 10px rgba(18, 24, 40, 0.08);
+}
+.xw-ci { flex: none; width: 34px; height: 34px; border-radius: 50%; background: #191c1e; color: #fff; display: grid; place-items: center; }
+.xw-ci svg { width: 18px; height: 18px; }
+.xw-cap.capped b { white-space: normal; }
+.xw-cap.capped span { font-size: 12.5px; }
+
+/* ---------- the live render animation (LoadingView), on the picture ---------- */
+.xw-pic.ld > img.xw-fg { filter: brightness(0.7); }
+.xw-pic .avacar-inner-glow { z-index: 2; animation: innerGlowRotateHre 2s linear infinite; }
+.xw-lvo {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.25) 70%);
+  line-height: normal;
+}
+.xw-lvo .avacar-loading-letter { font-size: 24px; }
+.xw-lvr {
+  margin: 26px 0 0;
+  /* takes the bar's 88px, so the picture does not move when the render arrives */
+  min-height: 62px;
+  text-align: center;
+  font-weight: 500;
+  font-size: 14px;
+  color: #5b6475;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* ---------- full screen ---------- */
+.xw-fsv { position: absolute; inset: 0; z-index: 30; background: #0b0c10; display: grid; place-items: center; cursor: zoom-out; line-height: 0; }
+.xw-fsv img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.xw-fsv .xw-ib { right: 14px; top: 14px; }
+
+/* ---------- pop-ups: centred card on a desk, a sheet from the bottom on a phone ---------- */
+.xw-ov {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 24, 40, 0.4);
+  animation: xw-fade 0.2s ease;
+}
+.xw-card {
+  position: relative;
+  width: 440px;
+  max-width: calc(100% - 24px);
+  padding: 22px 22px 18px;
+  border-radius: 28px;
+  background: #fbfcfe;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 24px 70px rgba(18, 24, 40, 0.35);
+  text-align: center;
+}
+.xw-card.small { width: 380px; }
+.xw-card.nt { width: 430px; }
+.xw-card h3 { margin: 0; font-weight: 700; font-size: 22px; line-height: 1.4; }
+.xw-card p { margin: 6px 0 0; font-size: 14px; color: #5b6475; }
+.xw-card .xw-btn.full { margin-top: 16px; }
+.xw-dx {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(18, 20, 28, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  color: #12141c;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.xw-dx svg { width: 16px; height: 16px; }
+.xw-nic { width: 56px; height: 56px; margin: 0 auto 14px; border-radius: 50%; background: #191c1e; color: #fff; display: grid; place-items: center; }
+.xw-nic svg { width: 26px; height: 26px; }
+.xw-okc { width: 68px; height: 68px; margin: 4px auto 14px; border-radius: 50%; background: #22c55e; color: #fff; display: grid; place-items: center; }
+.xw-okc svg { width: 32px; height: 32px; }
+.xw-link {
+  display: block;
+  width: 100%;
+  padding: 10px 0 2px;
+  border: 0;
+  background: none;
+  font-weight: 600;
+  font-size: 14px;
+  color: #5b6475;
+  cursor: pointer;
+}
+.xw-link:hover { color: #12141c; }
+.xw-card.leave .xw-in { margin: 14px 0 10px; }
+.xw-card.leave .xw-btn.full { margin-top: 0; }
+
+/* ---------- fields ---------- */
+.xw-in {
+  display: block;
+  width: 100%;
+  height: 50px;
+  margin: 0 0 10px;
+  padding: 0 20px;
+  border-radius: 25px;
+  border: 1px solid rgba(18, 20, 28, 0.14);
+  background: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+  font-size: 15px;
+  color: #12141c;
+  outline: none;
+}
+.xw-in:focus { border-color: #12141c; }
+.xw-in::placeholder { color: #8a93a5; }
+.xw-in.bad { border-color: #c0392b; box-shadow: 0 0 0 1px #c0392b; }
+.xw .xw-err { margin: 0 0 8px; text-align: center; font-weight: 600; font-size: 13px; color: #c0392b; }
+.xw-foot { margin: 12px 0 0; text-align: center; font-size: 11.5px; color: #8a93a5; }
+.xw-foot a { color: inherit; text-decoration: underline; }
+
+/* ---------- G1: your details ---------- */
+.xw-gt { position: absolute; inset: 0; display: grid; place-items: center; padding: 0 16px 40px; overflow-y: auto; }
+.xw-gtc { width: min(440px, 100%); display: flex; flex-direction: column; text-align: center; }
+.xw-gtc h3 { margin: 0 0 4px; font-weight: 700; font-size: 30px; line-height: normal; }
+.xw-gts { margin: 0 0 22px; font-weight: 500; font-size: 15px; color: #5b6475; }
+.xw-gtc .xw-btn { height: 56px; font-size: 16px; margin-top: 2px; }
+.xw-gtc .xw-btn:disabled { background: rgba(25, 28, 30, 0.5); box-shadow: none; }
+
+/* ---------- Request quote: its own full-window screen ---------- */
+.xw-q { position: absolute; inset: 0; display: flex; justify-content: center; overflow-y: auto; }
+.xw-qs { width: 540px; max-width: calc(100% - 32px); min-height: 100%; padding: 10px 0 12px; display: flex; flex-direction: column; }
+.xw-qh { position: relative; flex: none; min-height: 44px; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; text-align: center; }
+.xw-qh .xw-round { position: absolute; left: 0; top: 50%; transform: translateY(-50%); }
+.xw-qh > div { display: flex; align-items: baseline; justify-content: center; gap: 10px; }
+.xw-qh h3 { margin: 0; font-weight: 700; font-size: 20px; line-height: 1.4; }
+.xw-sub { font-weight: 600; font-size: 13px; color: #5b6475; }
+.xw-qimg { flex: none; display: block; width: 100%; aspect-ratio: 2; object-fit: cover; border-radius: 20px; margin: 0 0 10px; }
+.xw-ql { flex: none; margin: 2px 4px 6px; text-align: center; font-weight: 600; font-size: 12.5px; color: #5b6475; }
+.xw-wr { flex: none; position: relative; display: flex; justify-content: safe center; margin: 0 -8px 8px; padding: 10px 8px 4px; overflow-x: auto; scrollbar-width: none; }
+.xw-wr::-webkit-scrollbar { display: none; }
+.xw-wr button { flex: 0 0 70px; padding: 0; border: 0; background: none; cursor: pointer; text-align: center; }
+.xw-wr .xw-wc { width: 62px; height: 62px; margin: 0 auto 6px; border: 0; box-shadow: 0 0 0 1px rgba(18, 20, 28, 0.14); transition: box-shadow 0.15s; }
+.xw-wr button.fo .xw-wc { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #12141c; }
+.xw-hb {
+  position: absolute;
+  right: -6px;
+  top: -6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #fff;
+  color: #12141c;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 1px 4px rgba(18, 20, 28, 0.32);
+}
+.xw-hb::after { content: ""; position: absolute; inset: -2px; }
+.xw-hb svg { width: 15px; height: 15px; }
+.xw-wr button.on .xw-hb { background: #ff3b5c; color: #fff; }
+.xw-wr b { display: block; font-weight: 700; font-size: 12.5px; color: #12141c; }
+.xw-wr button.fo b { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 2px; }
+.xw-qf { display: grid; grid-template-columns: 1fr 1.35fr 1fr; gap: 10px; margin: 8px 0 0; }
+.xw-qf .xw-in { margin: 0; padding: 0 14px; font-size: 14.5px; }
+.xw-qf .xw-btn, .xw-qf .xw-foot, .xw-qf .xw-err { grid-column: 1 / -1; }
+.xw-qf .xw-btn { margin: 0; }
+.xw-qf .xw-foot { margin: 0; }
+/* the red line sits in the gap above the button, it adds no height */
+.xw .xw-qf .xw-err { margin: -9px 0 -25px; line-height: 16px; }
+
+/* ================= phone ================= */
+@media (max-width: 700px), (max-height: 520px) {
+  .xw { padding: 0; }
+  .xw-sheet { width: 100%; height: 100%; border-radius: 0; background: linear-gradient(180deg, #edf1f7, #c3d4e7); }
+}
+.xw.ph .xw-pcol { position: absolute; left: 0; right: 0; top: 0; bottom: 92px; padding: 12px 12px 0; overflow-y: auto; }
+.xw.ph .xw-pic { width: min(100%, 42svh * var(--ar, 1.5)); border-radius: 18px; }
+.xw.ph .xw-pbar {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: max(26px, env(safe-area-inset-bottom));
+  height: 56px;
+  display: flex;
+  gap: 8px;
+  z-index: 3;
+}
+.xw.ph .xw-pbar .xw-more { flex: 0 0 138px; padding: 0 6px; font-size: 14px; background: rgba(255, 255, 255, 0.75); }
+.xw.ph .xw-pbar .xw-btn { flex: 1; height: 56px; padding: 0 14px; }
+.xw.ph .xw-cap { margin-top: 12px; padding: 0; font-size: 14px; }
+.xw.ph .xw-cap b, .xw.ph .xw-cap span { display: inline; font-size: 15px; }
+.xw.ph .xw-cap span { margin-left: 8px; }
+.xw.ph .xw-cap.capped { padding: 9px 14px; }
+.xw.ph .xw-cap.capped b, .xw.ph .xw-cap.capped span { display: block; margin: 0; font-size: 13.5px; }
+.xw.ph .xw-cap.capped span { font-size: 12.5px; }
+.xw.ph .xw-ths { margin-top: 16px; }
+.xw.ph .xw-cap.capped + .xw-ths { margin-top: 20px; }
+.xw.ph .xw-th { flex: 1; width: auto; max-width: 84px; height: 44px; }
+.xw.ph .xw-pickp { margin: 14px 0 0; font-weight: 600; font-size: 14px; color: #5b6475; }
+.xw.ph .xw-sws { margin-top: 13px; display: flex; justify-content: space-around; }
+.xw.ph .xw-sw { width: 96px; height: auto; flex-direction: column; gap: 0; padding: 0; text-align: center; font-size: 11.5px; }
+.xw.ph .xw-sw .xw-wc { width: 54px; height: 54px; margin: 0 auto 4px; border: 0; box-shadow: 0 0 0 1px rgba(18, 20, 28, 0.14); }
+.xw.ph .xw-sw.on .xw-wc { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1f87f5; }
+.xw.ph .xw-sw .xw-tk { right: -4px; top: -4px; bottom: auto; width: 18px; height: 18px; }
+.xw.ph .xw-sws.solo { flex: 1; align-items: center; min-height: 220px; }
+.xw.ph .xw-sw.solo { width: auto; font-size: 16px; }
+.xw.ph .xw-sw.solo .xw-wc { width: 140px; height: 140px; margin-bottom: 10px; box-shadow: 0 0 0 1px rgba(18, 20, 28, 0.14); }
+.xw.ph .xw-lvo .avacar-loading-letter { font-size: 16px; }
+.xw.ph .xw-drop { inset: 16px 16px 20px; }
+.xw.ph .xw-drop h2 { font-size: clamp(28px, 8.7vw, 34px); }
+.xw.ph .xw-ov { align-items: flex-end; bottom: -20px; }
+.xw.ph .xw-card, .xw.ph .xw-card.small, .xw.ph .xw-card.nt {
+  width: 100%;
+  max-width: none;
+  border-radius: 28px 28px 0 0;
+  padding: 18px 18px calc(26px + 20px + env(safe-area-inset-bottom));
+}
+.xw.ph .xw-qs { width: 100%; max-width: none; padding: 6px 14px 36px; }
+.xw.ph .xw-qh { min-height: 0; margin-bottom: 12px; }
+.xw.ph .xw-qh > div { display: block; }
+.xw.ph .xw-qh h3 { font-size: 22px; }
+.xw.ph .xw-sub { display: block; margin-top: 3px; }
+.xw.ph .xw-qimg { aspect-ratio: 2.1; margin-bottom: 12px; }
+.xw.ph .xw-wr button { flex-basis: 73px; }
+.xw.ph .xw-wr .xw-wc { width: 56px; height: 56px; }
+.xw.ph .xw-qf { display: block; margin: auto 0 0; padding-top: 16px; }
+.xw.ph .xw-qf .xw-in { margin: 0 0 10px; padding: 0 20px; font-size: 15px; }
+.xw.ph .xw-qf .xw-btn { margin-top: 4px; }
+.xw.ph .xw-qf .xw-foot { margin-top: 12px; }
+.xw.ph .xw-qf .xw-err { margin: 0 0 8px; line-height: 1.4; }

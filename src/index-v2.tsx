@@ -31,6 +31,7 @@
  */
 import { render } from 'solid-js/web'
 import widgetStyles from './styles/index.css?inline'
+import pageStyles from './styles/page.css?inline'
 
 import { Modal } from './components/Modal'
 import { ZenoButton } from './components/ZenoButton'
@@ -193,6 +194,7 @@ const api: typeof baseApi = {
 
     if (rejection) {
       events.onError?.(rejection)
+      events.onProblem?.({ kind: 'fail' })
 
       return { success: false, error: rejection }
     }
@@ -204,20 +206,6 @@ const api: typeof baseApi = {
       final_image: result.image,
       error: result.error,
     }
-  },
-
-  renderSingleVariant: async (file, products, manufacturerId, events) => {
-    const rejection = v2Rejection(products.length)
-
-    if (rejection) {
-      events.onError?.(rejection)
-
-      return { success: false, error: rejection }
-    }
-
-    const result = await enqueue(() => renderOne(file, products, manufacturerId, events))
-
-    return { success: result.success, image: result.image, error: result.error }
   },
 }
 
@@ -243,7 +231,7 @@ function injectButtonStyles() {
   const styleEl = document.createElement('style')
 
   styleEl.id = STYLES_ID
-  styleEl.textContent = widgetStyles
+  styleEl.textContent = pageStyles
   document.head.appendChild(styleEl)
 }
 
