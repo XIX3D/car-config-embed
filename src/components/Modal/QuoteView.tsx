@@ -106,7 +106,10 @@ export function QuoteView(props: QuoteViewProps) {
                         <IconHeart on={on()} />
                       </i>
                     </span>
-                    <b>{r.label}</b>
+                    <b>{r.productName ?? r.label}</b>
+                    <Show when={r.productName}>
+                      <em>{r.label}</em>
+                    </Show>
                   </button>
                 );
               }}

@@ -1,6 +1,6 @@
 import { batch } from 'solid-js'
 import { createStore, produce } from 'solid-js/store'
-import type { ViewState, RenderResult, Product, Variant, JWTPayload, DebugData, VehicleInfo, EmailGateResponse, LoadingStep, ProblemKind, VisitorUsage } from '../types'
+import type { ViewState, RenderResult, Product, Variant, JWTPayload, DebugData, VehicleInfo, EmailGateResponse, LoadingStep, ProblemKind, VisitorUsage, EmbedAccount, Catalogue, CatalogueEntry } from '../types'
 import { LOADING_STEPS, LOADING_STEPS_WRAPS } from '../constants'
 
 /**
@@ -41,6 +41,15 @@ export interface WidgetState {
   product: Product | null
   variants: Variant[]
   customBrand: string | null
+  /** Who the code belongs to (decode): the brand's or the dealer's own name and logo. */
+  account: EmbedAccount | null
+  /** The account that owns the code, for quotes and leads when no wheel is picked yet. */
+  manufacturerId: number | null
+  /** A dealer's code: the brands and wheels the visitor may pick from. Null on a brand's code. */
+  catalogue: Catalogue | null
+  /** The brand shown in the picker (a brand id), or null for every brand. */
+  brandFilter: number | null
+  search: string
 
   // The visitor's photo. photoKey changes with every new photo, so a finish rendered on one
   // photo is offered again on the next.
@@ -107,6 +116,11 @@ const initialState: WidgetState = {
   product: null,
   variants: [],
   customBrand: null,
+  account: null,
+  manufacturerId: null,
+  catalogue: null,
+  brandFilter: null,
+  search: '',
 
   selectedFile: null,
   previewDataUrl: null,
@@ -185,12 +199,14 @@ export function createWidgetStore() {
   /** The brand, for the header ("Brand - Wheel") and the quote footer. */
   const getBrandName = () =>
     state.customBrand ||
+    state.account?.name ||
     state.product?.manufacturer?.company_name ||
     state.product?.category ||
     (state.isWraps ? 'Wraps' : 'Wheels')
 
+  // A dealer's header is the dealer alone ("Premier Tire"): the wheel is whichever the visitor picked.
   const getModelName = () =>
-    state.product?.name || (state.isWraps ? 'Wrap' : 'Wheel')
+    state.catalogue ? '' : state.product?.name || (state.isWraps ? 'Wrap' : 'Wheel')
 
   const getCurrentResult = () =>
     state.galleryResults.find((r) => r.id === state.currentId) || null
@@ -241,8 +257,15 @@ export function createWidgetStore() {
   }
 
   const actions = {
-    open(selections: JWTPayload, product: Product | null, variants: Variant[], customBrand?: string) {
+    open(
+      selections: JWTPayload,
+      product: Product | null,
+      variants: Variant[],
+      customBrand?: string,
+      extra?: { account?: EmbedAccount | null; manufacturerId?: number | null; catalogue?: Catalogue | null },
+    ) {
       const isWraps = !!(selections.wrap_id && !selections.wheel_id)
+      const catalogue = extra?.catalogue ?? null
 
       if (state.loadingInterval) clearInterval(state.loadingInterval)
       setState({
@@ -252,6 +275,11 @@ export function createWidgetStore() {
         product,
         variants,
         customBrand: customBrand || null,
+        account: extra?.account ?? null,
+        manufacturerId: extra?.manufacturerId ?? null,
+        catalogue,
+        // The first brand to start with: thousands of wheels are never shown at once.
+        brandFilter: catalogue?.brands[0]?.id ?? null,
         isWraps,
         // A brand with one finish has nothing to pick: it is picked.
         selectedVariantIds: variants.length === 1 ? [variants[0].id] : [],
@@ -287,6 +315,40 @@ export function createWidgetStore() {
         selectedVariantIds: state.variants.length === 1 ? [state.variants[0].id] : [],
         view: 'upload',
       })
+    },
+
+    /** A dealer's visitor picked a wheel: it, its finishes and the first finish are now the ones in play. */
+    chooseWheel(entry: CatalogueEntry) {
+      const variants = [...entry.variants].sort(
+        (a, b) => (a.display_order ?? Number.MAX_SAFE_INTEGER) - (b.display_order ?? Number.MAX_SAFE_INTEGER),
+      )
+      const first = variants.find((v) => v.is_default) ?? variants[0]
+
+      setState({
+        product: entry.product,
+        selections: { wheel_id: entry.product.id },
+        variants,
+        selectedVariantIds: first ? [first.id] : [],
+      })
+    },
+
+    /** The list was read again (after "Wheel not available"): the wheel in play stays only if it is still offered. */
+    setCatalogue(catalogue: Catalogue) {
+      const still = state.product && catalogue.products.some((e) => e.product.id === state.product!.id)
+
+      setState({
+        catalogue,
+        brandFilter: catalogue.brands.some((b) => b.id === state.brandFilter) ? state.brandFilter : (catalogue.brands[0]?.id ?? null),
+      })
+      if (!still) setState({ product: null, selections: {}, variants: [], selectedVariantIds: [] })
+    },
+
+    setBrandFilter(id: number | null) {
+      setState({ brandFilter: id, search: '' })
+    },
+
+    setSearch(search: string) {
+      setState('search', search)
     },
 
     toggleVariantSelection(id: string) {

@@ -1,4 +1,4 @@
-import type { Product, Variant, QuoteRequest, RenderStreamEvents, DecodeTokenResponse, ValidateTokenResponse, VehicleDetectionResult, SimilarProduct, EmailGateResponse, VisitorUsage } from '../types'
+import type { Product, Variant, QuoteRequest, RenderStreamEvents, DecodeTokenResponse, ValidateTokenResponse, VehicleDetectionResult, SimilarProduct, EmailGateResponse, VisitorUsage, Catalogue, CatalogueEntry, CatalogueResult } from '../types'
 import { problemFromResponse, problemFromStreamError } from './render-problems'
 
 /**
@@ -314,13 +314,43 @@ export function createApiClient(baseUrl: string) {
       const url = manufacturerId
         ? `${baseUrl}/api/v1/render/email-required?manufacturer_id=${manufacturerId}`
         : `${baseUrl}/api/v1/render/email-required`
+      // The visitor id goes on the open-time check too: the limit is per device, so without it the
+      // answer is counted by address and the count can read 0 when this device has used some.
       const res = await fetch(url, {
-        headers: sessionHeaders(),
+        headers: renderHeaders(),
       })
       if (!res.ok) return null
       return await res.json()
     } catch {
       return null
+    }
+  }
+
+  /**
+   * A dealer's code names no wheel: what its visitors may see and render is read here, live, with
+   * the session that decode bound. Ids are made strings, as every other id in the widget is.
+   */
+  const fetchCatalogue = async (): Promise<CatalogueResult> => {
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/embed/catalogue`, { headers: sessionHeaders() })
+      let body: { brands?: unknown; products?: unknown; error?: unknown } | null = null
+
+      try {
+        body = await res.json()
+      } catch { /* not JSON: the status decides */ }
+
+      if (res.ok && body && Array.isArray(body.brands) && Array.isArray(body.products)) {
+        const products = (body.products as CatalogueEntry[]).map((e) => ({
+          product: { ...e.product, id: String(e.product.id) },
+          variants: (e.variants ?? []).map((v) => ({ ...v, id: String(v.id) })),
+        }))
+
+        return { ok: true, catalogue: { brands: body.brands as Catalogue['brands'], products } }
+      }
+
+      return { ok: false, status: res.status, code: typeof body?.error === 'string' ? body.error : '' }
+    } catch {
+      return { ok: false, status: 0, code: '' }
     }
   }
 
@@ -407,7 +437,6 @@ export function createApiClient(baseUrl: string) {
     formData.append('products', JSON.stringify(productsPayload))
     formData.append('manufacturer_id', String(manufacturerId))
     formData.append('fast_mode', 'true')
-    formData.append('debug', 'true')
     if (_visitor) formData.append('visitor_id', _visitor.id)
 
     const state: { reported?: boolean } = {}
@@ -474,6 +503,7 @@ export function createApiClient(baseUrl: string) {
     submitLead,
     emailRenders,
     getEmailGate,
+    fetchCatalogue,
     getStorageUrl,
   }
 }

@@ -24,6 +24,8 @@ interface ResultViewProps {
   limitReached: boolean;
   /** Every finish has been rendered on this photo: More finishes becomes New photo. */
   allDone: boolean;
+  /** A dealer's code: the visitor picks another wheel, not another finish of one wheel. */
+  moreWheels?: boolean;
   debugData?: DebugData | null;
   onSelect: (id: number) => void;
   onNext: () => void;
@@ -87,7 +89,7 @@ export function ResultView(props: ResultViewProps) {
   const More = () => (
     <Show when={!props.limitReached}>
       <button type="button" class="xw-more" onClick={() => props.onMore()}>
-        {props.allDone ? "New photo" : "More finishes"}
+        {props.allDone ? "New photo" : props.moreWheels ? "More wheels" : "More finishes"}
       </button>
     </Show>
   );

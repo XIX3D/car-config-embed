@@ -59,7 +59,12 @@ export function Modal(props: ModalProps) {
   let slowTimer = 0;
   let slowSlot = 0;
 
-  const productImgUrl = () => state.product?.reference_image_paths?.[0] || "";
+  const productImgUrl = () =>
+    state.account?.icon_url || state.account?.logo_url || state.product?.reference_image_paths?.[0] || "";
+  /** The account that pays and receives: the picked wheel's own on a brand's code, the dealer's on a dealer's. */
+  const ownerId = () => state.manufacturerId ?? state.product?.manufacturer_id ?? 0;
+  /** A dealer's picker needs a photo before it shows; a brand's code has its one wheel already. */
+  const accent = () => (state.account?.accent_color && /^#[0-9a-f]{3,8}$/i.test(state.account.accent_color) ? state.account.accent_color : undefined);
   const sortedVariants = () =>
     [...(state.variants || [])].sort(
       (a, b) => (a.display_order ?? Number.MAX_SAFE_INTEGER) - (b.display_order ?? Number.MAX_SAFE_INTEGER),
@@ -68,11 +73,13 @@ export function Modal(props: ModalProps) {
   /** Finishes rendered, or rendering, on the photo on screen. */
   const doneVariantIds = () =>
     state.galleryResults
-      .filter((r) => r.photoKey === state.photoKey && (r.success || r.loading) && r.variantId)
+      // On a dealer's code the same photo can carry several wheels: a finish counts as done for ITS wheel only.
+      .filter((r) => r.photoKey === state.photoKey && (r.success || r.loading) && r.variantId
+        && (!state.catalogue || r.productId === state.product?.id))
       .map((r) => r.variantId!);
-  /** Every finish has a finished render on this photo: More finishes becomes New photo. */
+  /** Every finish has a finished render on this photo: More finishes becomes New photo. A dealer's visitor can always pick another wheel. */
   const allDone = () =>
-    sortedVariants().every((v) =>
+    !state.catalogue && sortedVariants().every((v) =>
       state.galleryResults.some((r) => r.photoKey === state.photoKey && r.success && r.variantId === v.id));
   const pending = () => state.galleryResults.some((r) => r.loading);
   const vehicle = () => {
@@ -167,7 +174,7 @@ export function Modal(props: ModalProps) {
       .renderStream(
         file,
         productsFor(variantId),
-        state.product!.manufacturer_id,
+        ownerId(),
         {
           // Renders run one after another; each one that starts after the first gets the
           // animation from its first step, on the result screen the visitor is already on.
@@ -214,7 +221,9 @@ export function Modal(props: ModalProps) {
     const file = state.selectedFile;
     const variants = variantIds.map(variantById).filter((v): v is Variant => !!v);
 
-    if (!file || !state.product || variants.length === 0) return;
+    const product = state.product;
+
+    if (!file || !product || variants.length === 0) return;
     if (isLimitReached()) {
       actions.setNotice("limit");
 
@@ -229,6 +238,8 @@ export function Modal(props: ModalProps) {
         variantId: v.id,
         hexColor: v.hex_color || null,
         referenceImage: v.reference_image_paths?.[0] || v.reference_image || null,
+        productId: product.id,
+        productName: product.name,
         photo: state.previewDataUrl,
         photoKey: state.photoKey,
       })),
@@ -255,6 +266,16 @@ export function Modal(props: ModalProps) {
     if (state.view === "loading" && !pending()) actions.setView(getDoneResults().length ? "result" : "upload");
   };
 
+  /** "Wheel not available": read the dealer's list again and go back to the picker with the photo kept. */
+  const refreshCatalogue = async () => {
+    const res = await props.api.fetchCatalogue();
+
+    if (res.ok) actions.setCatalogue(res.catalogue);
+    else if (res.status === 401) actions.setNotice("expired");
+    else actions.setNotice("nolist");
+    if (state.view !== "upload") actions.setView("upload");
+  };
+
   const handleNoticeAction = (action: NoticeAction) => {
     const kind = state.notice;
 
@@ -262,6 +283,8 @@ export function Modal(props: ModalProps) {
 
     if (action === "quote") {
       actions.showQuote();
+    } else if (action === "pick") {
+      refreshCatalogue();
     } else if (action === "photo") {
       actions.clearFile();
     } else if (action === "reload") {
@@ -308,9 +331,13 @@ export function Modal(props: ModalProps) {
   };
 
   const quoteSubmit = async (lead: Lead) => {
-    if (!state.product) throw new Error("No product");
+    if (!ownerId()) throw new Error("No product");
     const picks = state.galleryResults.filter((r) => state.interested.includes(r.id) && r.image);
-    const productIds = [state.selections?.wheel_id, state.selections?.wrap_id]
+    // On a dealer's code each render may be a different wheel: the quote names every one of them.
+    const productIds = [...new Set([
+      ...picks.map((r) => r.productId),
+      ...(state.catalogue ? [] : [state.selections?.wheel_id, state.selections?.wrap_id]),
+    ])]
       .filter((id): id is string => !!id)
       .map((id) => parseInt(id, 10));
     const res = await props.api.submitQuote({
@@ -321,7 +348,7 @@ export function Modal(props: ModalProps) {
       product_ids: productIds,
       images: picks.map((r) => r.image!),
       variant_ids: picks.map((r) => parseInt(r.variantId ?? "", 10)).filter(Number.isFinite),
-      manufacturer_id: state.product.manufacturer_id,
+      manufacturer_id: ownerId(),
     });
 
     if (res.success) {
@@ -334,7 +361,7 @@ export function Modal(props: ModalProps) {
   };
 
   const detailsSubmit = async (lead: Lead) => {
-    if (!state.product) throw new Error("No product");
+    if (!ownerId()) throw new Error("No product");
     const productIds = [state.selections?.wheel_id, state.selections?.wrap_id]
       .filter((id): id is string => !!id)
       .map((id) => parseInt(id, 10));
@@ -343,7 +370,7 @@ export function Modal(props: ModalProps) {
       email: lead.email.trim(),
       phone: lead.phone.trim() || undefined,
       product_ids: productIds,
-      manufacturer_id: state.product.manufacturer_id,
+      manufacturer_id: ownerId(),
     });
 
     if (res.success) actions.detailsDone();
@@ -397,8 +424,12 @@ export function Modal(props: ModalProps) {
   return (
     <Show when={state.isOpen}>
       <Portal mount={props.shadowRoot}>
-        <div class={`xw ${phone() ? "ph" : ""}`} onClick={(e) => e.target === e.currentTarget && outsideClick()}>
-          <div class={`xw-sheet ${dimmed() ? "dim" : ""}`} role="dialog" aria-modal="true" aria-label={`${getBrandName()} - ${getModelName()}`}>
+        <div
+          class={`xw ${phone() ? "ph" : ""}`}
+          style={accent() ? { "--xw-accent": accent() } : undefined}
+          onClick={(e) => e.target === e.currentTarget && outsideClick()}
+        >
+          <div class={`xw-sheet ${dimmed() ? "dim" : ""}`} role="dialog" aria-modal="true" aria-label={getModelName() ? `${getBrandName()} - ${getModelName()}` : getBrandName()}>
             <ModalHeader brandName={getBrandName()} modelName={getModelName()} productImgUrl={productImgUrl()} onClose={tryClose} />
 
             <div class="xw-stage">
@@ -427,6 +458,24 @@ export function Modal(props: ModalProps) {
                     onChangePhoto={actions.clearFile}
                     onBadFile={() => actions.setNotice("badfile")}
                     onAspect={setAr}
+                    picker={
+                      state.catalogue
+                        ? {
+                            catalogue: state.catalogue,
+                            brandFilter: state.brandFilter,
+                            search: state.search,
+                            product: state.product,
+                            variants: sortedVariants(),
+                            selectedVariantIds: state.selectedVariantIds,
+                            doneVariantIds: doneVariantIds(),
+                            onBrand: actions.setBrandFilter,
+                            onSearch: actions.setSearch,
+                            onChoose: actions.chooseWheel,
+                            onToggleVariant: actions.toggleVariantSelection,
+                            onRender: renderPicked,
+                          }
+                        : undefined
+                    }
                   />
                 </Match>
 
@@ -445,7 +494,7 @@ export function Modal(props: ModalProps) {
                   <ResultView
                     phone={phone()}
                     ar={ar()}
-                    modelName={getModelName()}
+                    modelName={state.catalogue ? (getCurrentResult()?.productName ?? "") : getModelName()}
                     results={getDoneResults()}
                     current={getCurrentResult()}
                     pending={pending()}
@@ -455,6 +504,7 @@ export function Modal(props: ModalProps) {
                     showOriginal={state.showOriginal}
                     limitReached={isLimitReached()}
                     allDone={allDone()}
+                    moreWheels={!!state.catalogue}
                     debugData={state.debugData}
                     onSelect={(id) => {
                       setLooking(true);

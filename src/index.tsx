@@ -106,14 +106,25 @@ const api: typeof baseApi = {
 
 /**
  * Read the email-required answer: the gate, and (backend R2, R3, R7) the visitor's limit, the
- * details-first setting and which new features the backend has. The X-Visitor-ID header is only
- * sent once that answer carries `visitor_limit`, the field that ships with the per-visitor limit
- * (R1); before then the backend's CORS list would refuse the header and every render with it.
+ * details-first setting and which new features the backend has.
+ *
+ * The limit is per device, so the open-time check carries X-Visitor-ID too. A backend that has not
+ * added the header to its CORS list refuses the whole request, so a failed first try is asked again
+ * without it. The header then stays on for renders only once an answer carries `visitor_limit`,
+ * the field that ships with the per-visitor limit (R1).
  */
 async function loadGate(manufacturerId?: number) {
-  const gate = await api.getEmailGate(manufacturerId)
+  const visitor = getVisitorId()
 
-  api.setVisitor(getVisitorId(), !!gate && 'visitor_limit' in gate)
+  api.setVisitor(visitor, true)
+  let gate = await api.getEmailGate(manufacturerId)
+
+  if (!gate) {
+    api.setVisitor(visitor, false)
+    gate = await api.getEmailGate(manufacturerId)
+  }
+
+  api.setVisitor(visitor, !!gate && 'visitor_limit' in gate)
 
   return gate ?? FAIL_CLOSED_GATE
 }
@@ -174,6 +185,21 @@ async function openPreview(jwt: string, customBrand?: string) {
 
   const decodeResult = await api.decodeToken(jwt)
 
+  if (decodeResult?.valid && decodeResult.catalogue) {
+    // A dealer's code: no wheel in the code, the visitor picks from what the dealer offers.
+    const [catalogue, gate] = await Promise.all([api.fetchCatalogue(), loadGate(decodeResult.manufacturer_id)])
+
+    store.actions.open({}, null, [], customBrand, {
+      account: decodeResult.account,
+      manufacturerId: decodeResult.manufacturer_id,
+      catalogue: catalogue.ok ? catalogue.catalogue : null,
+    })
+    store.actions.setEmailGate(gate)
+    if (!catalogue.ok) store.actions.setNotice(catalogue.status === 401 ? 'expired' : 'nolist')
+
+    return
+  }
+
   if (decodeResult?.valid) {
     const product = decodeResult.wheel || decodeResult.wrap
     const productId = product?.id
@@ -194,7 +220,10 @@ async function openPreview(jwt: string, customBrand?: string) {
     // Asked before the window opens, so a brand that wants details first never flashes the photo screen.
     const gate = await loadGate(product?.manufacturer_id)
 
-    store.actions.open(selections, product, variants, customBrand)
+    store.actions.open(selections, product, variants, customBrand, {
+      account: decodeResult.account,
+      manufacturerId: decodeResult.manufacturer_id,
+    })
     store.actions.setEmailGate(gate)
 
     return

@@ -333,7 +333,7 @@
   border: 2px solid rgba(18, 20, 28, 0.14);
 }
 .xw-wc img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: contain; }
-.xw-sw.on .xw-wc { border-color: #1f87f5; }
+.xw-sw.on .xw-wc { border-color: var(--xw-accent, #1f87f5); }
 .xw-tk {
   position: absolute;
   right: 0;
@@ -341,7 +341,7 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #1f87f5;
+  background: var(--xw-accent, #1f87f5);
   color: #fff;
   display: none;
   place-items: center;
@@ -372,7 +372,7 @@
 }
 .xw-th img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .xw-th.on { box-shadow: none; }
-.xw-th.on::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 3px #1f87f5; }
+.xw-th.on::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 3px var(--xw-accent, #1f87f5); }
 .xw-th.sk {
   cursor: default;
   background: linear-gradient(100deg, #c7d3e4 30%, #dfe7f2 50%, #c7d3e4 70%);
@@ -593,7 +593,7 @@
 .xw.ph .xw-sws { margin-top: 13px; display: flex; justify-content: space-around; }
 .xw.ph .xw-sw { width: 96px; height: auto; flex-direction: column; gap: 0; padding: 0; text-align: center; font-size: 11.5px; }
 .xw.ph .xw-sw .xw-wc { width: 54px; height: 54px; margin: 0 auto 4px; border: 0; box-shadow: 0 0 0 1px rgba(18, 20, 28, 0.14); }
-.xw.ph .xw-sw.on .xw-wc { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1f87f5; }
+.xw.ph .xw-sw.on .xw-wc { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--xw-accent, #1f87f5); }
 .xw.ph .xw-sw .xw-tk { right: -4px; top: -4px; bottom: auto; width: 18px; height: 18px; }
 .xw.ph .xw-sws.solo { flex: 1; align-items: center; min-height: 220px; }
 .xw.ph .xw-sw.solo { width: auto; font-size: 16px; }
@@ -621,3 +621,93 @@
 .xw.ph .xw-qf .xw-btn { margin-top: 4px; }
 .xw.ph .xw-qf .xw-foot { margin-top: 12px; }
 .xw.ph .xw-qf .xw-err { margin: 0 0 8px; line-height: 1.4; }
+
+
+/* ================= a dealer's picker: the photo, and beside it the dealer's brands and wheels ================= */
+.xw-split {
+  position: absolute;
+  inset: 8px 24px 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 382px;
+  gap: 16px;
+}
+.xw-sp-pic { container-type: size; min-width: 0; display: flex; align-items: center; justify-content: center; }
+.xw-sp-pic .xw-pic { width: min(100cqw, calc(100cqh * var(--ar, 1.5))); }
+.xw-pk {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.66);
+  box-shadow: 0 10px 40px rgba(18, 24, 40, 0.1);
+}
+.xw-pk-top { flex: none; display: flex; gap: 8px; }
+.xw-sel {
+  flex: 0 0 142px;
+  min-width: 0;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(18, 20, 28, 0.14);
+  background: rgba(255, 255, 255, 0.9);
+  font: 600 14px inherit;
+  color: #12141c;
+  cursor: pointer;
+}
+.xw-pk-s { flex: 1; min-width: 0; height: 44px; margin: 0; padding: 0 16px; font-size: 14px; }
+.xw-pk-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  align-content: start;
+  scrollbar-width: thin;
+}
+.xw-pk-tile {
+  position: relative;
+  padding: 8px 6px 6px;
+  border: 0;
+  border-radius: 16px;
+  background: #f3f6fb;
+  cursor: pointer;
+  text-align: center;
+  color: #12141c;
+}
+.xw-pk-tile.on { background: #fff; box-shadow: 0 0 0 2px var(--xw-accent, #1f87f5); }
+.xw-pk-img { position: relative; display: block; aspect-ratio: 1; }
+.xw-pk-img img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.xw-pk-tile.on .xw-tk { display: grid; right: 2px; top: 2px; bottom: auto; }
+.xw-pk-tile b { display: block; margin-top: 4px; font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xw-pk-none { grid-column: 1 / -1; margin: 10px 0; text-align: center; font-size: 13px; color: #5b6475; }
+.xw-pk-fin { flex: none; display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid rgba(18, 20, 28, 0.08); }
+.xw-pk-sws { display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none; }
+.xw-pk-sws::-webkit-scrollbar { display: none; }
+.xw-pk-sws .xw-sw { height: 50px; }
+.xw-pk-sws .xw-sw.solo { padding: 0; }
+.xw-pk > .xw-btn { flex: none; height: 56px; }
+.xw-wr em { display: block; font-style: normal; font-weight: 500; font-size: 11.5px; color: #5b6475; }
+
+.xw.ph .xw-split { inset: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 12px 14px; }
+.xw.ph .xw-sp-pic { flex: none; container-type: normal; }
+.xw.ph .xw-sp-pic .xw-pic { width: min(100%, 26svh * var(--ar, 1.5)); }
+.xw.ph .xw-pk { flex: 1; padding: 12px; border-radius: 22px; }
+.xw.ph .xw-pk-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.xw.ph .xw-pk-sws .xw-sw { width: auto; height: 50px; flex-direction: row; gap: 10px; text-align: left; font-size: 13px; }
+.xw.ph .xw-pk-sws .xw-sw .xw-wc { width: 44px; height: 44px; margin: 0; border: 2px solid rgba(18, 20, 28, 0.14); box-shadow: none; }
+.xw.ph .xw-pk-sws .xw-sw.on .xw-wc { border-color: var(--xw-accent, #1f87f5); box-shadow: none; }
+.xw.ph .xw-pk-sws .xw-sw .xw-tk { right: 0; bottom: 0; top: auto; width: 14px; height: 14px; }
+.xw.ph .xw-pk-sws .xw-sw.solo .xw-wc { width: 44px; height: 44px; margin: 0; }
+
+/* the picker's finishes: circle over name, so three fit across the panel */
+.xw-pk-sws { gap: 6px; justify-content: space-between; }
+.xw-pk-sws .xw-sw { flex: 1 1 0; min-width: 0; height: auto; flex-direction: column; gap: 4px; padding: 0; text-align: center; font-size: 12px; }
+.xw-pk-sws .xw-sw b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xw-pk-sws .xw-wc { width: 46px; height: 46px; margin: 0 auto; }
+.xw-pk-sws .xw-sw.solo { flex: none; flex-direction: row; gap: 12px; text-align: left; font-size: 14px; }
+.xw.ph .xw-pk-sws .xw-sw { flex: 1 1 0; height: auto; flex-direction: column; gap: 4px; text-align: center; font-size: 12px; }
+.xw.ph .xw-pk-sws .xw-sw .xw-wc { width: 44px; height: 44px; margin: 0 auto; }
+.xw.ph .xw-pk-sws .xw-sw.solo { flex: none; flex-direction: row; gap: 12px; text-align: left; font-size: 14px; }

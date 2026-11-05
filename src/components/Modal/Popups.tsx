@@ -4,7 +4,7 @@ import { okEmail } from "./QuoteView";
 import { IconCheck, IconClock, IconPause, IconPhoto, IconWarn, IconX } from "./icons";
 
 /** What a notice's buttons do. The Modal carries them out. */
-export type NoticeAction = "quote" | "back" | "retry" | "photo" | "reload";
+export type NoticeAction = "quote" | "back" | "retry" | "photo" | "reload" | "pick";
 
 interface Note {
   icon: () => JSX.Element;
@@ -28,6 +28,8 @@ const NOTES: Record<ProblemKind, Note> = {
   nowheels: { icon: IconPhoto, h: "Wheels not visible", p: "Both wheels need to show.", a: ["Try another photo", "photo"] },
   badfile: { icon: IconPhoto, h: "Can't use that photo", p: "Use a JPG, PNG or WebP under 20 MB.", a: ["Try another photo", "photo"] },
   expired: { icon: IconClock, h: "Session ended", a: ["Reload", "reload"] },
+  gone: { icon: IconWarn, h: "Wheel not available", a: ["Pick another wheel", "pick"] },
+  nolist: { icon: IconWarn, h: "Wheels not available", a: ["Try again", "reload"] },
 };
 
 const Close = (props: { onClick: () => void }) => (
