@@ -47,6 +47,12 @@ const DEFAULT = {
   emailRenders: 'ok',
   /** The backend added X-Visitor-ID to its CORS allow-list. */
   corsVisitor: false,
+  /** A dealer's code: decode says `catalogue: true` and GET /embed/catalogue lists brands and wheels. */
+  catalogue: false,
+  /** What GET /embed/catalogue answers with when it should fail: {"status":503,"error":"embed_catalogue_unavailable"}. */
+  catalogueFail: null,
+  /** Wheel ids the dealer no longer offers (read live on every request). */
+  hide: [],
 }
 
 let scenario = { ...DEFAULT }
@@ -60,6 +66,16 @@ const VARIANTS = [
   { id: '2', variant_name: 'Bronze', file: 'wheel-bronze.png', render: 'bronze.jpg' },
   { id: '3', variant_name: 'Satin Black', file: 'wheel-satin-black.png', render: 'black.jpg' },
 ]
+
+/** A dealer's catalogue: three brands, a few wheels each, three finishes on every wheel. */
+const BRANDS = [
+  { id: 7, name: 'HRE Wheels', logo_url: null },
+  { id: 9, name: 'Velos Designwerks', logo_url: null },
+  { id: 12, name: 'Vossen', logo_url: null },
+]
+const WHEEL_NAMES = { 7: ['FF01', 'P101', 'P200', 'FF15', 'M52'], 9: ['VSS-5', 'VLS-3'], 12: ['HF-3', 'CVT', 'S17-01', 'HF-1'] }
+const CAT_WHEELS = BRANDS.flatMap((b) => WHEEL_NAMES[b.id].map((name, i) => ({ id: b.id * 100 + i, brand: b.id, name })))
+const CAT_VARIANT_BASE = 1000
 
 const asset = (name) => `http://127.0.0.1:${API_PORT}/assets/${name}`
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -114,7 +130,13 @@ async function renderStream(req, res, raw) {
 
   renderCount++
   const products = JSON.parse(field(raw, 'products') || '[]')
-  const variant = VARIANTS.find((v) => Number(v.id) === products[0]?.variant_id) || VARIANTS[0]
+  const catIdx = (Number(products[0]?.variant_id) - CAT_VARIANT_BASE) % 10
+  const variant = VARIANTS.find((v) => Number(v.id) === products[0]?.variant_id)
+    || (Number.isFinite(catIdx) && catIdx >= 0 ? VARIANTS[catIdx % VARIANTS.length] : VARIANTS[0])
+
+  if (scenario.catalogue && scenario.hide.includes(String(products[0]?.product_id))) {
+    return json(res, 403, { error: 'product_not_in_catalogue', message: 'This wheel is not offered here.' })
+  }
 
   if (scenario.limit !== null && used >= scenario.limit) {
     return json(res, 429, { error: 'visitor_limit_reached', limit: scenario.limit, used, message: "You've hit your limit. Please come back later." })
@@ -222,8 +244,35 @@ const api = createServer(async (req, res) => {
   }
 
   switch (p) {
-    case '/api/v1/embed/validate': return json(res, 200, { valid: true, is_active: true, manufacturer_id: 7, wheel_id: 101 })
-    case '/api/v1/embed/decode': return json(res, 200, { valid: true, manufacturer_id: 7, wheel, wrap: null, variant_ids: (scenario.variants ?? [1, 2, 3]) })
+    case '/api/v1/embed/validate': return json(res, 200, { valid: true, is_active: true, manufacturer_id: scenario.catalogue ? 44 : 7, wheel_id: scenario.catalogue ? null : 101 })
+    case '/api/v1/embed/decode':
+      if (scenario.catalogue) {
+        return json(res, 200, {
+          valid: true,
+          manufacturer_id: 44,
+          wheel: null,
+          wrap: null,
+          variant_ids: [],
+          catalogue: true,
+          account: { name: 'Premier Tire', logo_url: asset('crest.jpg'), icon_url: null, accent_color: '#c2410c' },
+        })
+      }
+
+      return json(res, 200, { valid: true, manufacturer_id: 7, wheel, wrap: null, variant_ids: (scenario.variants ?? [1, 2, 3]), account: { name: 'HRE Wheels', logo_url: asset('crest.jpg') } })
+    case '/api/v1/embed/catalogue': {
+      if (!scenario.catalogue) return json(res, 409, { error: 'not_a_catalogue_embed', code: 'not_a_catalogue_embed' })
+      if (!req.headers['x-session-id']) return json(res, 401, { error: 'embed_session_not_bound' })
+      if (scenario.catalogueFail) return json(res, scenario.catalogueFail.status, { error: scenario.catalogueFail.error })
+      const shown = CAT_WHEELS.filter((w) => !scenario.hide.includes(String(w.id)))
+
+      return json(res, 200, {
+        brands: BRANDS,
+        products: shown.map((w) => ({
+          product: { id: w.id, name: w.name, manufacturer_id: w.brand, reference_image_paths: [asset(w.name === 'P101' ? 'wheel-p101.png' : 'wheel-ff01.png')] },
+          variants: VARIANTS.map((v, i) => ({ id: CAT_VARIANT_BASE + (w.id * 10) + i, product_id: w.id, variant_name: v.variant_name, display_order: i, reference_image_paths: [asset(v.file)] })),
+        })),
+      })
+    }
     case '/api/v1/products/101/variants':
       return json(res, 200, {
         variants: VARIANTS.map((v, i) => ({ id: v.id, variant_name: v.variant_name, display_order: i, reference_image_paths: [asset(v.file)] })),

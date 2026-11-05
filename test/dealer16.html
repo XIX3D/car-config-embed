@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Premier Tire - dealer embed test page</title>
+    <style>
+      body { margin: 0; font-family: Helvetica, Arial, sans-serif; color: #222; background: #fff; }
+      header { display: flex; justify-content: center; padding: 16px; background: #161616; }
+      header img { width: 56px; height: 56px; }
+      main { max-width: 900px; margin: 0 auto; padding: 32px 16px; }
+      h1 { font-weight: 300; font-size: 40px; letter-spacing: .04em; margin: 8px 0; }
+      p { line-height: 1.55; color: #555; }
+    </style>
+  </head>
+  <body>
+    <!-- Served by tools/mock-backend.mjs on its own origin; the widget's API is the other port. -->
+    <header><img src="/assets/crest.jpg" alt="HRE" /></header>
+    <main>
+      <h1>Premier Tire</h1>
+      <p>A dealer code: no wheel in it. The visitor picks from what the dealer offers.</p>
+      <!-- payload {"manufacturer_id":44}; the mock answers decode with catalogue: true when started with the catalogue scenario -->
+      <div class="avacar-preview" data-jwt="eyJhbGciOiAibm9uZSJ9.eyJtYW51ZmFjdHVyZXJfaWQiOiA0NH0.x">See it on your car</div>
+      <p>See any wheel on your car.</p>
+    </main>
+    <script src="/widget.js"></script>
+  </body>
+</html>

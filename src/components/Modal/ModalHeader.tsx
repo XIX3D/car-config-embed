@@ -18,7 +18,7 @@ export function ModalHeader(props: ModalHeaderProps) {
         </Show>
       </div>
       <div class="xw-name">
-        {props.brandName} - {props.modelName}
+        {props.modelName ? `${props.brandName} - ${props.modelName}` : props.brandName}
         <small>Powered by xix3D</small>
       </div>
       <button class="xw-round" aria-label="Close" onClick={() => props.onClose()}>
