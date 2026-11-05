@@ -13,7 +13,7 @@ export function ModalHeader(props: ModalHeaderProps) {
   return (
     <div class="xw-hd">
       <div class="xw-mark">
-        <Show when={props.productImgUrl}>
+        <Show when={props.productImgUrl} fallback={<span class="xw-mk-l">{props.brandName.trim().charAt(0).toUpperCase()}</span>}>
           <img src={props.productImgUrl} alt="" />
         </Show>
       </div>

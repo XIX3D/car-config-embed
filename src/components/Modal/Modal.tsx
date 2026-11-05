@@ -60,7 +60,9 @@ export function Modal(props: ModalProps) {
   let slowSlot = 0;
 
   const productImgUrl = () =>
-    state.account?.icon_url || state.account?.logo_url || state.product?.reference_image_paths?.[0] || "";
+    state.account?.icon_url || state.account?.logo_url
+    // a dealer's mark is the dealer's, never whichever wheel is picked
+    || (state.catalogue ? "" : state.product?.reference_image_paths?.[0]) || "";
   /** The account that pays and receives: the picked wheel's own on a brand's code, the dealer's on a dealer's. */
   const ownerId = () => state.manufacturerId ?? state.product?.manufacturer_id ?? 0;
   /** A dealer's picker needs a photo before it shows; a brand's code has its one wheel already. */
