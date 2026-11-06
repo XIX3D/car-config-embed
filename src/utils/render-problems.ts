@@ -30,6 +30,11 @@ function fromCode(code: string, body: Record<string, unknown>): RenderProblem | 
   if (code === 'mask_gate_failed') return { kind: 'nowheels', code }
   if (code === 'no_car') return { kind: 'nocar', code }
   if (code === 'embed_session_not_bound') return { kind: 'expired', code }
+  // A dealer's wheel that left the catalogue (or whose brand was switched off) after the list was read.
+  if (code === 'product_not_in_catalogue') return { kind: 'gone', code }
+  if (code === 'embed_catalogue_unavailable') return { kind: 'nolist', code }
+  // A brand's code whose wheel has left the site: nothing to pick instead, so the renders are paused.
+  if (code === 'product_not_in_embed') return { kind: 'paused', code }
 
   return null
 }

@@ -13,13 +13,16 @@ export function ModalHeader(props: ModalHeaderProps) {
   return (
     <div class="xw-hd">
       <div class="xw-mark">
-        <Show when={props.productImgUrl}>
+        <Show when={props.productImgUrl} fallback={<span class="xw-mk-l">{props.brandName.trim().charAt(0).toUpperCase()}</span>}>
           <img src={props.productImgUrl} alt="" />
         </Show>
       </div>
       <div class="xw-name">
-        {props.brandName} - {props.modelName}
-        <small>Powered by xix3D</small>
+        {props.modelName ? `${props.brandName} - ${props.modelName}` : props.brandName}
+        <small>
+          Powered by{" "}
+          <a href="https://render.xix3d.com" target="_blank" rel="noopener noreferrer">xix3D</a>
+        </small>
       </div>
       <button class="xw-round" aria-label="Close" onClick={() => props.onClose()}>
         <IconX />

@@ -7,40 +7,18 @@ interface ZenoButtonProps {
   onClick: () => void
 }
 
-const StarPath = () => (
-  <path d="M9 0.5L10.9 7.1L17.5 9L10.9 10.9L9 17.5L7.1 10.9L0.5 9L7.1 7.1L9 0.5Z" fill="white" />
-)
-
+/**
+ * The button on the brand's or dealer's own page: the studio's animated AI button (the same
+ * look as the Render button inside the window). Its styles are in styles/page.css.
+ */
 export function ZenoButton(props: ZenoButtonProps) {
   const text = () => props.text || 'Preview on Your Car'
 
   return (
-    <button class="avacar-btn-zeno" onClick={() => props.onClick()}>
-      <div class="avacar-zeno-shimmer" />
-
-      <div class="avacar-zeno-icon-system">
-        <svg class="avacar-star-main" width="18" height="18" viewBox="0 0 18 18" fill="none">
-          <StarPath />
-        </svg>
-
-        <div class="avacar-orbit avacar-orbit-1">
-          <svg class="avacar-star-mini" width="6" height="6" viewBox="0 0 18 18" fill="none">
-            <StarPath />
-          </svg>
-        </div>
-
-        <div class="avacar-orbit avacar-orbit-2">
-          <svg class="avacar-star-mini" width="5" height="5" viewBox="0 0 18 18" fill="none">
-            <StarPath />
-          </svg>
-        </div>
-
-        <div class="avacar-orbit avacar-orbit-3">
-          <svg class="avacar-star-mini" width="4" height="4" viewBox="0 0 18 18" fill="none">
-            <StarPath />
-          </svg>
-        </div>
-      </div>
+    <button class={`avacar-btn-zeno${props.size === 'compact' ? ' avacar-compact' : ''}`} onClick={() => props.onClick()}>
+      <svg class="avacar-zeno-spark" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 2l2.2 6.3L20 10l-5.8 1.7L12 18l-2.2-6.3L4 10l5.8-1.7z" />
+      </svg>
 
       <span class="avacar-zeno-label">{text()}</span>
     </button>

@@ -45,13 +45,45 @@ export interface Variant {
   centerlock_image?: string
 }
 
+/** Who the embed code belongs to: the brand for a wheel's code, the dealer for a dealer's. */
+export interface EmbedAccount {
+  name: string
+  logo_url?: string | null
+  icon_url?: string | null
+  accent_color?: string | null
+}
+
 export interface DecodeTokenResponse {
   valid: boolean
   manufacturer_id: number
   wrap: Product | null
   wheel: Product | null
   variant_ids: number[]
+  /** True for a dealer's code: it names no wheel, the visitor picks from `GET /embed/catalogue`. */
+  catalogue?: boolean
+  account?: EmbedAccount
 }
+
+export interface CatalogueBrand {
+  id: number
+  name: string
+  logo_url?: string | null
+}
+
+export interface CatalogueEntry {
+  product: Product
+  variants: Variant[]
+}
+
+/** What a dealer's embed offers: only the brands the dealer switched on, only wheels on the site. */
+export interface Catalogue {
+  brands: CatalogueBrand[]
+  products: CatalogueEntry[]
+}
+
+export type CatalogueResult =
+  | { ok: true; catalogue: Catalogue }
+  | { ok: false; status: number; code: string }
 
 export interface ValidateTokenResponse {
   valid: boolean
@@ -84,6 +116,9 @@ export interface RenderResult {
   variantId: string | null
   hexColor: string | null
   referenceImage: string | null
+  /** The wheel, when the code offers a catalogue and renders on one photo can be of different wheels. */
+  productId?: string | null
+  productName?: string | null
   /** The visitor's photo this render was made from, for the compare button. */
   photo: string | null
   /** Which photo, so finishes already rendered on it are not offered again. */
@@ -173,6 +208,10 @@ export interface EmailGateResponse {
 export type ProblemKind =
   | 'limit' | 'paused' | 'slow' | 'fail' | 'timeout'
   | 'nocar' | 'nowheels' | 'badfile' | 'expired'
+  /** A dealer's wheel left the catalogue between the list and the render: pick another. */
+  | 'gone'
+  /** A dealer's list of wheels would not load. */
+  | 'nolist'
 
 export interface RenderProblem {
   kind: ProblemKind
@@ -207,6 +246,8 @@ export interface MaskCompleteData {
   cached: boolean
   /** Chroma sockets found in the mask. */
   sockets: number
+  /** The wheels as a small white-on-transparent PNG (base64), when the server sends it: they light up while the render runs. */
+  cutout_png_b64?: string
   /**
    * Present only when the socket count exceeds the wheels intake saw. This is the signature
    * of an INVENTED socket — a false chroma blob that gets filled with wheel — and it is the

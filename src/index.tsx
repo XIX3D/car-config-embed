@@ -106,19 +106,78 @@ const api: typeof baseApi = {
 
 /**
  * Read the email-required answer: the gate, and (backend R2, R3, R7) the visitor's limit, the
- * details-first setting and which new features the backend has. The X-Visitor-ID header is only
- * sent once that answer carries `visitor_limit`, the field that ships with the per-visitor limit
- * (R1); before then the backend's CORS list would refuse the header and every render with it.
+ * details-first setting and which new features the backend has.
+ *
+ * The limit is per device, so the open-time check carries X-Visitor-ID too. A backend that has not
+ * added the header to its CORS list refuses the whole request, so a failed first try is asked again
+ * without it. The header then stays on for renders only once an answer carries `visitor_limit`,
+ * the field that ships with the per-visitor limit (R1).
  */
 async function loadGate(manufacturerId?: number) {
-  const gate = await api.getEmailGate(manufacturerId)
+  const visitor = getVisitorId()
 
-  api.setVisitor(getVisitorId(), !!gate && 'visitor_limit' in gate)
+  api.setVisitor(visitor, true)
+  let gate = await api.getEmailGate(manufacturerId)
+
+  if (!gate) {
+    api.setVisitor(visitor, false)
+    gate = await api.getEmailGate(manufacturerId)
+  }
+
+  api.setVisitor(visitor, !!gate && 'visitor_limit' in gate)
 
   return gate ?? FAIL_CLOSED_GATE
 }
 
 let lastOpen: { jwt: string; brand?: string } | null = null
+
+/**
+ * What a visitor's first moments cost: the code is decoded (about half a second), and a dealer's
+ * list of wheels takes the server a couple of seconds to build. All of it can start the moment the
+ * visitor shows intent (a hover, a touch), so by the click it is ready, and the window never waits
+ * for the list: it opens at once with placeholders. Nothing starts on page load: a page that is
+ * only read must cost the server nothing.
+ */
+const WARM_MS = 4 * 60 * 1000
+interface Warm {
+  jwt: string
+  session: string
+  at: number
+  decode: ReturnType<typeof api.decodeToken>
+  /** A dealer's list; set once decode says this is a dealer's code. */
+  catalogue?: ReturnType<typeof api.fetchCatalogue>
+  gate?: ReturnType<typeof loadGate>
+  ready: Promise<void>
+}
+let warm: Warm | null = null
+
+function warmUp(jwt: string, fresh = false): Warm {
+  if (!fresh && warm && warm.jwt === jwt && Date.now() - warm.at < WARM_MS) return warm
+
+  const session = createSession()
+
+  api.setSessionId(session)
+  const decode = api.decodeToken(jwt)
+  const w: Warm = { jwt, session, at: Date.now(), decode, ready: Promise.resolve() }
+
+  w.ready = decode.then((d) => {
+    if (!d?.valid) return
+    if (d.catalogue) w.catalogue = api.fetchCatalogue(session)
+    w.gate = loadGate(d.manufacturer_id)
+  })
+  warm = w
+
+  return w
+}
+
+/** Start the warm-up when the visitor reaches for a button. */
+function warmOnIntent(el: Element, jwt: string) {
+  const go = () => { warmUp(jwt) }
+
+  el.addEventListener('pointerenter', go, { once: true })
+  el.addEventListener('touchstart', go, { once: true, passive: true })
+  el.addEventListener('focus', go, { once: true })
+}
 
 let rootEl: HTMLElement | null = null
 let shadowRoot: ShadowRoot | null = null
@@ -154,13 +213,13 @@ function mountWidget() {
 
   // Reload (Session ended, E7) opens the same preview again: a new session, bound afresh.
   const reload = () => {
-    if (lastOpen) openPreview(lastOpen.jwt, lastOpen.brand)
+    if (lastOpen) openPreview(lastOpen.jwt, lastOpen.brand, true)
   }
 
   render(() => <Modal store={store} api={api} shadowRoot={shadowRoot!} onReload={reload} />, mountPoint)
 }
 
-async function openPreview(jwt: string, customBrand?: string) {
+async function openPreview(jwt: string, customBrand?: string, fresh = false) {
   if (!jwt) {
     console.error('Avacar: No JWT token provided')
 
@@ -170,9 +229,39 @@ async function openPreview(jwt: string, customBrand?: string) {
   lastOpen = { jwt, brand: customBrand }
   mountWidget()
 
-  api.setSessionId(createSession())
+  // A hover or touch already started this; a click without one starts it now.
+  const w = warmUp(jwt, fresh)
 
-  const decodeResult = await api.decodeToken(jwt)
+  api.setSessionId(w.session)
+
+  const decodeResult = await w.decode
+
+  if (decodeResult?.valid && decodeResult.catalogue) {
+    // A dealer's code: no wheel in the code, the visitor picks from what the dealer offers.
+    // The window opens the moment the (small) open check is back; the long list fills in after.
+    await w.ready
+
+    const gate = await (w.gate ?? loadGate(decodeResult.manufacturer_id))
+
+    store.actions.open({}, null, [], customBrand, {
+      account: decodeResult.account,
+      manufacturerId: decodeResult.manufacturer_id,
+      catalogueLoading: true,
+    })
+    store.actions.setEmailGate(gate)
+
+    const catalogue = await (w.catalogue ?? api.fetchCatalogue(w.session))
+
+    if (!store.state.isOpen) return
+    if (catalogue.ok) {
+      store.actions.setCatalogue(catalogue.catalogue)
+    } else {
+      store.actions.catalogueFailed()
+      store.actions.setNotice(catalogue.status === 401 ? 'expired' : 'nolist')
+    }
+
+    return
+  }
 
   if (decodeResult?.valid) {
     const product = decodeResult.wheel || decodeResult.wrap
@@ -185,16 +274,17 @@ async function openPreview(jwt: string, customBrand?: string) {
       variant_ids: variantIds,
     }
 
-    let variants: Awaited<ReturnType<typeof api.fetchVariants>> = []
-
-    if (productId) {
-      variants = await api.fetchVariants(productId, variantIds)
-    }
-
     // Asked before the window opens, so a brand that wants details first never flashes the photo screen.
-    const gate = await loadGate(product?.manufacturer_id)
+    // The finishes and that check do not depend on each other: asked together.
+    const [variants, gate] = await Promise.all([
+      productId ? api.fetchVariants(productId, variantIds) : Promise.resolve([] as Awaited<ReturnType<typeof api.fetchVariants>>),
+      w.ready.then(() => w.gate ?? loadGate(product?.manufacturer_id)),
+    ])
 
-    store.actions.open(selections, product, variants, customBrand)
+    store.actions.open(selections, product, variants, customBrand, {
+      account: decodeResult.account,
+      manufacturerId: decodeResult.manufacturer_id,
+    })
     store.actions.setEmailGate(gate)
 
     return
@@ -356,6 +446,7 @@ function bindButtons() {
         const btn = wrapper.querySelector('.avacar-btn-zeno')
 
         if (btn) {
+          warmOnIntent(btn, jwt)
           btn.setAttribute('data-jwt', jwt)
           if (explicitTheme) {
             btn.setAttribute('data-theme-locked', 'true')
@@ -364,6 +455,7 @@ function bindButtons() {
       } else {
         fallbackBound = true
         button.style.display = originalDisplay
+        warmOnIntent(button, jwt)
         button.addEventListener('click', (e) => {
           e.preventDefault()
           openPreview(jwt, customBrand)

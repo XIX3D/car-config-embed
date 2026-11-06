@@ -1,7 +1,8 @@
-import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { createSignal, For, onCleanup, onMount, Show, type ComponentProps } from "solid-js";
 import type { Variant } from "../../types";
 import { VALID_IMAGE_TYPES, MAX_FILE_SIZE_BYTES, MAX_IMAGE_DIMENSION } from "../../constants";
 import { Frame } from "./Frame";
+import { PickerView } from "./PickerView";
 import { IconCamera, IconCheck, IconSpark, IconUpload } from "./icons";
 
 interface UploadViewProps {
@@ -19,6 +20,8 @@ interface UploadViewProps {
   /** A file the widget cannot use: "Can't use that photo". */
   onBadFile: () => void;
   onAspect: (ar: number) => void;
+  /** A dealer's code: with a photo in, the brand and wheel picker replaces the one wheel's finishes. */
+  picker?: Omit<ComponentProps<typeof PickerView>, "phone" | "ar" | "previewUrl" | "onChangePhoto">;
 }
 
 const variantImage = (v: Variant) => v.reference_image_paths?.[0] || v.reference_image || "";
@@ -83,7 +86,7 @@ export function UploadView(props: UploadViewProps) {
           aria-pressed={props.selectedVariantIds.includes(v.id)}
           onClick={() => props.onToggleVariant(v.id)}
         >
-          <span class="xw-wc">
+          <span class="xw-wc" style={!variantImage(v) && v.hex_color ? { background: v.hex_color } : undefined}>
             <Show when={variantImage(v)}>
               <img src={variantImage(v)} alt="" />
             </Show>
@@ -151,11 +154,14 @@ export function UploadView(props: UploadViewProps) {
             </svg>
             <div>
               <div class="xw-orb"><IconUpload /></div>
-              <h2>Upload a photo.</h2>
+              <h2>Upload a photo of your car</h2>
             </div>
           </div>
         }
       >
+        <Show
+          when={props.picker}
+          fallback={
         <Frame
           phone={props.phone}
           ar={props.ar}
@@ -190,6 +196,10 @@ export function UploadView(props: UploadViewProps) {
           }
           phoneBar={<RenderButton />}
         />
+          }
+        >
+          <PickerView {...props.picker!} phone={props.phone} ar={props.ar} previewUrl={props.previewUrl!} onChangePhoto={() => props.onChangePhoto()} />
+        </Show>
       </Show>
     </div>
   );

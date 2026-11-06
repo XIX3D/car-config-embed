@@ -1,7 +1,7 @@
 import { createSignal, For, Show, onMount } from "solid-js";
 import type { RenderResult } from "../../types";
 import type { Lead } from "../../stores/widget-store";
-import { IconBack, IconHeart } from "./icons";
+import { IconBack, IconCheck } from "./icons";
 
 interface QuoteViewProps {
   brandName: string;
@@ -93,20 +93,20 @@ export function QuoteView(props: QuoteViewProps) {
                     type="button"
                     class={`${on() ? "on" : ""} ${r.id === props.current?.id ? "fo" : ""}`}
                     aria-pressed={on()}
-                    onClick={(e) => {
-                      if ((e.target as HTMLElement).closest("[data-heart]")) props.onToggleInterest(r.id);
-                      else props.onFocus(r.id);
-                    }}
+                    onClick={() => (on() ? props.onToggleInterest(r.id) : props.onFocus(r.id))}
                   >
-                    <span class="xw-wc">
+                    <span class="xw-wc" style={!r.referenceImage && r.hexColor ? { background: r.hexColor } : undefined}>
                       <Show when={r.referenceImage}>
                         <img src={r.referenceImage!} alt="" />
                       </Show>
-                      <i class="xw-hb" data-heart aria-label={on() ? "In the quote" : "Add to the quote"}>
-                        <IconHeart on={on()} />
+                      <i class="xw-hb" aria-hidden="true">
+                        <IconCheck />
                       </i>
                     </span>
-                    <b>{r.label}</b>
+                    <b>{r.productName ?? r.label}</b>
+                    <Show when={r.productName}>
+                      <em>{r.label}</em>
+                    </Show>
                   </button>
                 );
               }}
