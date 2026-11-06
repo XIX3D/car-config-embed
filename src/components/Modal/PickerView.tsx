@@ -23,6 +23,10 @@ interface PickerViewProps {
   search: string;
   /** Every wheel picked so far, with its finishes. */
   picks: Pick[];
+  /** The wheel the page picked for the visitor, until they touch the selection. */
+  autoPick: string | null;
+  /** A new photo picks the first wheel on screen, once (or none, when the list has none). */
+  onAutoPick: (entry: CatalogueEntry | null) => void;
   /** Finishes already rendered (or rendering) on this photo, by wheel: shown, not offered again. */
   doneByProduct: Record<string, string[]>;
   /** The car in the photo, once known: it picks the suggestions. */
@@ -132,7 +136,6 @@ export function PickerView(props: PickerViewProps) {
   let top: HTMLDivElement | undefined;
 
   const total = () => props.picks.reduce((n, p) => n + p.variantIds.length, 0);
-  const needFinish = () => props.picks.filter((p) => p.variantIds.length === 0).length;
   const atCap = () => total() >= props.cap;
   const pickOf = (id: string) => props.picks.find((p) => p.product.id === id);
   const doneOf = (id: string) => props.doneByProduct[id] ?? [];
@@ -204,6 +207,38 @@ export function PickerView(props: PickerViewProps) {
   const stripIds = createMemo(() => new Set(showSuggested() ? stripList().map((e) => e.product.id) : []));
   const stripOpen = () => stripList().filter((e) => pickOf(e.product.id) && e.variants.length > 1);
 
+  // A new photo picks the first wheel on screen, as the studio does: Render is then one tap. It waits for the car
+  // to be named, so the first suggestion is the one picked, and gives up waiting after a moment.
+  const [waited, setWaited] = createSignal(false);
+
+  onMount(() => {
+    const t = setTimeout(() => setWaited(true), 5000);
+
+    onCleanup(() => clearTimeout(t));
+  });
+  createEffect(() => {
+    if (props.loading || props.catalogue.products.length === 0) return;
+    if (!props.car && !waited()) return;
+    // The car is named but the list of what the brands photographed on it has not come yet: wait for it.
+    if (props.car?.make && seenReady() === 0 && !waited()) return;
+    const first = showSuggested() ? stripList()[0] : matches()[0];
+
+    props.onAutoPick(first ?? null);
+  });
+
+  // The queue under the grid: one line per render, with the wheel's photo, its finish and a way to take it off.
+  const lines = createMemo(() =>
+    props.picks.flatMap((p) => {
+      const picked = p.variants.filter((v) => p.variantIds.includes(v.id));
+
+      return picked.length > 0
+        ? picked.map((v) => ({ pick: p, v: v as Variant | null }))
+        : [{ pick: p, v: null as Variant | null }];
+    }),
+  );
+  const [queueOpen, setQueueOpen] = createSignal(false);
+  const note = () => (atCap() ? `You can render up to ${props.cap} at a time` : "");
+
   // The brand list closes on a tap anywhere else and on Escape.
   onMount(() => {
     const away = (e: Event) => {
@@ -265,6 +300,9 @@ export function PickerView(props: PickerViewProps) {
             <Show when={t.compact && !t.forceOpen}>
               <small>{props.catalogue.brands.find((b) => Number(b.id) === Number(t.entry.product.manufacturer_id))?.name}</small>
             </Show>
+            <Show when={props.autoPick === id() && pick()}>
+              <small>picked for you</small>
+            </Show>
             <Show when={open()}>
               <small>
                 {pick()!.variantIds.length === 0 ? "Pick one or more finishes" : `${pick()!.variantIds.length} of ${t.entry.variants.length} picked`}
@@ -305,6 +343,34 @@ export function PickerView(props: PickerViewProps) {
       </div>
     );
   };
+
+  const QueueLine = (l: { pick: Pick; v: Variant | null }, hint = "") => (
+    <li class="xw-qn">
+      <span class="xw-qn-i">
+        <Show when={l.v && variantImage(l.v)} fallback={<WheelImage src={wheelImage(l.pick.product)} />}>
+          <img src={variantImage(l.v!)} alt="" draggable={false} />
+        </Show>
+      </span>
+      <span class="xw-qn-t">
+        <b>{l.pick.product.name}</b>
+        <i aria-hidden="true">·</i>
+        <span class={l.v ? "" : "need"}>{l.v ? l.v.variant_name : "Pick a finish"}</span>
+      </span>
+      <Show when={hint}>
+        <small>{hint}</small>
+      </Show>
+      <button
+        type="button"
+        class="xw-qn-x"
+        aria-label={l.v ? `Remove ${l.pick.product.name} in ${l.v.variant_name}` : `Remove ${l.pick.product.name}`}
+        onClick={() =>
+          l.v && l.pick.variantIds.length > 1 ? props.onToggleFinish(l.pick.product.id, l.v.id) : props.onToggleWheel({ product: l.pick.product, variants: l.pick.variants })
+        }
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+      </button>
+    </li>
+  );
 
   const label = () => (props.picks.length === 0 ? "Pick a wheel" : total() === 0 ? "Pick a finish" : "Render");
 
@@ -447,18 +513,34 @@ export function PickerView(props: PickerViewProps) {
           </Show>
         </div>
 
-        <div class="xw-pk-sum">
-          <Show when={props.picks.length > 0}>
-            <span>
-              {props.picks.length} {props.picks.length === 1 ? "wheel" : "wheels"}
-              {total() > 0 ? ` · ${total()} ${total() === 1 ? "finish" : "finishes"}` : ""}
-              <Show when={needFinish() > 0}>
-                <em> · {needFinish()} {needFinish() === 1 ? "needs" : "need"} a finish</em>
+        <Show when={lines().length > 0}>
+          <div class="xw-qq">
+            <Show
+              when={lines().length > 1}
+              fallback={<ul>{QueueLine(lines()[0], note())}</ul>}
+            >
+              <div class="xw-qq-h">
+                <button type="button" class="xw-qq-t" aria-expanded={queueOpen()} onClick={() => setQueueOpen(!queueOpen())}>
+                  <b>{lines().length} renders</b>
+                  <svg class={queueOpen() ? "up" : ""} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m6 15 6-6 6 6" />
+                  </svg>
+                  <Show when={note()}>
+                    <small>{note()}</small>
+                  </Show>
+                </button>
+                <Show when={queueOpen()}>
+                  <button type="button" class="xw-qq-c" onClick={() => props.onClear()}>Clear</button>
+                </Show>
+              </div>
+              <Show when={queueOpen()}>
+                <ul class="xw-qq-l">
+                  <For each={lines()}>{(l) => QueueLine(l)}</For>
+                </ul>
               </Show>
-            </span>
-            <button type="button" class="xw-link" onClick={() => props.onClear()}>Clear</button>
-          </Show>
-        </div>
+            </Show>
+          </div>
+        </Show>
 
         <MetalButton class="xw-cta" ring="4px" disabled={total() === 0} onClick={() => props.onRender()}>
           <span>{label()}</span>

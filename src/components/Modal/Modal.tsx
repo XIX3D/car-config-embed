@@ -552,6 +552,8 @@ export function Modal(props: ModalProps) {
                             brandFilter: state.brandFilter,
                             search: state.search,
                             picks: state.picks,
+                            autoPick: state.autoPick,
+                            onAutoPick: actions.autoPickWheel,
                             doneByProduct: doneByProduct(),
                             car: state.detectedVehicle,
                             cap: props.store.batchCap(),

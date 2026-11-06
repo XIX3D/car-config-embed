@@ -760,8 +760,31 @@
 .xw-pk-none { grid-column: 1 / -1; margin: 14px 0; text-align: center; font-size: 13px; color: #5b6475; }
 .xw-pk-none p { margin: 0; }
 .xw-el { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 8px; }
-.xw-pk-sum { flex: none; min-height: 18px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 4px; font-size: 12.5px; font-weight: 600; color: #3b4252; }
-.xw-pk-sum em { font-style: normal; font-weight: 500; color: #5b6475; }
+.xw-qq { flex: none; margin: 0 -14px; padding: 2px 16px 0; border-top: 1px solid rgba(18, 20, 28, 0.08); color: #12141c; text-align: left; }
+.xw.ph .xw-qq { margin: 0 -12px; padding: 2px 14px 0; }
+.xw-qq ul { margin: 0; padding: 0; list-style: none; }
+.xw-qn { display: flex; align-items: center; gap: 8px; min-height: 40px; font-size: 13px; line-height: 1.2; }
+.xw-qn-i { position: relative; flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; overflow: hidden; background: #fff; box-shadow: 0 0 0 1px rgba(18, 20, 28, 0.1); }
+.xw-qn-i > img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.xw-qn-i .xw-glyph { width: 70%; height: 70%; }
+.xw-qn-t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.xw-qn-t b { font-weight: 600; }
+.xw-qn-t i { margin: 0 8px; font-style: normal; color: rgba(59, 66, 82, 0.6); }
+.xw-qn-t span { color: #5b6475; }
+.xw-qn-t span.need { color: #a35b00; font-weight: 600; }
+.xw-qn small { max-width: 45%; text-align: right; font-size: 11px; color: #5b6475; }
+.xw-qn-x { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; color: #5b6475; cursor: pointer; }
+.xw-qn-x:hover { background: rgba(18, 20, 28, 0.06); color: #12141c; }
+.xw-qq-h { display: flex; align-items: center; gap: 8px; }
+.xw-qq-t { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.xw-qq-t b { flex: none; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.xw-qq-t svg { flex: none; width: 14px; height: 14px; color: #5b6475; transition: transform 0.2s; }
+.xw-qq-t svg.up { transform: rotate(180deg); }
+.xw-qq-t small { min-width: 0; font-size: 11px; line-height: 1.25; color: #5b6475; }
+.xw-qq-c { flex: none; height: 40px; padding: 0 12px; border: 0; border-radius: 999px; background: none; font: inherit; font-size: 12px; font-weight: 600; color: #5b6475; cursor: pointer; }
+.xw-qq-c:hover { background: rgba(18, 20, 28, 0.06); color: #12141c; }
+.xw-qq-l { max-height: 90px; overflow-y: auto; }
+.xw.ph .xw-qq-l { max-height: 168px; }
 .xw-pk > .xw-btn { flex: none; height: 56px; }
 .xw-wr em { display: block; font-style: normal; font-weight: 500; font-size: 11.5px; color: #5b6475; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 

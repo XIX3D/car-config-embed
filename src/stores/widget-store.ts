@@ -65,6 +65,10 @@ export interface WidgetState {
   search: string
   /** A dealer's visitor can pick several wheels, each with its own finishes, and render them together. */
   picks: Pick[]
+  /** The wheel the page picked for the visitor ("picked for you"), until they touch the selection. */
+  autoPick: string | null
+  /** The photo the opening pick was made (or declined) for: a new photo is the only thing that arms it again. */
+  autoSpent: number
   /** The wheel cut-out the server sent for this photo (mask_complete): the wheels light up while rendering. */
   cutout: { photoKey: number; url: string } | null
 
@@ -140,6 +144,8 @@ const initialState: WidgetState = {
   brandFilter: null,
   search: '',
   picks: [],
+  autoPick: null,
+  autoSpent: 0,
   cutout: null,
 
   selectedFile: null,
@@ -360,10 +366,13 @@ export function createWidgetStore() {
       const at = state.picks.findIndex((p) => p.product.id === entry.product.id)
 
       if (at !== -1) {
-        setState('picks', (list) => list.filter((_, i) => i !== at))
+        setState({ autoPick: null, picks: state.picks.filter((_, i) => i !== at) })
 
         return
       }
+      // The visitor's first pick takes the page's place: the wheel picked for them does not stay beside theirs.
+      if (state.autoPick && state.picks.length === 1 && state.picks[0].product.id === state.autoPick) setState('picks', [])
+      setState('autoPick', null)
       if (totalPicked() >= batchCap()) return
       const variants = [...entry.variants].sort(
         (a, b) => (a.display_order ?? Number.MAX_SAFE_INTEGER) - (b.display_order ?? Number.MAX_SAFE_INTEGER),
@@ -375,6 +384,7 @@ export function createWidgetStore() {
 
     /** One finish of a picked wheel on or off. A wheel left with none stays picked, "needs a finish". */
     toggleFinish(productId: string, variantId: string) {
+      setState('autoPick', null)
       setState('picks', (p) => p.product.id === productId, produce((pick) => {
         const i = pick.variantIds.indexOf(variantId)
 
@@ -389,7 +399,16 @@ export function createWidgetStore() {
     },
 
     clearPicks() {
-      setState('picks', [])
+      setState({ picks: [], autoPick: null })
+    },
+
+    /** A new photo picks the first wheel on screen, once: Render is then one tap, and the screen says who chose. */
+    autoPickWheel(entry: CatalogueEntry | null): void {
+      if (state.autoSpent === state.photoKey) return
+      setState('autoSpent', state.photoKey)
+      if (!entry || state.picks.length > 0) return
+      actions.toggleWheel(entry)
+      setState('autoPick', entry.product.id)
     },
 
     /** The server's wheel cut-out for the photo on screen. */
