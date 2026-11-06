@@ -35,7 +35,7 @@ interface ResultViewProps {
 /**
  * S2: the render fills the window. Under it, one bar: a thumbnail for each render (the wheel it
  * shows, so the strip reads as "the wheels I tried"; a render still on its way is a dimmed one
- * with a ring), what is on screen, Another wheel, Request quote. Renders already finished can be
+ * with a ring), what is on screen, More wheels, Request quote. Renders already finished can be
  * opened while the rest are still coming. At the limit the caption becomes the limit card.
  */
 export function ResultView(props: ResultViewProps) {
@@ -102,7 +102,7 @@ export function ResultView(props: ResultViewProps) {
   const More = () => (
     <Show when={!props.limitReached}>
       <button type="button" class="xw-more" onClick={() => props.onMore()}>
-        {props.allDone ? "New photo" : props.moreWheels ? "Another wheel" : "Another finish"}
+        {props.allDone ? "New photo" : props.moreWheels ? "More wheels" : "Another finish"}
       </button>
     </Show>
   );

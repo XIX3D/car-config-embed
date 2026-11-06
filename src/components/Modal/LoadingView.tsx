@@ -31,7 +31,7 @@ function createLoadingText(text: string) {
 }
 
 /**
- * The live widget's render animation, unchanged: the glow turning round the picture's edge and
+ * The studio's render animation: the white and blue glow turning round the picture's edge and
  * the step spelled in pulsing letters. Laid over a photo whose brightness is dropped (`.ld`).
  */
 export function LoadingOverlay(props: { steps: LoadingStep[]; step: number; photo?: string | null; cutout?: string | null }) {
@@ -46,7 +46,7 @@ export function LoadingOverlay(props: { steps: LoadingStep[]; step: number; phot
           <img src={props.photo!} alt="" draggable={false} />
         </div>
       </Show>
-      <div class="avacar-inner-glow" />
+      <i class="xw-glow" />
       <div class="xw-lvo">
         <div style={{ display: "flex", "justify-content": "center" }}>
           <For each={letters()}>

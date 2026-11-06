@@ -350,7 +350,15 @@
 
 /* ---------- the live render animation (LoadingView), on the picture ---------- */
 .xw-pic.ld > img.xw-fg { filter: brightness(0.7); }
-.xw-pic .avacar-inner-glow { z-index: 2; animation: innerGlowRotateHre 2s linear infinite; }
+/* the studio's glow: white and blue light turning round the picture's edge */
+.xw-glow { position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; animation: xw-glow 2s linear infinite; }
+@keyframes xw-glow {
+  0%, 100% { box-shadow: inset 0 4px 15px 1px rgba(255, 255, 255, 0.9), inset 0 12px 35px 3px rgba(147, 197, 253, 0.7), inset 0 30px 60px 6px rgba(224, 231, 255, 0.5); }
+  25% { box-shadow: inset 4px 0 15px 1px rgba(255, 255, 255, 0.9), inset 12px 0 35px 3px rgba(147, 197, 253, 0.7), inset 30px 0 60px 6px rgba(224, 231, 255, 0.5); }
+  50% { box-shadow: inset 0 -4px 15px 1px rgba(255, 255, 255, 0.9), inset 0 -12px 35px 3px rgba(147, 197, 253, 0.7), inset 0 -30px 60px 6px rgba(224, 231, 255, 0.5); }
+  75% { box-shadow: inset -4px 0 15px 1px rgba(255, 255, 255, 0.9), inset -12px 0 35px 3px rgba(147, 197, 253, 0.7), inset -30px 0 60px 6px rgba(224, 231, 255, 0.5); }
+}
+@media (prefers-reduced-motion: reduce) { .xw-glow { animation: none; } }
 .xw-lvo {
   position: absolute;
   inset: 0;
