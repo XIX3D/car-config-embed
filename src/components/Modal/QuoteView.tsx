@@ -103,7 +103,7 @@ export function QuoteView(props: QuoteViewProps) {
                         <IconCheck />
                       </i>
                     </span>
-                    <b>{r.productName ?? r.label}</b>
+                    <b>{(r.productName ?? r.label).replace(/-/g, "‑")}</b>
                     <Show when={r.productName}>
                       <em>{r.label}</em>
                     </Show>

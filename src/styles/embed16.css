@@ -68,9 +68,7 @@
   font-weight: 700;
   font-size: 16px;
   line-height: normal;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 .xw-name small a { color: inherit; text-decoration: none; font-weight: 600; }
 .xw-name small a:hover { color: #12141c; text-decoration: underline; }
@@ -331,8 +329,8 @@
 }
 @keyframes xw-shim { from { background-position: 100% 0; } to { background-position: 0 0; } }
 .xw-cap { flex: 1; min-width: 0; padding: 0 8px; line-height: 1.3; }
-.xw-cap b { display: block; font-size: 14px; color: #12141c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.xw-cap span { display: block; font-size: 13px; color: #5b6475; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.xw-cap b { display: block; font-size: 14px; color: #12141c; overflow-wrap: anywhere; }
+.xw-cap span { display: block; font-size: 13px; color: #5b6475; overflow-wrap: anywhere; }
 /* the limit, in the bar: plain words, an icon, a card so it cannot be missed */
 .xw-cap.capped {
   display: flex;
@@ -507,7 +505,7 @@
 }
 .xw-hb svg { width: 12px; height: 12px; }
 .xw-wr button.on .xw-hb { display: grid; }
-.xw-wr b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; min-height: 2.5em; overflow: hidden; font-weight: 700; font-size: 12.5px; line-height: 1.25; color: #12141c; }
+.xw-wr b { display: block; min-height: 2.5em; overflow: hidden; font-weight: 700; font-size: 12.5px; line-height: 1.25; color: #12141c; }
 
 .xw-qf { display: grid; grid-template-columns: 1fr 1.35fr 1fr; gap: 10px; margin: 8px 0 0; }
 .xw-qf .xw-in { margin: 0; padding: 0 14px; font-size: 14.5px; }
@@ -621,7 +619,7 @@
 }
 .xw-bb:disabled { opacity: 0.5; cursor: default; }
 .xw-bb svg { width: 16px; height: 16px; flex: none; opacity: 0.55; }
-.xw-bn { padding: 0 8px; font-weight: 700; font-size: 13px; line-height: 1.2; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.xw-bn { padding: 0 8px; font-weight: 700; font-size: 13px; line-height: 1.2; text-align: center; overflow-wrap: anywhere; min-width: 0; }
 .xw-bm { flex: 1; min-width: 0; height: 32px; display: grid; place-items: center; padding: 0 10px; border-radius: 16px; }
 .xw-bm img { display: block; max-width: 100%; max-height: 18px; object-fit: contain; }
 .xw-bm.dk { background: #191c1e; }
@@ -697,9 +695,8 @@
 .xw-wi img.ok { opacity: 1; }
 .xw-wt-tx { display: block; }
 .xw-wt-tx b {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  display: block;
+  overflow-wrap: anywhere;
   margin-top: 6px;
   min-height: 2.4em;
   overflow: hidden;
@@ -750,7 +747,7 @@
 .xw-fn-tk { position: absolute; top: 3px; right: 3px; width: 15px; height: 15px; border-radius: 50%; background: var(--xw-accent, #1f87f5); color: #fff; display: none; place-items: center; }
 .xw-fn-tk svg { width: 9px; height: 9px; }
 .xw-fn.on .xw-fn-tk { display: grid; }
-.xw-fn b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin-top: 4px; min-height: 2.3em; overflow: hidden; font-size: 10.5px; font-weight: 600; line-height: 1.15; word-break: break-word; }
+.xw-fn b { display: block; margin-top: 4px; min-height: 2.3em; overflow: hidden; font-size: 10.5px; font-weight: 600; line-height: 1.15; word-break: break-word; }
 
 /* suggested for this car: a strip across the top of the list */
 .xw-sg { grid-column: 1 / -1; margin-bottom: 4px; }
@@ -794,7 +791,7 @@
 .xw-qq-l { max-height: 90px; overflow-y: auto; }
 .xw.ph .xw-qq-l { max-height: 168px; }
 .xw-pk > .xw-btn { flex: none; height: 56px; }
-.xw-wr em { display: block; font-style: normal; font-weight: 500; font-size: 11.5px; color: #5b6475; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.xw-wr em { display: block; font-style: normal; font-weight: 500; font-size: 11.5px; color: #5b6475; overflow-wrap: anywhere; }
 
 .xw.ph .xw-split { inset: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 12px 14px; }
 .xw.ph .xw-sp-pic { flex: none; container-type: normal; }
@@ -868,7 +865,7 @@
 .xw-bcol { height: 76px; gap: 14px; }
 .xw-bcol .xw-sw:not(.solo) { height: auto; width: 84px; flex-direction: column; align-items: center; gap: 4px; padding: 0; text-align: center; font-size: 10.5px; line-height: 1.15; }
 .xw-bcol .xw-sw:not(.solo) .xw-wc { width: 44px; height: 44px; }
-.xw-bcol .xw-sw:not(.solo) b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-weight: 600; word-break: break-word; }
+.xw-bcol .xw-sw:not(.solo) b { display: block; overflow: hidden; font-weight: 600; word-break: break-word; }
 .xw-bcol .xw-sw.on:not(.solo) b { font-weight: 700; }
 .xw-bcol .xw-pickl { align-self: center; }
 
@@ -879,7 +876,7 @@
 
 /* phone: the finishes share the row, so four fit */
 .xw.ph .xw-sws .xw-sw:not(.solo) { flex: 1 1 0; width: auto; min-width: 0; }
-.xw.ph .xw-sws .xw-sw:not(.solo) b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 11px; line-height: 1.15; }
+.xw.ph .xw-sws .xw-sw:not(.solo) b { display: block; overflow: hidden; font-size: 11px; line-height: 1.15; }
 
 /* the search box wears the studio's magnifier */
 .xw-sf { position: relative; flex: 1; min-width: 0; display: block; }

@@ -296,7 +296,7 @@ export function PickerView(props: PickerViewProps) {
             </Show>
           </span>
           <span class="xw-wt-tx">
-            <b>{t.entry.product.name}</b>
+            <b>{t.entry.product.name.replace(/-/g, "‑")}</b>
             <Show when={t.compact && !t.forceOpen}>
               <small>{props.catalogue.brands.find((b) => Number(b.id) === Number(t.entry.product.manufacturer_id))?.name}</small>
             </Show>
@@ -352,7 +352,7 @@ export function PickerView(props: PickerViewProps) {
         </Show>
       </span>
       <span class="xw-qn-t">
-        <b>{l.pick.product.name}</b>
+        <b>{l.pick.product.name.replace(/-/g, "‑")}</b>
         <i aria-hidden="true">·</i>
         <span class={l.v ? "" : "need"}>{l.v ? l.v.variant_name : "Pick a finish"}</span>
       </span>

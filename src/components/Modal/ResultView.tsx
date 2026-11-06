@@ -84,7 +84,7 @@ export function ResultView(props: ResultViewProps) {
       when={props.limitReached}
       fallback={
         <div class="xw-cap">
-          <b>{props.modelName}</b>
+          <b>{props.modelName.replace(/-/g, "‑")}</b>
           <span>{props.current?.label}</span>
         </div>
       }
