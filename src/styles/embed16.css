@@ -234,42 +234,14 @@
   text-align: center;
 }
 .xw-drop > svg.xw-dash { position: absolute; left: 0.75px; top: 0.75px; width: calc(100% - 1.5px); height: calc(100% - 1.5px); overflow: visible; pointer-events: none; }
-.xw-dash rect { fill: none; stroke: #4a9aea; stroke-width: 1.5; stroke-dasharray: 5 4; stroke-linecap: round; }
+.xw-dash rect { fill: none; stroke: rgba(91, 100, 117, 0.65); stroke-width: 1.5; stroke-dasharray: 5 4; stroke-linecap: round; transition: stroke 0.16s; }
+.xw-drop:hover .xw-dash rect { stroke: #007fff; }
 .xw-drop.drag .xw-dash rect { stroke: #12141c; }
 .xw-drop.drag { background: rgba(255, 255, 255, 0.35); }
-.xw-orb {
-  position: relative;
-  width: 124px;
-  height: 124px;
-  margin: 0 auto;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.85), 0 0 0 2.5px rgba(140, 144, 150, 0.6), 0 4px 12px rgba(20, 22, 26, 0.45);
-}
-/* the studio's orb is live metal; here its colours turn slowly, on the compositor */
-.xw-orb::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 70% 30%, #e8452f 0, rgba(232, 69, 47, 0) 42%),
-    radial-gradient(circle at 30% 72%, #e6c3e4 0, rgba(230, 195, 228, 0) 40%),
-    radial-gradient(circle at 62% 76%, #d9b10f 0, rgba(217, 177, 15, 0) 46%),
-    conic-gradient(from 200deg, #f0a43a, #e4602f, #c53a4a, #d58bc7, #e9c64a, #f0a43a);
-  animation: xw-turn 14s linear infinite;
-}
-@keyframes xw-turn { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .xw-orb::before { animation: none; } }
-.xw-orb::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 7px rgba(255, 255, 255, 0.55), inset 0 0 14px 6px rgba(255, 255, 255, 0.35);
-}
-.xw-orb svg { position: relative; z-index: 1; width: 48px; height: 48px; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4)); }
+/* The orb is the studio's own badge (components/MetalShader.tsx); only its halo and place are here. */
+.xw-orb { position: relative; display: inline-block; width: 124px; height: 124px; line-height: 0; }
+.xw-halo { position: absolute; inset: -84px; border-radius: 50%; pointer-events: none; background: radial-gradient(circle, rgba(0, 127, 255, 0.13), rgba(0, 127, 255, 0.04) 45%, transparent 70%); }
+.xw-orb > :not(.xw-halo) { position: relative; }
 .xw-drop h2 {
   margin: 28px 0 0;
   font-weight: 300;
@@ -877,3 +849,8 @@
 /* phone: the finishes share the row, so four fit */
 .xw.ph .xw-sws .xw-sw:not(.solo) { flex: 1 1 0; width: auto; min-width: 0; }
 .xw.ph .xw-sws .xw-sw:not(.solo) b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 11px; line-height: 1.15; }
+
+/* the search box wears the studio's magnifier */
+.xw-sf { position: relative; flex: 1; min-width: 0; display: block; }
+.xw-sf svg { position: absolute; left: 14px; top: 50%; width: 16px; height: 16px; transform: translateY(-50%); color: #6b7487; pointer-events: none; }
+.xw-sf .xw-pk-s { width: 100%; padding-left: 38px; }

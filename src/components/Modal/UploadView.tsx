@@ -4,7 +4,8 @@ import { VALID_IMAGE_TYPES, MAX_FILE_SIZE_BYTES, MAX_IMAGE_DIMENSION } from "../
 import { Frame } from "./Frame";
 import { PickerView } from "./PickerView";
 import { MetalButton } from "../MetalButton";
-import { IconCamera, IconCheck, IconUpload } from "./icons";
+import RenderGlassBadge from "../MetalShader";
+import { IconCheck, IconSwap } from "./icons";
 
 interface UploadViewProps {
   phone: boolean;
@@ -153,7 +154,19 @@ export function UploadView(props: UploadViewProps) {
               <rect x="0" y="0" width="100%" height="100%" rx="22" />
             </svg>
             <div>
-              <div class="xw-orb"><IconUpload /></div>
+              <span class="xw-orb" aria-hidden="true">
+                <span class="xw-halo" />
+                <RenderGlassBadge
+                  size={124}
+                  forceLive
+                  glyph={
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 16V5m0 0L7.5 9.5M12 5l4.5 4.5" />
+                      <path d="M5 18.5h14" />
+                    </svg>
+                  }
+                />
+              </span>
               <h2>Upload a photo of your car</h2>
             </div>
           </div>
@@ -168,8 +181,8 @@ export function UploadView(props: UploadViewProps) {
           pic={
             <>
               <img class="xw-fg" src={props.previewUrl!} alt="" draggable={false} />
-              <button class="xw-ib tr" aria-label="Use a different photo" onClick={() => props.onChangePhoto()}>
-                <IconCamera />
+              <button class="xw-ib tr" aria-label="Change the car photo" title="Change the car photo" onClick={() => props.onChangePhoto()}>
+                <IconSwap />
               </button>
             </>
           }

@@ -4,7 +4,7 @@ import type { Pick } from "../../stores/widget-store";
 import { brandLogo } from "../../utils/brandLogos";
 import { carName, loadSeenOn, seenOn, type Car } from "../../utils/seenOn";
 import { MetalButton } from "../MetalButton";
-import { IconCamera, IconCheck } from "./icons";
+import { IconCheck, IconSwap } from "./icons";
 
 /** More wheels than this are never drawn at once: the visitor narrows by brand or by search. */
 const SHOWN = 90;
@@ -227,8 +227,8 @@ export function PickerView(props: PickerViewProps) {
   const Photo = () => (
     <div class="xw-pic xw-sp-photo" style={{ "--ar": String(props.ar) }}>
       <img class="xw-fg" src={props.previewUrl} alt="" draggable={false} />
-      <button class="xw-ib tr" aria-label="Use a different photo" onClick={() => props.onChangePhoto()}>
-        <IconCamera />
+      <button class="xw-ib tr" aria-label="Change the car photo" title="Change the car photo" onClick={() => props.onChangePhoto()}>
+        <IconSwap />
       </button>
     </div>
   );
@@ -329,6 +329,8 @@ export function PickerView(props: PickerViewProps) {
             </Show>
             <Chevron />
           </button>
+          <label class="xw-sf">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" /></svg>
           <input
             class="xw-in xw-pk-s"
             type="search"
@@ -338,6 +340,7 @@ export function PickerView(props: PickerViewProps) {
             disabled={props.loading}
             onInput={(e) => props.onSearch(e.currentTarget.value)}
           />
+          </label>
 
           <Show when={brandsOpen()}>
             <div class="xw-bl" role="listbox" aria-label="Brands">
