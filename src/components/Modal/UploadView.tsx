@@ -3,7 +3,8 @@ import type { Variant } from "../../types";
 import { VALID_IMAGE_TYPES, MAX_FILE_SIZE_BYTES, MAX_IMAGE_DIMENSION } from "../../constants";
 import { Frame } from "./Frame";
 import { PickerView } from "./PickerView";
-import { IconCamera, IconCheck, IconSpark, IconUpload } from "./icons";
+import { MetalButton } from "../MetalButton";
+import { IconCamera, IconCheck, IconUpload } from "./icons";
 
 interface UploadViewProps {
   phone: boolean;
@@ -99,13 +100,12 @@ export function UploadView(props: UploadViewProps) {
   );
 
   const RenderButton = () => (
-    <button type="button" class="xw-btn ai" disabled={picked() === 0} onClick={() => props.onRender()}>
-      <IconSpark />
-      Render
+    <MetalButton class="xw-cta" ring="4px" disabled={picked() === 0} onClick={() => props.onRender()}>
+      <span>Render</span>
       <Show when={picked() > 1}>
         <span class="xw-chip">{picked()} renders</span>
       </Show>
-    </button>
+    </MetalButton>
   );
 
   // Paste works anywhere while this screen is up: nothing inside the window has focus to take it.

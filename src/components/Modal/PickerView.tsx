@@ -3,7 +3,8 @@ import type { Catalogue, CatalogueEntry, Product, Variant } from "../../types";
 import type { Pick } from "../../stores/widget-store";
 import { brandLogo } from "../../utils/brandLogos";
 import { carName, loadSeenOn, seenOn, type Car } from "../../utils/seenOn";
-import { IconCamera, IconCheck, IconSpark } from "./icons";
+import { MetalButton } from "../MetalButton";
+import { IconCamera, IconCheck } from "./icons";
 
 /** More wheels than this are never drawn at once: the visitor narrows by brand or by search. */
 const SHOWN = 90;
@@ -456,13 +457,12 @@ export function PickerView(props: PickerViewProps) {
           </Show>
         </div>
 
-        <button type="button" class="xw-btn ai full" disabled={total() === 0} onClick={() => props.onRender()}>
-          <IconSpark />
-          {label()}
+        <MetalButton class="xw-cta" ring="4px" disabled={total() === 0} onClick={() => props.onRender()}>
+          <span>{label()}</span>
           <Show when={total() > 1}>
             <span class="xw-chip">{total()} renders</span>
           </Show>
-        </button>
+        </MetalButton>
       </div>
     </div>
   );

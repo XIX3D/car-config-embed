@@ -8,60 +8,11 @@
  */
 @import "./manrope.css";
 
-/* ===== The button on the brand's or dealer's own page: the studio's animated AI button ===== */
-.avacar-btn-zeno {
-  all: initial;
-  box-sizing: border-box;
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  height: 44px;
-  padding: 0 24px;
-  border-radius: 999px;
-  background: #0b0415;
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  box-shadow: 0 8px 24px rgba(40, 10, 90, 0.32);
-  color: #fff;
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: normal;
-  letter-spacing: 0;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
-  white-space: nowrap;
-  cursor: pointer;
-  outline: none;
-  -webkit-font-smoothing: antialiased;
-}
-.avacar-btn-zeno.avacar-compact { height: 36px; padding: 0 18px; font-size: 13px; }
-.avacar-btn-zeno:hover { filter: brightness(1.12); }
-.avacar-btn-zeno:active { transform: scale(0.98); }
-.avacar-btn-zeno:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-
-/* The flowing glow: the one gradient allowed. */
-.avacar-btn-zeno::before {
-  content: '';
-  position: absolute;
-  inset: -45% -12%;
-  z-index: -1;
-  filter: blur(10px);
-  background:
-    radial-gradient(15% 60% at 14% 62%, #1257e8 0, rgba(18, 87, 232, 0) 100%),
-    radial-gradient(13% 55% at 38% 100%, #7fc6dc 0, rgba(127, 198, 220, 0) 100%),
-    radial-gradient(20% 80% at 68% 30%, #8a58c4 0, rgba(138, 88, 196, 0) 100%),
-    radial-gradient(11% 70% at 94% 70%, #c2441a 0, rgba(194, 68, 26, 0) 100%);
-  animation: avacar-aiflow 7s ease-in-out infinite alternate;
-}
-@keyframes avacar-aiflow {
-  from { transform: translateX(-14%) scaleX(1.05); }
-  to { transform: translateX(14%) scaleX(1.12); }
-}
-@media (prefers-reduced-motion: reduce) { .avacar-btn-zeno::before { animation: none; } }
-
-.avacar-zeno-spark { display: block; width: 18px; height: 18px; flex: none; }
-.avacar-btn-zeno.avacar-compact .avacar-zeno-spark { width: 16px; height: 16px; }
-.avacar-zeno-label { position: relative; }
+/* ===== The button on the brand's or dealer's own page: the studio's Render button =====
+   Its look (the shader, the ring, the rim) is injected with it (components/MetalShader.tsx). This
+   is only the reset that keeps the page's own button styles off it, and its two sizes. */
+.avacar-btn-zeno { all: initial; height: 44px; }
+.avacar-btn-zeno .zeno-cta-label { padding: 0 26px; font-size: 14px; }
+.avacar-btn-zeno.avacar-compact { height: 36px; }
+.avacar-btn-zeno.avacar-compact .zeno-cta-label { padding: 0 18px; font-size: 13px; }
+.avacar-btn-zeno.avacar-compact svg { width: 16px; height: 16px; }

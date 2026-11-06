@@ -208,37 +208,12 @@
 }
 .xw-more:hover { background: #fff; }
 
-/* The Render button: the studio's animated Render look, the one gradient allowed. */
-.xw-btn.ai {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-  background: #0b0415;
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  box-shadow: 0 8px 24px rgba(40, 10, 90, 0.32);
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
-}
-.xw-btn.ai:hover { background: #0b0415; filter: brightness(1.12); }
-.xw-btn.ai::before {
-  content: "";
-  position: absolute;
-  inset: -45% -12%;
-  z-index: -1;
-  filter: blur(10px);
-  background:
-    radial-gradient(15% 60% at 14% 62%, #1257e8 0, rgba(18, 87, 232, 0) 100%),
-    radial-gradient(13% 55% at 38% 100%, #7fc6dc 0, rgba(127, 198, 220, 0) 100%),
-    radial-gradient(20% 80% at 68% 30%, #8a58c4 0, rgba(138, 88, 196, 0) 100%),
-    radial-gradient(11% 70% at 94% 70%, #c2441a 0, rgba(194, 68, 26, 0) 100%);
-  animation: xw-aiflow 7s ease-in-out infinite alternate;
-}
-@keyframes xw-aiflow {
-  from { transform: translateX(-14%) scaleX(1.05); }
-  to { transform: translateX(14%) scaleX(1.12); }
-}
-@media (prefers-reduced-motion: reduce) { .xw-btn.ai::before { animation: none; } }
-.xw-btn.ai:disabled { opacity: 0.38; filter: saturate(0.6); }
-.xw-ctl .xw-btn.ai { width: 250px; }
+/* The Render button is the studio's own (components/MetalButton.tsx); here only its size. */
+.xw-cta { width: 100%; height: 56px; }
+.xw-cta .zeno-cta-label { padding: 0 30px; font-size: 16px; }
+.xw-ctl .xw-cta { width: 250px; flex: none; }
+.xw.ph .xw-pbar .xw-cta { flex: 1; width: auto; min-width: 0; }
+.xw-pk > .xw-cta { flex: none; }
 .xw-chip {
   padding: 3px 10px;
   border-radius: 999px;

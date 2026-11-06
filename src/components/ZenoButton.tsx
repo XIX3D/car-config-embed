@@ -1,4 +1,5 @@
 import type { ButtonTheme, ButtonSize } from '../types'
+import { MetalButton } from './MetalButton'
 
 interface ZenoButtonProps {
   text?: string
@@ -8,19 +9,15 @@ interface ZenoButtonProps {
 }
 
 /**
- * The button on the brand's or dealer's own page: the studio's animated AI button (the same
- * look as the Render button inside the window). Its styles are in styles/page.css.
+ * The button on a brand's or dealer's own page: the studio's animated Render button itself (the
+ * live liquid-metal shader, the turning flare ring), not a lookalike. Sizes are in styles/page.css.
  */
 export function ZenoButton(props: ZenoButtonProps) {
   const text = () => props.text || 'Preview on Your Car'
 
   return (
-    <button class={`avacar-btn-zeno${props.size === 'compact' ? ' avacar-compact' : ''}`} onClick={() => props.onClick()}>
-      <svg class="avacar-zeno-spark" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M12 2l2.2 6.3L20 10l-5.8 1.7L12 18l-2.2-6.3L4 10l5.8-1.7z" />
-      </svg>
-
+    <MetalButton class={`avacar-btn-zeno${props.size === 'compact' ? ' avacar-compact' : ''}`} onClick={() => props.onClick()}>
       <span class="avacar-zeno-label">{text()}</span>
-    </button>
+    </MetalButton>
   )
 }
