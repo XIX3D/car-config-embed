@@ -22,7 +22,7 @@ const NOTES: Record<ProblemKind, Note> = {
   limit: { icon: IconClock, h: "You've hit your limit", p: "Please come back later.", a: ["Request quote", "quote"] },
   slow: { icon: IconClock, h: "You're going fast", p: "Wait a moment, then try again.", a: ["Try again", "back"] },
   paused: { icon: IconPause, h: "Renders are paused", p: "Please come back later.", a: ["Request quote", "quote"] },
-  fail: { icon: IconWarn, h: "Render failed", a: ["Try again", "retry"] },
+  fail: { icon: IconWarn, h: "Something went wrong", a: ["Try again", "retry"] },
   timeout: { icon: IconClock, h: "Taking longer than usual", a: ["Keep waiting", "back"], b: ["Try again", "retry"] },
   nocar: { icon: IconPhoto, h: "No car found", p: "Try a side photo.", a: ["Try another photo", "photo"] },
   nowheels: { icon: IconPhoto, h: "Wheels not visible", p: "Both wheels need to show.", a: ["Try another photo", "photo"] },

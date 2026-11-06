@@ -1,7 +1,7 @@
 import { For, Show } from "solid-js";
-import type { RenderResult, DebugData, LoadingStep } from "../../types";
+import type { RenderResult, DebugData } from "../../types";
 import { Frame } from "./Frame";
-import { LoadingOverlay } from "./LoadingView";
+import { ZoomPane } from "./ZoomPane";
 import { DebugPanel } from "../Debug/DebugPanel";
 import { IconClock, IconFull, IconSpark, IconSwap } from "./icons";
 
@@ -11,68 +11,81 @@ interface ResultViewProps {
   phone: boolean;
   ar: number;
   modelName: string;
-  /** Finished renders, in the order they were made. */
-  results: RenderResult[];
+  /** Every render of this visit, finished or still on its way, in the order they were asked for. */
+  slots: RenderResult[];
   current: RenderResult | null;
-  /** Another finish is still rendering. */
+  /** Another render is still on its way: the photo cannot be swapped yet. */
   pending: boolean;
-  /** Show the live animation on the picture (the next finish is on its way). */
-  showLoading: boolean;
-  loadingSteps: LoadingStep[];
-  loadingStep: number;
-  showOriginal: boolean;
   limitReached: boolean;
-  /** Every finish has been rendered on this photo: More finishes becomes New photo. */
+  /** Every finish has been rendered on this photo: Another finish becomes New photo. */
   allDone: boolean;
   /** A dealer's code: the visitor picks another wheel, not another finish of one wheel. */
   moreWheels?: boolean;
   debugData?: DebugData | null;
   onSelect: (id: number) => void;
   onNext: () => void;
-  onToggleOriginal: () => void;
+  onPrev: () => void;
   onFullscreen: () => void;
+  onChangePhoto: () => void;
   onMore: () => void;
   onQuote: () => void;
   onAspect: (ar: number) => void;
 }
 
 /**
- * S2: the render fills the window. Under it, one bar: the renders made (no count, no empty
- * boxes), what is on screen, More finishes, Request quote. At the limit the caption becomes the
- * limit card and More finishes goes.
+ * S2: the render fills the window. Under it, one bar: a thumbnail for each render (the wheel it
+ * shows, so the strip reads as "the wheels I tried"; a render still on its way is a dimmed one
+ * with a ring), what is on screen, Another wheel, Request quote. Renders already finished can be
+ * opened while the rest are still coming. At the limit the caption becomes the limit card.
  */
 export function ResultView(props: ResultViewProps) {
-  const src = () => (props.showOriginal ? props.current?.photo : props.current?.image) || "";
+  const Thumb = (t: { r: RenderResult }) => {
+    const wheel = () => t.r.referenceImage;
+
+    return (
+      <span class="xw-thw" style={!wheel() && t.r.hexColor ? { background: t.r.hexColor } : undefined}>
+        <Show when={wheel()} fallback={<Show when={!t.r.hexColor && t.r.image}><img class="cover" src={t.r.image} alt="" /></Show>}>
+          <img src={wheel()!} alt="" draggable={false} />
+        </Show>
+      </span>
+    );
+  };
 
   const Strip = () => (
     <div class="xw-ths">
-      <For each={props.results}>
+      <For each={props.slots}>
         {(r) => (
-          <button
-            type="button"
-            class={`xw-th ${r.id === props.current?.id ? "on" : ""}`}
-            aria-label={r.label}
-            onClick={() => props.onSelect(r.id)}
+          <Show
+            when={!r.loading}
+            fallback={
+              <div class="xw-th pend" aria-label={`${r.label} is rendering`}>
+                <Thumb r={r} />
+                <i class="xw-th-sp" />
+              </div>
+            }
           >
-            <img src={r.image} alt="" />
-          </button>
+            <button
+              type="button"
+              class={`xw-th ${r.id === props.current?.id ? "on" : ""}`}
+              aria-label={`${r.productName ? r.productName + " " : ""}${r.label}`}
+              title={`${r.productName ? r.productName + ", " : ""}${r.label}`}
+              onClick={() => props.onSelect(r.id)}
+            >
+              <Thumb r={r} />
+            </button>
+          </Show>
         )}
       </For>
-      <Show when={props.pending}>
-        <div class="xw-th sk" aria-hidden="true" />
-      </Show>
     </div>
   );
 
   const Caption = () => (
     <Show
-      when={props.limitReached && !props.showOriginal}
+      when={props.limitReached}
       fallback={
         <div class="xw-cap">
-          <Show when={!props.showOriginal} fallback={<b>Your photo</b>}>
-            <b>{props.modelName}</b>
-            <span>{props.current?.label}</span>
-          </Show>
+          <b>{props.modelName}</b>
+          <span>{props.current?.label}</span>
         </div>
       }
     >
@@ -89,7 +102,7 @@ export function ResultView(props: ResultViewProps) {
   const More = () => (
     <Show when={!props.limitReached}>
       <button type="button" class="xw-more" onClick={() => props.onMore()}>
-        {props.allDone ? "New photo" : props.moreWheels ? "More wheels" : "More finishes"}
+        {props.allDone ? "New photo" : props.moreWheels ? "Another wheel" : "Another finish"}
       </button>
     </Show>
   );
@@ -105,27 +118,22 @@ export function ResultView(props: ResultViewProps) {
     <Frame
       phone={props.phone}
       ar={props.ar}
-      picClass={`${props.results.length > 1 ? "nx" : ""} ${props.showLoading ? "ld" : ""}`}
-      onPicClick={() => props.results.length > 1 && props.onNext()}
       pic={
-        <>
-          <img
-            class="xw-fg"
-            src={src()}
-            alt=""
-            draggable={false}
-            onLoad={(e) => props.onAspect(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight)}
-          />
-          <Show when={props.showLoading}>
-            <LoadingOverlay steps={props.loadingSteps} step={props.loadingStep} />
-          </Show>
+        <ZoomPane
+          src={props.current?.image || ""}
+          original={props.current?.photo}
+          onNext={props.onNext}
+          onPrev={props.onPrev}
+          onAspect={props.onAspect}
+        >
           <button
             class="xw-ib tr"
-            aria-label="Compare with your photo"
-            aria-pressed={props.showOriginal}
+            aria-label="Change the car photo"
+            title={props.pending ? "Finish rendering first" : "Change the car photo"}
+            disabled={props.pending}
             onClick={(e) => {
               e.stopPropagation();
-              props.onToggleOriginal();
+              props.onChangePhoto();
             }}
           >
             <IconSwap />
@@ -143,7 +151,7 @@ export function ResultView(props: ResultViewProps) {
           <Show when={DEBUG && props.debugData}>
             <DebugPanel debugData={props.debugData!} />
           </Show>
-        </>
+        </ZoomPane>
       }
       bar={
         <>

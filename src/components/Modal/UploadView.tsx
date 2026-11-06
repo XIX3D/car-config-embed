@@ -86,7 +86,7 @@ export function UploadView(props: UploadViewProps) {
           aria-pressed={props.selectedVariantIds.includes(v.id)}
           onClick={() => props.onToggleVariant(v.id)}
         >
-          <span class="xw-wc">
+          <span class="xw-wc" style={!variantImage(v) && v.hex_color ? { background: v.hex_color } : undefined}>
             <Show when={variantImage(v)}>
               <img src={variantImage(v)} alt="" />
             </Show>
@@ -154,7 +154,7 @@ export function UploadView(props: UploadViewProps) {
             </svg>
             <div>
               <div class="xw-orb"><IconUpload /></div>
-              <h2>Upload a photo.</h2>
+              <h2>Upload a photo of your car</h2>
             </div>
           </div>
         }

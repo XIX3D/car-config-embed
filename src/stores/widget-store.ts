@@ -25,6 +25,17 @@ export interface AltLoadingScripts {
 /** The small cards over the window: a sent quote, leaving, renders emailed. */
 export type Popup = 'sent' | 'leave' | 'emailed'
 
+/** One wheel the dealer's visitor has picked, with the finishes picked for it. */
+export interface Pick {
+  product: Product
+  /** Its finishes, in the order the dealer shows them. */
+  variants: Variant[]
+  variantIds: string[]
+}
+
+/** The most renders one press may start (the studio's batch cap). */
+export const MAX_BATCH = 10
+
 export interface Lead {
   name: string
   email: string
@@ -47,9 +58,15 @@ export interface WidgetState {
   manufacturerId: number | null
   /** A dealer's code: the brands and wheels the visitor may pick from. Null on a brand's code. */
   catalogue: Catalogue | null
+  /** The dealer's list is still on its way: the window is already open, the picker shows placeholders. */
+  catalogueLoading: boolean
   /** The brand shown in the picker (a brand id), or null for every brand. */
   brandFilter: number | null
   search: string
+  /** A dealer's visitor can pick several wheels, each with its own finishes, and render them together. */
+  picks: Pick[]
+  /** The wheel cut-out the server sent for this photo (mask_complete): the wheels light up while rendering. */
+  cutout: { photoKey: number; url: string } | null
 
   // The visitor's photo. photoKey changes with every new photo, so a finish rendered on one
   // photo is offered again on the next.
@@ -119,8 +136,11 @@ const initialState: WidgetState = {
   account: null,
   manufacturerId: null,
   catalogue: null,
+  catalogueLoading: false,
   brandFilter: null,
   search: '',
+  picks: [],
+  cutout: null,
 
   selectedFile: null,
   previewDataUrl: null,
@@ -218,6 +238,19 @@ export function createWidgetStore() {
   const isLimitReached = () =>
     state.visitorLimit !== null && state.visitorUsed !== null && state.visitorUsed >= state.visitorLimit
 
+  /** Finishes picked across every wheel, waiting for Render. */
+  const totalPicked = () => state.picks.reduce((n, p) => n + p.variantIds.length, 0)
+
+  /** Renders this visitor may still start: the device's allowance less what is already on its way. Null when unlimited. */
+  const rendersLeft = () => {
+    if (state.visitorLimit === null || state.visitorUsed === null) return null
+
+    return Math.max(0, state.visitorLimit - state.visitorUsed - state.galleryResults.filter((r) => r.loading).length)
+  }
+
+  /** How many one press may start: the batch cap, or what the device has left. */
+  const batchCap = () => Math.min(MAX_BATCH, rendersLeft() ?? MAX_BATCH)
+
   /**
    * Whether the two-pass loading display is available, i.e. a caller supplied its scripts.
    *
@@ -262,10 +295,11 @@ export function createWidgetStore() {
       product: Product | null,
       variants: Variant[],
       customBrand?: string,
-      extra?: { account?: EmbedAccount | null; manufacturerId?: number | null; catalogue?: Catalogue | null },
+      extra?: { account?: EmbedAccount | null; manufacturerId?: number | null; catalogue?: Catalogue | null; catalogueLoading?: boolean },
     ) {
       const isWraps = !!(selections.wrap_id && !selections.wheel_id)
-      const catalogue = extra?.catalogue ?? null
+      // While the list is on its way the window is already a dealer's: an empty list stands in.
+      const catalogue = extra?.catalogue ?? (extra?.catalogueLoading ? { brands: [], products: [] } : null)
 
       if (state.loadingInterval) clearInterval(state.loadingInterval)
       setState({
@@ -278,6 +312,7 @@ export function createWidgetStore() {
         account: extra?.account ?? null,
         manufacturerId: extra?.manufacturerId ?? null,
         catalogue,
+        catalogueLoading: !!extra?.catalogueLoading,
         // The first brand to start with: thousands of wheels are never shown at once.
         brandFilter: catalogue?.brands[0]?.id ?? null,
         isWraps,
@@ -304,6 +339,9 @@ export function createWidgetStore() {
         previewDataUrl: dataUrl,
         photoKey: state.photoKey + 1,
         selectedVariantIds: firstVariantId ? [firstVariantId] : [],
+        // The car and the wheel cut-out belong to the photo: the new one starts without them.
+        detectedVehicle: null,
+        cutout: null,
         view: 'upload',
       })
     },
@@ -317,34 +355,66 @@ export function createWidgetStore() {
       })
     },
 
-    /** A dealer's visitor picked a wheel: it, its finishes and the first finish are now the ones in play. */
-    chooseWheel(entry: CatalogueEntry) {
+    /** A dealer's visitor taps a wheel: it joins the batch with its first finish, or leaves it. */
+    toggleWheel(entry: CatalogueEntry) {
+      const at = state.picks.findIndex((p) => p.product.id === entry.product.id)
+
+      if (at !== -1) {
+        setState('picks', (list) => list.filter((_, i) => i !== at))
+
+        return
+      }
+      if (totalPicked() >= batchCap()) return
       const variants = [...entry.variants].sort(
         (a, b) => (a.display_order ?? Number.MAX_SAFE_INTEGER) - (b.display_order ?? Number.MAX_SAFE_INTEGER),
       )
-      const first = variants.find((v) => v.is_default) ?? variants[0]
+      const first = variants.find((v) => v.is_default) ?? variants.find((v) => v.is_top_variant) ?? variants[0]
 
-      setState({
-        product: entry.product,
-        selections: { wheel_id: entry.product.id },
-        variants,
-        selectedVariantIds: first ? [first.id] : [],
-      })
+      setState('picks', (list) => [...list, { product: entry.product, variants, variantIds: first ? [first.id] : [] }])
+    },
+
+    /** One finish of a picked wheel on or off. A wheel left with none stays picked, "needs a finish". */
+    toggleFinish(productId: string, variantId: string) {
+      setState('picks', (p) => p.product.id === productId, produce((pick) => {
+        const i = pick.variantIds.indexOf(variantId)
+
+        if (i !== -1) {
+          pick.variantIds.splice(i, 1)
+
+          return
+        }
+        if (totalPicked() >= batchCap()) return
+        pick.variantIds.push(variantId)
+      }))
+    },
+
+    clearPicks() {
+      setState('picks', [])
+    },
+
+    /** The server's wheel cut-out for the photo on screen. */
+    setCutout(url: string) {
+      setState('cutout', { photoKey: state.photoKey, url })
     },
 
     /** The list was read again (after "Wheel not available"): the wheel in play stays only if it is still offered. */
     setCatalogue(catalogue: Catalogue) {
-      const still = state.product && catalogue.products.some((e) => e.product.id === state.product!.id)
-
       setState({
         catalogue,
+        catalogueLoading: false,
         brandFilter: catalogue.brands.some((b) => b.id === state.brandFilter) ? state.brandFilter : (catalogue.brands[0]?.id ?? null),
       })
-      if (!still) setState({ product: null, selections: {}, variants: [], selectedVariantIds: [] })
+      setState('picks', (list) => list.filter((p) => catalogue.products.some((e) => e.product.id === p.product.id)))
     },
 
-    setBrandFilter(id: number | null) {
-      setState({ brandFilter: id, search: '' })
+    /** The list never came: nothing left to wait for. */
+    catalogueFailed() {
+      setState({ catalogueLoading: false })
+    },
+
+    /** Another brand. The search is kept when the visitor came here from "3 in <brand>". */
+    setBrandFilter(id: number | null, keepSearch = false) {
+      setState({ brandFilter: id, ...(keepSearch ? {} : { search: '' }) })
     },
 
     setSearch(search: string) {
@@ -605,6 +675,9 @@ export function createWidgetStore() {
     getDoneResults,
     isLimitReached,
     isV2LoadingEnabled,
+    totalPicked,
+    rendersLeft,
+    batchCap,
   }
 }
 

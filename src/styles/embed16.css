@@ -72,6 +72,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.xw-name small a { color: inherit; text-decoration: none; font-weight: 600; }
+.xw-name small a:hover { color: #12141c; text-decoration: underline; }
 .xw-name small {
   display: block;
   font-weight: 500;
@@ -296,8 +298,8 @@
 .xw-drop h2 {
   margin: 28px 0 0;
   font-weight: 300;
-  font-size: 64px;
-  line-height: 1.05;
+  font-size: 46px;
+  line-height: 1.08;
   letter-spacing: -0.035em;
   color: #12141c;
 }
@@ -424,10 +426,6 @@
   animation: pulse 2s ease-in-out infinite;
 }
 
-/* ---------- full screen ---------- */
-.xw-fsv { position: absolute; inset: 0; z-index: 30; background: #0b0c10; display: grid; place-items: center; cursor: zoom-out; line-height: 0; }
-.xw-fsv img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.xw-fsv .xw-ib { right: 14px; top: 14px; }
 
 /* ---------- pop-ups: centred card on a desk, a sheet from the bottom on a phone ---------- */
 .xw-ov {
@@ -533,27 +531,29 @@
 .xw-ql { flex: none; margin: 2px 4px 6px; text-align: center; font-weight: 600; font-size: 12.5px; color: #5b6475; }
 .xw-wr { flex: none; position: relative; display: flex; justify-content: safe center; margin: 0 -8px 8px; padding: 10px 8px 4px; overflow-x: auto; scrollbar-width: none; }
 .xw-wr::-webkit-scrollbar { display: none; }
-.xw-wr button { flex: 0 0 70px; padding: 0; border: 0; background: none; cursor: pointer; text-align: center; }
-.xw-wr .xw-wc { width: 62px; height: 62px; margin: 0 auto 6px; border: 0; box-shadow: 0 0 0 1px rgba(18, 20, 28, 0.14); transition: box-shadow 0.15s; }
-.xw-wr button.fo .xw-wc { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #12141c; }
+.xw-wr button { flex: 0 0 76px; padding: 0; border: 0; background: none; cursor: pointer; text-align: center; align-self: flex-start; }
+.xw-wr .xw-wc { width: 62px; height: 62px; margin: 0 auto 6px; border: 0; background: #fff; box-shadow: 0 0 0 1px rgba(18, 20, 28, 0.14); transition: box-shadow 0.15s, opacity 0.15s; }
+.xw-wr .xw-wc img { object-fit: contain; padding: 3px; }
+.xw-wr button:not(.on) .xw-wc { opacity: 0.6; }
+/* in the quote: a ring round the wheel and a tick, nothing else */
+.xw-wr button.on .xw-wc { opacity: 1; box-shadow: 0 0 0 3px #fff, 0 0 0 5px var(--xw-accent, #1f87f5); }
 .xw-hb {
   position: absolute;
-  right: -6px;
-  top: -6px;
-  width: 28px;
-  height: 28px;
+  right: -3px;
+  bottom: -3px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background: #fff;
-  color: #12141c;
-  display: grid;
+  background: var(--xw-accent, #1f87f5);
+  color: #fff;
+  display: none;
   place-items: center;
-  box-shadow: 0 1px 4px rgba(18, 20, 28, 0.32);
+  box-shadow: 0 0 0 2px #fff;
 }
-.xw-hb::after { content: ""; position: absolute; inset: -2px; }
-.xw-hb svg { width: 15px; height: 15px; }
-.xw-wr button.on .xw-hb { background: #ff3b5c; color: #fff; }
-.xw-wr b { display: block; font-weight: 700; font-size: 12.5px; color: #12141c; }
-.xw-wr button.fo b { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 2px; }
+.xw-hb svg { width: 12px; height: 12px; }
+.xw-wr button.on .xw-hb { display: grid; }
+.xw-wr b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; min-height: 2.5em; overflow: hidden; font-weight: 700; font-size: 12.5px; line-height: 1.25; color: #12141c; }
+
 .xw-qf { display: grid; grid-template-columns: 1fr 1.35fr 1fr; gap: 10px; margin: 8px 0 0; }
 .xw-qf .xw-in { margin: 0; padding: 0 14px; font-size: 14.5px; }
 .xw-qf .xw-btn, .xw-qf .xw-foot, .xw-qf .xw-err { grid-column: 1 / -1; }
@@ -601,7 +601,7 @@
 .xw.ph .xw-sw.solo .xw-wc { width: 140px; height: 140px; margin-bottom: 10px; box-shadow: 0 0 0 1px rgba(18, 20, 28, 0.14); }
 .xw.ph .xw-lvo .avacar-loading-letter { font-size: 16px; }
 .xw.ph .xw-drop { inset: 16px 16px 20px; }
-.xw.ph .xw-drop h2 { font-size: clamp(28px, 8.7vw, 34px); }
+.xw.ph .xw-drop h2 { font-size: clamp(24px, 7vw, 30px); padding: 0 12px; }
 .xw.ph .xw-ov { align-items: flex-end; bottom: -20px; }
 .xw.ph .xw-card, .xw.ph .xw-card.small, .xw.ph .xw-card.nt {
   width: 100%;
@@ -624,17 +624,18 @@
 .xw.ph .xw-qf .xw-err { margin: 0 0 8px; line-height: 1.4; }
 
 
-/* ================= a dealer's picker: the photo, and beside it the dealer's brands and wheels ================= */
+/* ================= a dealer's picker: the photo, and beside it the studio's own picker ================= */
 .xw-split {
   position: absolute;
   inset: 8px 24px 14px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 382px;
+  grid-template-columns: minmax(0, 1fr) 420px;
   gap: 16px;
 }
 .xw-sp-pic { container-type: size; min-width: 0; display: flex; align-items: center; justify-content: center; }
 .xw-sp-pic .xw-pic { width: min(100cqw, calc(100cqh * var(--ar, 1.5))); }
 .xw-pk {
+  position: relative;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -644,20 +645,64 @@
   background: rgba(255, 255, 255, 0.66);
   box-shadow: 0 10px 40px rgba(18, 24, 40, 0.1);
 }
-.xw-pk-top { flex: none; display: flex; gap: 8px; }
-.xw-sel {
-  flex: 0 0 142px;
+.xw-pk-top { position: relative; flex: none; display: flex; gap: 8px; }
+.xw-pk-s { flex: 1; min-width: 0; height: 44px; margin: 0; padding: 0 16px; font-size: 14px; }
+
+/* the brand: its logo on a chip, a list of logos under it */
+.xw-bb {
+  flex: 0 0 136px;
   min-width: 0;
   height: 44px;
-  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 0 12px 0 6px;
   border-radius: 22px;
   border: 1px solid rgba(18, 20, 28, 0.14);
-  background: rgba(255, 255, 255, 0.9);
-  font: 600 14px inherit;
+  background: rgba(255, 255, 255, 0.92);
   color: #12141c;
   cursor: pointer;
 }
-.xw-pk-s { flex: 1; min-width: 0; height: 44px; margin: 0; padding: 0 16px; font-size: 14px; }
+.xw-bb:disabled { opacity: 0.5; cursor: default; }
+.xw-bb svg { width: 16px; height: 16px; flex: none; opacity: 0.55; }
+.xw-bn { padding: 0 8px; font-weight: 700; font-size: 13px; line-height: 1.2; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.xw-bm { flex: 1; min-width: 0; height: 32px; display: grid; place-items: center; padding: 0 10px; border-radius: 16px; }
+.xw-bm img { display: block; max-width: 100%; max-height: 18px; object-fit: contain; }
+.xw-bm.dk { background: #191c1e; }
+.xw-bm.lt { background: #fff; box-shadow: inset 0 0 0 1px rgba(18, 20, 28, 0.12); }
+.xw-bl {
+  position: absolute;
+  z-index: 8;
+  left: 0;
+  right: 0;
+  top: 50px;
+  max-height: min(390px, 56vh);
+  overflow-y: auto;
+  padding: 10px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 18px 50px rgba(18, 24, 40, 0.3), 0 0 0 1px rgba(18, 20, 28, 0.06);
+  scrollbar-width: thin;
+}
+.xw-bl-s { height: 40px; margin: 0 0 8px; padding: 0 14px; font-size: 14px; }
+.xw-bl-g { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.xw-bl-t {
+  min-height: 52px;
+  padding: 6px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(18, 20, 28, 0.1);
+  border-radius: 12px;
+  background: #f6f8fb;
+  cursor: pointer;
+}
+.xw-bl-t:hover { background: #eef2f8; }
+.xw-bl-t.on { box-shadow: 0 0 0 2px var(--xw-accent, #1f87f5); background: #fff; }
+.xw-bl-t .xw-bm { width: 100%; flex: none; }
+.xw-bl-t .xw-bn { white-space: normal; }
+
+/* the wheels: three across, every tile the same shape, the ring never clipped */
 .xw-pk-grid {
   flex: 1;
   min-height: 0;
@@ -666,49 +711,194 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   align-content: start;
+  padding: 5px 5px 8px;
   scrollbar-width: thin;
 }
-.xw-pk-tile {
+.xw-wt {
   position: relative;
-  padding: 8px 6px 6px;
-  border: 0;
   border-radius: 16px;
+  border: 2px solid transparent;
   background: #f3f6fb;
+}
+.xw-wt.on { background: #fff; border-color: var(--xw-accent, #1f87f5); }
+.xw-wt.off { opacity: 0.4; }
+.xw-wt-b {
+  display: block;
+  width: 100%;
+  padding: 7px 5px 5px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  cursor: pointer;
+  color: #12141c;
+  text-align: center;
+  font: inherit;
+}
+.xw-wt-b:disabled { cursor: not-allowed; }
+.xw-wt-img { position: relative; display: block; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: #fff; }
+.xw-wi { position: absolute; inset: 0; display: grid; place-items: center; }
+.xw-glyph { width: 56%; height: 56%; color: rgba(18, 20, 28, 0.17); }
+.xw-wi img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity 0.2s; }
+.xw-wi img.ok { opacity: 1; }
+.xw-wt-tx { display: block; }
+.xw-wt-tx b {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  margin-top: 6px;
+  min-height: 2.4em;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  word-break: break-word;
+}
+.xw-wt-tx small { display: block; margin-top: 2px; font-size: 11px; font-weight: 500; line-height: 1.2; color: #5b6475; }
+.xw-wt-tk, .xw-wt-dn {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: #fff;
+  display: none;
+  place-items: center;
+}
+.xw-wt-tk svg, .xw-wt-dn svg { width: 11px; height: 11px; }
+.xw-wt-tk { top: 4px; right: 4px; background: var(--xw-accent, #1f87f5); }
+.xw-wt.on .xw-wt-tk { display: grid; }
+.xw-wt-dn { left: 4px; bottom: 4px; background: #1f9d55; display: grid; }
+.xw-wt.sk .xw-wt-img { background: linear-gradient(100deg, #e6ecf5 30%, #f5f8fc 50%, #e6ecf5 70%); background-size: 300% 100%; animation: xw-shim 1.1s linear infinite; }
+
+/* a picked wheel with finishes: its tile takes the whole row and the finishes open under it */
+.xw-wt.open { grid-column: 1 / -1; background: #fff; }
+.xw-wt.open .xw-wt-b { display: flex; align-items: center; gap: 12px; padding: 10px; text-align: left; }
+.xw-wt.open .xw-wt-img { flex: none; width: 64px; height: 64px; aspect-ratio: auto; background: #f3f6fb; }
+.xw-wt.open .xw-wt-tx b { margin: 0; min-height: 0; font-size: 14px; }
+.xw-wt.open .xw-wt-tk { top: 3px; right: 3px; }
+.xw-fin { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 0 10px 10px; }
+.xw-fn {
+  padding: 5px 4px 6px;
+  border: 1px solid rgba(18, 20, 28, 0.1);
+  border-radius: 12px;
+  background: #f6f8fb;
+  color: #12141c;
   cursor: pointer;
   text-align: center;
-  color: #12141c;
+  font: inherit;
 }
-.xw-pk-tile.on { background: #fff; box-shadow: 0 0 0 2px var(--xw-accent, #1f87f5); }
-.xw-pk-img { position: relative; display: block; aspect-ratio: 1; }
-.xw-pk-img img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.xw-pk-tile.on .xw-tk { display: grid; right: 2px; top: 2px; bottom: auto; }
-.xw-pk-tile b { display: block; margin-top: 4px; font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.xw-pk-none { grid-column: 1 / -1; margin: 10px 0; text-align: center; font-size: 13px; color: #5b6475; }
-.xw-pk-fin { flex: none; display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid rgba(18, 20, 28, 0.08); }
-.xw-pk-sws { display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none; }
-.xw-pk-sws::-webkit-scrollbar { display: none; }
-.xw-pk-sws .xw-sw { height: 50px; }
-.xw-pk-sws .xw-sw.solo { padding: 0; }
+.xw-fn:disabled { cursor: not-allowed; }
+.xw-fn.on { background: #fff; border-color: var(--xw-accent, #1f87f5); box-shadow: 0 0 0 1px var(--xw-accent, #1f87f5); }
+.xw-fn.dn { opacity: 0.5; }
+.xw-fn:disabled:not(.dn):not(.on) { opacity: 0.4; }
+.xw-fn-img { position: relative; display: block; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: #fff; }
+.xw-fn-img img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.xw-fn-tk { position: absolute; top: 3px; right: 3px; width: 15px; height: 15px; border-radius: 50%; background: var(--xw-accent, #1f87f5); color: #fff; display: none; place-items: center; }
+.xw-fn-tk svg { width: 9px; height: 9px; }
+.xw-fn.on .xw-fn-tk { display: grid; }
+.xw-fn b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin-top: 4px; min-height: 2.3em; overflow: hidden; font-size: 10.5px; font-weight: 600; line-height: 1.15; word-break: break-word; }
+
+/* suggested for this car: a strip across the top of the list */
+.xw-sg { grid-column: 1 / -1; margin-bottom: 4px; }
+.xw-sg-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 2px 4px; }
+.xw-sg-h b { font-size: 12.5px; font-weight: 700; }
+.xw-sg-h span { display: flex; align-items: center; gap: 8px; }
+.xw-sg-x { border: 0; background: none; font-size: 20px; line-height: 1; color: #5b6475; cursor: pointer; padding: 0 2px; }
+.xw-sg-r { display: flex; gap: 8px; overflow-x: auto; padding: 5px; margin: 0 -5px; scrollbar-width: none; }
+.xw-sg-r::-webkit-scrollbar { display: none; }
+.xw-sg-r .xw-wt.cp { flex: none; width: 96px; }
+.xw-sg-r.all { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; }
+.xw-sg-r.all .xw-wt.cp { width: auto; }
+.xw-wt.cp .xw-wt-tx b { min-height: 2.4em; }
+
+.xw-pk-none { grid-column: 1 / -1; margin: 14px 0; text-align: center; font-size: 13px; color: #5b6475; }
+.xw-pk-none p { margin: 0; }
+.xw-el { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 8px; }
+.xw-pk-sum { flex: none; min-height: 18px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 4px; font-size: 12.5px; font-weight: 600; color: #3b4252; }
+.xw-pk-sum em { font-style: normal; font-weight: 500; color: #5b6475; }
 .xw-pk > .xw-btn { flex: none; height: 56px; }
-.xw-wr em { display: block; font-style: normal; font-weight: 500; font-size: 11.5px; color: #5b6475; }
+.xw-wr em { display: block; font-style: normal; font-weight: 500; font-size: 11.5px; color: #5b6475; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .xw.ph .xw-split { inset: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 12px 14px; }
 .xw.ph .xw-sp-pic { flex: none; container-type: normal; }
-.xw.ph .xw-sp-pic .xw-pic { width: min(100%, 26svh * var(--ar, 1.5)); }
+.xw.ph .xw-sp-pic .xw-pic { width: min(100%, 24svh * var(--ar, 1.5)); }
 .xw.ph .xw-pk { flex: 1; padding: 12px; border-radius: 22px; }
-.xw.ph .xw-pk-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.xw.ph .xw-pk-sws .xw-sw { width: auto; height: 50px; flex-direction: row; gap: 10px; text-align: left; font-size: 13px; }
-.xw.ph .xw-pk-sws .xw-sw .xw-wc { width: 44px; height: 44px; margin: 0; border: 2px solid rgba(18, 20, 28, 0.14); box-shadow: none; }
-.xw.ph .xw-pk-sws .xw-sw.on .xw-wc { border-color: var(--xw-accent, #1f87f5); box-shadow: none; }
-.xw.ph .xw-pk-sws .xw-sw .xw-tk { right: 0; bottom: 0; top: auto; width: 14px; height: 14px; }
-.xw.ph .xw-pk-sws .xw-sw.solo .xw-wc { width: 44px; height: 44px; margin: 0; }
+.xw.ph .xw-fin { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.xw.ph .xw-bb { flex-basis: 120px; }
 
-/* the picker's finishes: circle over name, so three fit across the panel */
-.xw-pk-sws { gap: 6px; justify-content: space-between; }
-.xw-pk-sws .xw-sw { flex: 1 1 0; min-width: 0; height: auto; flex-direction: column; gap: 4px; padding: 0; text-align: center; font-size: 12px; }
-.xw-pk-sws .xw-sw b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.xw-pk-sws .xw-wc { width: 46px; height: 46px; margin: 0 auto; }
-.xw-pk-sws .xw-sw.solo { flex: none; flex-direction: row; gap: 12px; text-align: left; font-size: 14px; }
-.xw.ph .xw-pk-sws .xw-sw { flex: 1 1 0; height: auto; flex-direction: column; gap: 4px; text-align: center; font-size: 12px; }
-.xw.ph .xw-pk-sws .xw-sw .xw-wc { width: 44px; height: 44px; margin: 0 auto; }
-.xw.ph .xw-pk-sws .xw-sw.solo { flex: none; flex-direction: row; gap: 12px; text-align: left; font-size: 14px; }
+/* ================= the render you look at: zoom, pan, press and hold for your photo ================= */
+.xw-zp { position: absolute; inset: 0; overflow: hidden; touch-action: none; cursor: default; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.xw-zp.zoomed { cursor: grab; }
+.xw-zi { position: absolute; inset: 0; transform-origin: 50% 50%; transition: transform 0.18s ease-out; will-change: transform; }
+.xw-zi.mv { transition: none; }
+.xw-zi img.xw-fg { display: block; width: 100%; height: 100%; object-fit: cover; user-select: none; }
+.xw-zp.ct .xw-zi img.xw-fg { object-fit: contain; }
+.xw-orig { position: absolute; inset: 0; z-index: 2; pointer-events: none; clip-path: circle(0 at 50% 50%); transition: clip-path 0.34s ease-in; background: #0b0c10; }
+.xw-orig.on { transition: clip-path 0.52s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.xw-orig img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.xw-zp.ct .xw-orig img { object-fit: contain; }
+.xw-orig-chip {
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(18, 20, 28, 0.72);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1;
+}
+.xw-ib:disabled { opacity: 0.45; cursor: default; }
+
+/* the strip: the wheel of each render, a ringed dim one while it is still coming */
+.xw-th { width: 46px; height: 46px; background: #fff; border-radius: 12px; }
+.xw-thw { display: grid; place-items: center; width: 100%; height: 100%; border-radius: inherit; overflow: hidden; }
+.xw-th .xw-thw img { display: block; width: 100%; height: 100%; object-fit: contain; padding: 3px; }
+.xw-th .xw-thw img.cover { object-fit: cover; padding: 0; }
+.xw-th.pend { cursor: default; box-shadow: 0 0 0 1px rgba(18, 20, 28, 0.08); }
+.xw-th.pend .xw-thw { opacity: 0.45; }
+.xw-th-sp { position: absolute; inset: 0; border-radius: inherit; border: 3px solid transparent; border-top-color: var(--xw-accent, #1f87f5); animation: xw-turn 0.9s linear infinite; }
+.xw.ph .xw-th { flex: none; width: 46px; height: 46px; max-width: none; }
+.xw.ph .xw-ths { gap: 8px; }
+
+/* ---------- full screen: the whole page, drawn outside the window ---------- */
+.xw-fsv { position: absolute; inset: 0; z-index: 40; background: #0b0c10; }
+.xw-fsv .xw-zp { position: absolute; inset: 0; }
+.xw-fsv .xw-zi img.xw-fg { object-fit: contain; }
+
+/* ---------- the wheels, lit while the render runs (the server's cut-out of them) ---------- */
+.xw-lift { position: absolute; inset: 0; z-index: 2; pointer-events: none; animation: xw-fade 0.6s ease both; }
+.xw-lift .halo, .xw-lift img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  -webkit-mask-image: var(--cut);
+  mask-image: var(--cut);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+.xw-lift img { object-fit: cover; filter: brightness(1.45) saturate(1.1); }
+.xw-lift .halo { background: radial-gradient(closest-side, #fff, #d9ccff); filter: blur(9px); animation: xw-breathe 2.2s ease-in-out infinite alternate; }
+@keyframes xw-breathe { from { opacity: 0.45; filter: blur(7px); } to { opacity: 0.95; filter: blur(13px); } }
+@media (prefers-reduced-motion: reduce) { .xw-lift .halo { animation: none; opacity: 0.8; } }
+
+/* a brand's finishes under its photo: a circle over its name, level, so four fit beside Render */
+.xw-bcol { height: 76px; gap: 14px; }
+.xw-bcol .xw-sw:not(.solo) { height: auto; width: 84px; flex-direction: column; align-items: center; gap: 4px; padding: 0; text-align: center; font-size: 10.5px; line-height: 1.15; }
+.xw-bcol .xw-sw:not(.solo) .xw-wc { width: 44px; height: 44px; }
+.xw-bcol .xw-sw:not(.solo) b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-weight: 600; word-break: break-word; }
+.xw-bcol .xw-sw.on:not(.solo) b { font-weight: 700; }
+.xw-bcol .xw-pickl { align-self: center; }
+
+/* links inside the picker sit in a line, not as full-width buttons */
+.xw-pk .xw-link { display: inline; width: auto; flex: none; padding: 0; font-size: 12.5px; }
+.xw-el .xw-link { display: block; }
+.xw-sg-o { margin-top: 6px; }
+
+/* phone: the finishes share the row, so four fit */
+.xw.ph .xw-sws .xw-sw:not(.solo) { flex: 1 1 0; width: auto; min-width: 0; }
+.xw.ph .xw-sws .xw-sw:not(.solo) b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 11px; line-height: 1.15; }

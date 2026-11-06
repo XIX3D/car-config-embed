@@ -246,6 +246,8 @@ export interface MaskCompleteData {
   cached: boolean
   /** Chroma sockets found in the mask. */
   sockets: number
+  /** The wheels as a small white-on-transparent PNG (base64), when the server sends it: they light up while the render runs. */
+  cutout_png_b64?: string
   /**
    * Present only when the socket count exceeds the wheels intake saw. This is the signature
    * of an INVENTED socket — a false chroma blob that gets filled with wheel — and it is the

@@ -2,7 +2,7 @@ import { Show, Switch, Match, createEffect, createSignal, on, onCleanup, onMount
 import { Portal } from "solid-js/web";
 import type { WidgetStore, Lead } from "../../stores/widget-store";
 import type { ApiClient } from "../../utils/api";
-import type { ProblemKind, RenderProblem, Variant } from "../../types";
+import type { Product, ProblemKind, RenderProblem, Variant } from "../../types";
 import { debugWarn } from "../../utils/debug";
 import { ModalHeader } from "./ModalHeader";
 import { UploadView } from "./UploadView";
@@ -11,7 +11,7 @@ import { ResultView } from "./ResultView";
 import { QuoteView } from "./QuoteView";
 import { EmailGateView } from "./EmailGateView";
 import { EmailedCard, LeaveCard, NoticeCard, Overlay, SentCard, type NoticeAction } from "./Popups";
-import { IconX } from "./icons";
+import { FullView } from "./FullView";
 
 interface ModalProps {
   store: WidgetStore;
@@ -23,6 +23,12 @@ interface ModalProps {
 
 /** The CD's E4: after about 90 seconds the visitor may keep waiting or try again. */
 const TAKING_LONG_MS = 90_000;
+
+/** One finish of one wheel: what a render slot is for. */
+interface Item {
+  product: Product;
+  variant: Variant;
+}
 
 /** Photo problems end on the upload screen: that photo will fail the same way again. */
 const PHOTO_PROBLEMS: ProblemKind[] = ["nocar", "nowheels", "badfile"];
@@ -47,15 +53,13 @@ export function Modal(props: ModalProps) {
   const { state, actions, getLoadingSteps, getBrandName, getModelName, getCurrentResult, getDoneResults, isLimitReached, isV2LoadingEnabled } = props.store;
   const phone = usePhone();
   const [ar, setAr] = createSignal(1.5);
-  /** The visitor picked a render while the next was still coming: show it clean, no animation on it. */
-  const [looking, setLooking] = createSignal(false);
 
   /** One per render in flight, so closing, "Try again" and a dead photo can cancel them. */
   const controllers = new Map<number, AbortController>();
   /** The finish each slot is rendering, for "Try again". */
-  const slotVariant = new Map<number, string>();
+  const slotItem = new Map<number, Item>();
   /** Finishes whose render failed, waiting for "Try again". */
-  let failedVariants: string[] = [];
+  let failedItems: Item[] = [];
   let slowTimer = 0;
   let slowSlot = 0;
 
@@ -79,6 +83,18 @@ export function Modal(props: ModalProps) {
       .filter((r) => r.photoKey === state.photoKey && (r.success || r.loading) && r.variantId
         && (!state.catalogue || r.productId === state.product?.id))
       .map((r) => r.variantId!);
+  /** On a dealer's code: the finishes rendered, or rendering, on this photo, wheel by wheel. */
+  const doneByProduct = () => {
+    const done: Record<string, string[]> = {};
+
+    for (const r of state.galleryResults) {
+      if (r.photoKey === state.photoKey && (r.success || r.loading) && r.variantId && r.productId) {
+        (done[r.productId] ??= []).push(r.variantId);
+      }
+    }
+
+    return done;
+  };
   /** Every finish has a finished render on this photo: More finishes becomes New photo. A dealer's visitor can always pick another wheel. */
   const allDone = () =>
     !state.catalogue && sortedVariants().every((v) =>
@@ -108,7 +124,7 @@ export function Modal(props: ModalProps) {
   /** The slot ended: when nothing is left in flight, the loading clock stops. */
   const settle = (id: number) => {
     controllers.delete(id);
-    slotVariant.delete(id);
+    slotItem.delete(id);
     if (slowSlot === id) clearTimeout(slowTimer);
     if (!pending()) actions.stopLoading();
   };
@@ -124,9 +140,12 @@ export function Modal(props: ModalProps) {
     }, TAKING_LONG_MS);
   };
 
-  const productsFor = (variantId: string) => {
+  const productsFor = (variantId: string, productId?: string) => {
     const products: Array<{ product_id: string; variant_id?: string }> = [];
     const sel = state.selections;
+
+    // A dealer's code: every render names its own wheel.
+    if (productId) return [{ product_id: productId, variant_id: variantId }];
 
     if (sel?.wrap_id) products.push({ product_id: sel.wrap_id, variant_id: variantId });
     if (sel?.wheel_id) products.push({ product_id: sel.wheel_id, variant_id: variantId });
@@ -134,7 +153,9 @@ export function Modal(props: ModalProps) {
     return products;
   };
 
-  const handleProblem = (id: number, variantId: string, problem: RenderProblem) => {
+  const handleProblem = (id: number, problem: RenderProblem) => {
+    const item = slotItem.get(id);
+
     debugWarn(`render ended without an image: ${problem.kind}${problem.code ? ` (${problem.code})` : ""}`);
     actions.dropSlot(id);
     settle(id);
@@ -146,7 +167,7 @@ export function Modal(props: ModalProps) {
     }
 
     if (problem.kind === "fail") {
-      failedVariants = [...new Set([...failedVariants, variantId])];
+      if (item && !failedItems.some((f) => f.variant.id === item.variant.id && f.product.id === item.product.id)) failedItems = [...failedItems, item];
     } else {
       // Every render behind this one would be refused the same way, and none should run.
       abortAll();
@@ -165,37 +186,44 @@ export function Modal(props: ModalProps) {
     actions.setNotice(problem.kind);
   };
 
-  const runSlot = (id: number, file: File, variantId: string, first: boolean) => {
+  /**
+   * Run one render. Returns when it is over. `onMask` fires the moment its mask is known (or the
+   * render ends without one): the batch's first render is the leader, and the others wait for it
+   * so they find the mask already made (the studio's rule: one mask per photo, not one per finish).
+   */
+  const runSlot = (id: number, file: File, item: Item, first: boolean, productId?: string, onMask?: () => void) => {
+    const variantId = item.variant.id;
     const ctrl = new AbortController();
 
     controllers.set(id, ctrl);
-    slotVariant.set(id, variantId);
+    slotItem.set(id, item);
     if (first) watchSlow(id);
 
-    props.api
+    return props.api
       .renderStream(
         file,
-        productsFor(variantId),
+        productsFor(variantId, productId),
         ownerId(),
         {
-          // Renders run one after another; each one that starts after the first gets the
-          // animation from its first step, on the result screen the visitor is already on.
-          onStarted: () => {
-            if (!first) actions.restartLoading();
-            watchSlow(id);
-          },
+          onStarted: () => watchSlow(id),
           onVehicleDetected: (data) => actions.setDetectedVehicle(data),
           // Two-pass stage events drive the animation's step from real progress.
           onMaskStarted: (data) => {
             actions.setMaskCached(data.cached);
             actions.syncLoadingStage("mask");
           },
-          onMaskComplete: (data) => actions.setMaskCached(data.cached),
+          onMaskComplete: (data) => {
+            actions.setMaskCached(data.cached);
+            // The server's cut-out of the wheels on this photo: they light up while the render runs.
+            if (typeof data.cutout_png_b64 === "string" && data.cutout_png_b64.length > 64) {
+              actions.setCutout(`data:image/png;base64,${data.cutout_png_b64}`);
+            }
+            onMask?.();
+          },
           onFillStarted: () => actions.syncLoadingStage("fill"),
           onCompositeComplete: () => actions.syncLoadingStage("composite"),
           onDebug: (data) => actions.setDebugData(data),
           onComplete: (data) => {
-            setLooking(false);
             actions.completeSlot(id, `data:image/png;base64,${data.image_b64}`);
           },
           // Comparison build only: the image the audit rejected, shown so it can be judged.
@@ -209,45 +237,75 @@ export function Modal(props: ModalProps) {
             actions.setView("upload");
             actions.setEmailGate(gate);
           },
-          onProblem: (problem) => handleProblem(id, variantId, problem),
+          onProblem: (problem) => handleProblem(id, problem),
         },
         ctrl.signal,
       )
       .finally(() => {
         if (controllers.get(id) === ctrl) settle(id);
+        onMask?.();
       });
   };
 
-  /** Render the given finishes on the photo on screen, one after another. */
-  const startRender = (variantIds: string[]) => {
+  /** Renders that may run at once once the leader has made the mask. */
+  const PARALLEL = 3;
+
+  /** Render these finishes (each of its wheel) on the photo on screen: the first leads, the rest follow its mask. */
+  const startBatch = (items: Item[]) => {
     const file = state.selectedFile;
-    const variants = variantIds.map(variantById).filter((v): v is Variant => !!v);
 
-    const product = state.product;
-
-    if (!file || !product || variants.length === 0) return;
+    if (!file || items.length === 0) return;
     if (isLimitReached()) {
       actions.setNotice("limit");
 
       return;
     }
 
-    failedVariants = [];
+    failedItems = [];
     actions.startLoading(isV2LoadingEnabled());
     const ids = actions.addSlots(
-      variants.map((v) => ({
-        label: v.variant_name,
-        variantId: v.id,
-        hexColor: v.hex_color || null,
-        referenceImage: v.reference_image_paths?.[0] || v.reference_image || null,
+      items.map(({ product, variant }) => ({
+        label: variant.variant_name,
+        variantId: variant.id,
+        hexColor: variant.hex_color || null,
+        // The picture a thumbnail shows: the finish, else the wheel.
+        referenceImage: variant.reference_image_paths?.[0] || variant.reference_image || product.reference_image_paths?.[0] || product.orthographic_image || null,
         productId: product.id,
         productName: product.name,
         photo: state.previewDataUrl,
         photoKey: state.photoKey,
       })),
     );
+    const dealer = !!state.catalogue;
+    const productOf = (k: number) => (dealer ? items[k].product.id : undefined);
+    let release!: () => void;
+    const leaderDone = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const alive = (id: number) => state.galleryResults.some((r) => r.id === id && r.loading);
+    const queue = ids.slice(1);
+    const lane = async () => {
+      let id = queue.shift();
 
-    ids.forEach((id, k) => runSlot(id, file, variants[k].id, k === 0));
+      while (id !== undefined) {
+        if (alive(id)) await runSlot(id, file, items[ids.indexOf(id)], false, productOf(ids.indexOf(id)));
+        id = queue.shift();
+      }
+    };
+
+    runSlot(ids[0], file, items[0], true, productOf(0), release);
+    // Once the leader's mask is made, the others run a few at a time and find it cached.
+    leaderDone.then(() => {
+      for (let k = 0; k < PARALLEL; k++) lane();
+    });
+  };
+
+  /** A brand's code: one wheel, its picked finishes. */
+  const startRender = (variantIds: string[]) => {
+    const product = state.product;
+
+    if (!product) return;
+    startBatch(variantIds.map(variantById).filter((v): v is Variant => !!v).map((variant) => ({ product, variant })));
   };
 
   const renderPicked = () => {
@@ -256,11 +314,33 @@ export function Modal(props: ModalProps) {
     startRender(sortedVariants().filter((v) => state.selectedVariantIds.includes(v.id) && !done.includes(v.id)).map((v) => v.id));
   };
 
+  /** A dealer's code: every picked finish of every picked wheel, minus what is already rendered on this photo. */
+  const renderPicks = () => {
+    const done = doneByProduct();
+    const items = state.picks.flatMap((pick) =>
+      pick.variants
+        .filter((v) => pick.variantIds.includes(v.id) && !(done[pick.product.id] ?? []).includes(v.id))
+        .map((variant) => ({ product: pick.product, variant })),
+    );
+
+    if (items.length === 0) return;
+    actions.clearPicks();
+    startBatch(items.slice(0, props.store.batchCap()));
+  };
+
   const handleFileSelect = (file: File) => {
     const reader = new FileReader();
 
-    reader.onload = (e) => actions.setFile(file, e.target?.result as string, sortedVariants()[0]?.id);
+    reader.onload = (e) => actions.setFile(file, e.target?.result as string, state.catalogue ? undefined : sortedVariants()[0]?.id);
     reader.readAsDataURL(file);
+    // A dealer's picker suggests wheels for THIS car, so the car is read now, not after the first render.
+    if (state.catalogue) {
+      const key = state.photoKey + 1;
+
+      props.api.detectVehicle(file).then((v) => {
+        if (v && state.photoKey === key && !state.detectedVehicle) actions.setDetectedVehicle(v);
+      });
+    }
   };
 
   /** After a notice closes: a loading screen with nothing left to wait for goes back to the photo. */
@@ -298,18 +378,20 @@ export function Modal(props: ModalProps) {
         const slow = state.galleryResults.find((r) => r.id === slowSlot && r.loading);
 
         if (slow) {
+          const again = slotItem.get(slow.id);
+
           controllers.get(slow.id)?.abort();
           actions.dropSlot(slow.id);
           settle(slow.id);
-          startRender([slow.variantId!]);
+          if (again) startBatch([again]);
 
           return;
         }
       }
-      const again = failedVariants;
+      const again = failedItems;
 
-      failedVariants = [];
-      if (again.length) startRender(again);
+      failedItems = [];
+      if (again.length) startBatch(again);
       else afterNotice();
     } else {
       afterNotice();
@@ -388,13 +470,15 @@ export function Modal(props: ModalProps) {
     else throw new Error("send failed");
   };
 
-  const selectNext = () => {
+  /** Left and right through the finished renders: swipe or the arrow keys. */
+  const selectBy = (step: number) => {
     const done = getDoneResults();
     const i = done.findIndex((r) => r.id === state.currentId);
 
-    setLooking(true);
-    if (done.length) actions.select(done[(i + 1) % done.length].id);
+    if (done.length > 1) actions.select(done[(i + step + done.length) % done.length].id);
   };
+  const selectNext = () => selectBy(1);
+  const selectPrev = () => selectBy(-1);
 
   // A visitor already at the limit learns it the moment the window opens, not after a photo.
   createEffect(on(() => state.emailGate, (gate) => {
@@ -464,17 +548,19 @@ export function Modal(props: ModalProps) {
                       state.catalogue
                         ? {
                             catalogue: state.catalogue,
+                            loading: state.catalogueLoading,
                             brandFilter: state.brandFilter,
                             search: state.search,
-                            product: state.product,
-                            variants: sortedVariants(),
-                            selectedVariantIds: state.selectedVariantIds,
-                            doneVariantIds: doneVariantIds(),
+                            picks: state.picks,
+                            doneByProduct: doneByProduct(),
+                            car: state.detectedVehicle,
+                            cap: props.store.batchCap(),
                             onBrand: actions.setBrandFilter,
                             onSearch: actions.setSearch,
-                            onChoose: actions.chooseWheel,
-                            onToggleVariant: actions.toggleVariantSelection,
-                            onRender: renderPicked,
+                            onToggleWheel: actions.toggleWheel,
+                            onToggleFinish: actions.toggleFinish,
+                            onClear: actions.clearPicks,
+                            onRender: renderPicks,
                           }
                         : undefined
                     }
@@ -488,6 +574,7 @@ export function Modal(props: ModalProps) {
                     previewDataUrl={state.previewDataUrl}
                     loadingSteps={getLoadingSteps()}
                     currentStep={state.loadingStep}
+                    cutout={state.cutout && state.cutout.photoKey === state.photoKey ? state.cutout.url : null}
                     onAspect={setAr}
                   />
                 </Match>
@@ -497,23 +584,17 @@ export function Modal(props: ModalProps) {
                     phone={phone()}
                     ar={ar()}
                     modelName={state.catalogue ? (getCurrentResult()?.productName ?? "") : getModelName()}
-                    results={getDoneResults()}
+                    slots={state.galleryResults}
                     current={getCurrentResult()}
                     pending={pending()}
-                    showLoading={pending() && !looking() && !state.showOriginal}
-                    loadingSteps={getLoadingSteps()}
-                    loadingStep={state.loadingStep}
-                    showOriginal={state.showOriginal}
                     limitReached={isLimitReached()}
                     allDone={allDone()}
                     moreWheels={!!state.catalogue}
                     debugData={state.debugData}
-                    onSelect={(id) => {
-                      setLooking(true);
-                      actions.select(id);
-                    }}
+                    onSelect={(id) => actions.select(id)}
                     onNext={selectNext}
-                    onToggleOriginal={actions.toggleOriginal}
+                    onPrev={selectPrev}
+                    onChangePhoto={actions.clearFile}
                     onFullscreen={() => actions.toggleFullscreen(true)}
                     onMore={() => (allDone() ? actions.clearFile() : actions.setView("upload"))}
                     onQuote={actions.showQuote}
@@ -540,7 +621,7 @@ export function Modal(props: ModalProps) {
               </Switch>
 
               <Show when={state.notice}>
-                <Overlay>
+                <Overlay onOutside={closeNotice}>
                   <NoticeCard kind={state.notice!} onClose={closeNotice} onAction={handleNoticeAction} />
                 </Overlay>
               </Show>
@@ -569,16 +650,19 @@ export function Modal(props: ModalProps) {
                 </Overlay>
               </Show>
 
-              <Show when={state.showFullscreen}>
-                <div class="xw-fsv" onClick={() => actions.toggleFullscreen(false)}>
-                  <img src={(state.showOriginal ? getCurrentResult()?.photo : getCurrentResult()?.image) || ""} alt="" />
-                  <button class="xw-ib" aria-label="Close full screen">
-                    <IconX />
-                  </button>
-                </div>
-              </Show>
             </div>
           </div>
+
+          {/* Outside the window, so full screen is the whole page's, not the window's. */}
+          <Show when={state.showFullscreen && getCurrentResult()}>
+            <FullView
+              src={getCurrentResult()?.image || ""}
+              original={getCurrentResult()?.photo}
+              onPrev={selectPrev}
+              onNext={selectNext}
+              onClose={() => actions.toggleFullscreen(false)}
+            />
+          </Show>
         </div>
       </Portal>
     </Show>

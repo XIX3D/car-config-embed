@@ -1,4 +1,4 @@
-import { For } from "solid-js";
+import { For, Show } from "solid-js";
 import type { LoadingStep } from "../../types";
 import { Frame } from "./Frame";
 
@@ -34,11 +34,18 @@ function createLoadingText(text: string) {
  * The live widget's render animation, unchanged: the glow turning round the picture's edge and
  * the step spelled in pulsing letters. Laid over a photo whose brightness is dropped (`.ld`).
  */
-export function LoadingOverlay(props: { steps: LoadingStep[]; step: number }) {
+export function LoadingOverlay(props: { steps: LoadingStep[]; step: number; photo?: string | null; cutout?: string | null }) {
   const letters = () => createLoadingText(props.steps[props.step]?.text || "");
 
   return (
     <>
+      {/* The server's cut-out of the wheels: they come up bright against the dimmed photo, with a soft glow round their edge. */}
+      <Show when={props.cutout && props.photo}>
+        <div class="xw-lift" style={{ "--cut": `url(${props.cutout})` }}>
+          <div class="halo" />
+          <img src={props.photo!} alt="" draggable={false} />
+        </div>
+      </Show>
       <div class="avacar-inner-glow" />
       <div class="xw-lvo">
         <div style={{ display: "flex", "justify-content": "center" }}>
@@ -61,6 +68,8 @@ interface LoadingViewProps {
   previewDataUrl: string | null;
   loadingSteps: LoadingStep[];
   currentStep: number;
+  /** The wheel cut-out the server sent for this photo, once its mask is made. */
+  cutout?: string | null;
   onAspect: (ar: number) => void;
 }
 
@@ -82,7 +91,7 @@ export function LoadingView(props: LoadingViewProps) {
             draggable={false}
             onLoad={(e) => props.onAspect(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight)}
           />
-          <LoadingOverlay steps={props.loadingSteps} step={props.currentStep} />
+          <LoadingOverlay steps={props.loadingSteps} step={props.currentStep} photo={props.previewDataUrl} cutout={props.cutout} />
         </>
       }
       under={

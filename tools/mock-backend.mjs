@@ -72,9 +72,13 @@ const BRANDS = [
   { id: 7, name: 'HRE Wheels', logo_url: null },
   { id: 9, name: 'Velos Designwerks', logo_url: null },
   { id: 12, name: 'Vossen', logo_url: null },
+  { id: 14, name: 'Forgiato', logo_url: null },
+  { id: 15, name: 'No Logo Brand', logo_url: null },
 ]
-const WHEEL_NAMES = { 7: ['FF01', 'P101', 'P200', 'FF15', 'M52'], 9: ['VSS-5', 'VLS-3'], 12: ['HF-3', 'CVT', 'S17-01', 'HF-1'] }
+const WHEEL_NAMES = { 7: ['FF01', 'P101', 'P200', 'FF15', 'M52', 'A Very Long Wheel Name 3-Piece'], 9: ['VSS-5', 'VLS-3'], 12: ['HF-3', 'CVT', 'S17-01', 'HF-1'], 14: ['Aigri', 'Vene', 'Tec'], 15: ['Plain One', 'Plain Two'] }
 const CAT_WHEELS = BRANDS.flatMap((b) => WHEEL_NAMES[b.id].map((name, i) => ({ id: b.id * 100 + i, brand: b.id, name })))
+// Wheels the studio's seen-on list says were photographed on a Ferrari F8: real ids, so "Suggested" has something to find.
+for (const id of JSON.parse(readFileSync(join(ASSETS, 'seen_ids.json'), 'utf8'))) CAT_WHEELS.push({ id, brand: 7, name: `Seen ${id}` })
 const CAT_VARIANT_BASE = 1000
 
 const asset = (name) => `http://127.0.0.1:${API_PORT}/assets/${name}`
@@ -170,7 +174,7 @@ async function renderStream(req, res, raw) {
   if (spec === 'drop') return res.destroy()
 
   await sleep(scenario.step)
-  send('mask_complete', { gate_passed: true, attempts: 1, duration_ms: 1, cached: renderCount > 1, sockets: 2 })
+  send('mask_complete', { gate_passed: true, attempts: 1, duration_ms: 1, cached: renderCount > 1, sockets: 2, cutout_png_b64: readFileSync(join(ASSETS, 'cutout.png')).toString('base64') })
   send('fill_started', {})
   await sleep(scenario.step)
   send('composite_complete', { outside_change_pct: 2, residual_chroma_pct: 0, duration_ms: 1, outside_verdict: 'PASS', socket_px: 1, written_px: 1 })
@@ -277,6 +281,8 @@ const api = createServer(async (req, res) => {
       return json(res, 200, {
         variants: VARIANTS.map((v, i) => ({ id: v.id, variant_name: v.variant_name, display_order: i, reference_image_paths: [asset(v.file)] })),
       })
+    case '/api/v1/products/detect-vehicle':
+      return json(res, 200, { success: true, detection: { is_car: true, make: 'Ferrari', model: 'F8 Tributo', year: '2020', vehicle_type: 'coupe', wheels_visible: 2 } })
     case '/api/v1/render/email-required':
       return json(res, 200, {
         ...scenario.gate,

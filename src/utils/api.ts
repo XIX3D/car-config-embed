@@ -247,7 +247,8 @@ export function createApiClient(baseUrl: string) {
 
       if (!res.ok) return null
       const data = await res.json()
-      return data.vehicle ?? null
+      // The server answers {detection: {...}}; an older one {vehicle: {...}}.
+      return data.detection ?? data.vehicle ?? null
     } catch {
       return null
     }
@@ -330,9 +331,10 @@ export function createApiClient(baseUrl: string) {
    * A dealer's code names no wheel: what its visitors may see and render is read here, live, with
    * the session that decode bound. Ids are made strings, as every other id in the widget is.
    */
-  const fetchCatalogue = async (): Promise<CatalogueResult> => {
+  const fetchCatalogue = async (session?: string): Promise<CatalogueResult> => {
     try {
-      const res = await fetch(`${baseUrl}/api/v1/embed/catalogue`, { headers: sessionHeaders() })
+      // A warm-up passes its own session: the page-wide one may already belong to a later open.
+      const res = await fetch(`${baseUrl}/api/v1/embed/catalogue`, { headers: session ? { 'X-Session-ID': session } : sessionHeaders() })
       let body: { brands?: unknown; products?: unknown; error?: unknown } | null = null
 
       try {

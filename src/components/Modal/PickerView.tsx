@@ -1,52 +1,226 @@
-import { createMemo, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import type { Catalogue, CatalogueEntry, Product, Variant } from "../../types";
+import type { Pick } from "../../stores/widget-store";
+import { brandLogo } from "../../utils/brandLogos";
+import { carName, loadSeenOn, seenOn, type Car } from "../../utils/seenOn";
 import { IconCamera, IconCheck, IconSpark } from "./icons";
 
 /** More wheels than this are never drawn at once: the visitor narrows by brand or by search. */
-const SHOWN = 60;
+const SHOWN = 90;
+/** The strip of suggestions shows this many; "See all" shows every one. */
+const STRIP = 12;
 
 interface PickerViewProps {
   phone: boolean;
   ar: number;
   previewUrl: string;
   catalogue: Catalogue;
-  /** The brand shown, or null for every brand. */
+  /** The dealer's list is still on its way: placeholders stand in. */
+  loading: boolean;
+  /** The brand shown, or null before the list arrives. */
   brandFilter: number | null;
   search: string;
-  /** The wheel in play, with its finishes. Null until the visitor picks one. */
-  product: Product | null;
-  variants: Variant[];
-  selectedVariantIds: string[];
-  /** Finishes already rendered (or rendering) on this photo: shown, not offered again. */
-  doneVariantIds: string[];
-  onBrand: (id: number | null) => void;
+  /** Every wheel picked so far, with its finishes. */
+  picks: Pick[];
+  /** Finishes already rendered (or rendering) on this photo, by wheel: shown, not offered again. */
+  doneByProduct: Record<string, string[]>;
+  /** The car in the photo, once known: it picks the suggestions. */
+  car: Car | null;
+  /** How many renders one press may start. */
+  cap: number;
+  onBrand: (id: number, keepSearch?: boolean) => void;
   onSearch: (search: string) => void;
-  onChoose: (entry: CatalogueEntry) => void;
-  onToggleVariant: (id: string) => void;
+  onToggleWheel: (entry: CatalogueEntry) => void;
+  onToggleFinish: (productId: string, variantId: string) => void;
+  onClear: () => void;
   onRender: () => void;
   onChangePhoto: () => void;
 }
 
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
 const wheelImage = (p: Product) => p.reference_image_paths?.[0] || p.orthographic_image || "";
 const variantImage = (v: Variant) => v.reference_image_paths?.[0] || v.reference_image || "";
 
+const WheelGlyph = () => (
+  <svg class="xw-glyph" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+    <circle cx="24" cy="24" r="19" />
+    <circle cx="24" cy="24" r="4.5" />
+    <path d="M24 5v14.5M24 28.5V43M5 24h14.5M28.5 24H43M10.6 10.6l10.3 10.3M27.1 27.1l10.3 10.3M37.4 10.6L27.1 20.9M20.9 27.1L10.6 37.4" />
+  </svg>
+);
+
 /**
- * A dealer's code, photo in: the photo on the left, and on the right the dealer's brands and wheels
- * (the mock's dealer picker). Pick a brand, search, pick a wheel, pick its finishes, Render. A
- * dealer can carry hundreds of brands, so the list is always one brand or one search, never all.
+ * A wheel's picture. It is asked for only when its tile is near the screen, and until it lands a
+ * wheel outline stands there, so a tile never stays a blank square.
+ */
+function WheelImage(props: { src: string; alt?: string }) {
+  let box: HTMLSpanElement | undefined;
+  const [seen, setSeen] = createSignal(false);
+  const [ok, setOk] = createSignal(false);
+
+  onMount(() => {
+    if (!box || typeof IntersectionObserver === "undefined") {
+      setSeen(true);
+
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setSeen(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "300px" },
+    );
+
+    io.observe(box);
+    onCleanup(() => io.disconnect());
+  });
+
+  return (
+    <span class="xw-wi" ref={box}>
+      <Show when={!ok()}>
+        <WheelGlyph />
+      </Show>
+      <Show when={seen() && props.src}>
+        <img
+          class={ok() ? "ok" : ""}
+          src={props.src}
+          alt={props.alt ?? ""}
+          draggable={false}
+          decoding="async"
+          onLoad={() => setOk(true)}
+        />
+      </Show>
+    </span>
+  );
+}
+
+const Chevron = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+);
+
+/** A brand's mark on its own chip (dark ink on light, white or coloured on dark), or its name. */
+function BrandMark(props: { name: string; logoUrl?: string | null }) {
+  const logo = () => brandLogo(props.name, props.logoUrl);
+  const [bad, setBad] = createSignal(false);
+
+  return (
+    <Show when={logo() && !bad()} fallback={<span class="xw-bn">{props.name}</span>}>
+      <span class={`xw-bm ${logo()!.dark ? "lt" : "dk"}`}>
+        <img src={logo()!.url} alt={props.name} draggable={false} onError={() => setBad(true)} />
+      </span>
+    </Show>
+  );
+}
+
+/**
+ * A dealer's code, photo in: the photo on the left, and on the right the studio's own picker. A
+ * brand (its logo), a search, the wheels, the finishes opening under the wheel picked, and Render.
+ * Several wheels can be picked, each with its own finishes, and rendered together.
  */
 export function PickerView(props: PickerViewProps) {
-  const done = (id: string) => props.doneVariantIds.includes(id);
-  const picked = () => props.selectedVariantIds.filter((id) => !done(id)).length;
-  const multi = () => props.variants.length > 1;
+  const [brandsOpen, setBrandsOpen] = createSignal(false);
+  const [brandQ, setBrandQ] = createSignal("");
+  const [seeAll, setSeeAll] = createSignal(false);
+  const [suggestOpen, setSuggestOpen] = createSignal(true);
+  const [seenReady, setSeenReady] = createSignal(0);
+  let top: HTMLDivElement | undefined;
+
+  const total = () => props.picks.reduce((n, p) => n + p.variantIds.length, 0);
+  const needFinish = () => props.picks.filter((p) => p.variantIds.length === 0).length;
+  const atCap = () => total() >= props.cap;
+  const pickOf = (id: string) => props.picks.find((p) => p.product.id === id);
+  const doneOf = (id: string) => props.doneByProduct[id] ?? [];
+
+  const brands = createMemo(() =>
+    [...props.catalogue.brands]
+      .filter((b) => props.catalogue.products.some((e) => Number(e.product.manufacturer_id) === Number(b.id)))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" })),
+  );
+  const brand = () => props.catalogue.brands.find((b) => Number(b.id) === Number(props.brandFilter)) ?? null;
+  const shownBrands = createMemo(() => {
+    const q = norm(brandQ());
+
+    return q ? brands().filter((b) => norm(b.name).includes(q)) : brands();
+  });
 
   const matches = createMemo(() => {
-    const q = props.search.trim().toLowerCase();
+    const q = norm(props.search);
+    const id = brand() ? Number(brand()!.id) : null;
+    const rows = props.catalogue.products.filter((e) => id === null || Number(e.product.manufacturer_id) === id);
 
-    return props.catalogue.products
-      .filter((e) => (props.brandFilter === null || Number(e.product.manufacturer_id) === props.brandFilter)
-        && (!q || e.product.name.toLowerCase().includes(q)))
-      .sort((a, b) => a.product.name.localeCompare(b.product.name));
+    if (!q) return [...rows].sort((a, b) => a.product.name.localeCompare(b.product.name, undefined, { numeric: true }));
+    const byName = rows.filter((e) => norm(e.product.name).includes(q));
+    const bySku = rows.filter((e) => !norm(e.product.name).includes(q) && norm(e.product.sku ?? "").includes(q));
+
+    return [...byName, ...bySku];
+  });
+
+  /** The search has nothing in this brand: the other brands that do, most first. */
+  const elsewhere = createMemo(() => {
+    const q = norm(props.search);
+
+    if (!q || matches().length > 0) return [];
+    const count = new Map<number, number>();
+
+    for (const e of props.catalogue.products) {
+      if (norm(e.product.name).includes(q) || norm(e.product.sku ?? "").includes(q)) {
+        const b = Number(e.product.manufacturer_id);
+
+        count.set(b, (count.get(b) ?? 0) + 1);
+      }
+    }
+
+    return [...count.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([id, n]) => ({ id, n, name: props.catalogue.brands.find((b) => Number(b.id) === id)?.name ?? "" }))
+      .filter((x) => x.name);
+  });
+
+  // Suggestions: the wheels the brands photographed on this car, kept to what the dealer offers.
+  const byNumericId = createMemo(() => new Map(props.catalogue.products.map((e) => [Number(e.product.id), e])));
+
+  createEffect(() => {
+    if (props.car?.make) loadSeenOn().then((d) => d && setSeenReady((n) => n + 1));
+  });
+  const suggested = createMemo(() => {
+    seenReady();
+    if (!props.car || byNumericId().size === 0) return { name: null as string | null, list: [] as CatalogueEntry[] };
+    const list = seenOn(props.car, (id) => byNumericId().has(id), 60)
+      .map((s) => byNumericId().get(s.id)!)
+      .filter(Boolean);
+
+    return { name: carName(props.car) ?? [props.car.make, props.car.model].filter(Boolean).join(" "), list };
+  });
+  const showSuggested = () => suggestOpen() && suggested().list.length >= 2 && !props.search;
+  const stripList = () => (seeAll() ? suggested().list : suggested().list.slice(0, STRIP));
+  /** Wheels drawn in the strip: their tile there is only ticked, their finishes open under the strip. */
+  const stripIds = createMemo(() => new Set(showSuggested() ? stripList().map((e) => e.product.id) : []));
+  const stripOpen = () => stripList().filter((e) => pickOf(e.product.id) && e.variants.length > 1);
+
+  // The brand list closes on a tap anywhere else and on Escape.
+  onMount(() => {
+    const away = (e: Event) => {
+      if (brandsOpen() && top && !e.composedPath().includes(top)) setBrandsOpen(false);
+    };
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && brandsOpen()) {
+        e.stopPropagation();
+        setBrandsOpen(false);
+      }
+    };
+
+    window.addEventListener("pointerdown", away, true);
+    window.addEventListener("keydown", key, true);
+    onCleanup(() => {
+      window.removeEventListener("pointerdown", away, true);
+      window.removeEventListener("keydown", key, true);
+    });
   });
 
   const Photo = () => (
@@ -58,6 +232,81 @@ export function PickerView(props: PickerViewProps) {
     </div>
   );
 
+  const Tile = (t: { entry: CatalogueEntry; compact?: boolean; forceOpen?: boolean }) => {
+    const id = () => t.entry.product.id;
+    const pick = () => pickOf(id());
+    const open = () => !!pick() && t.entry.variants.length > 1 && (t.forceOpen || (!t.compact && !stripIds().has(id())));
+    const done = () => doneOf(id());
+    const blocked = () => !pick() && atCap();
+
+    return (
+      <div class={`xw-wt ${pick() ? "on" : ""} ${open() ? "open" : ""} ${blocked() ? "off" : ""} ${t.compact ? "cp" : ""}`}>
+        <button
+          type="button"
+          class="xw-wt-b"
+          role="option"
+          aria-selected={!!pick()}
+          disabled={blocked()}
+          title={blocked() ? `${t.entry.product.name}: no renders left to add it` : undefined}
+          onClick={() => props.onToggleWheel(t.entry)}
+        >
+          <span class="xw-wt-img">
+            <WheelImage src={wheelImage(t.entry.product)} alt={t.entry.product.name} />
+            <Show when={pick()}>
+              <i class="xw-wt-tk"><IconCheck /></i>
+            </Show>
+            <Show when={done().length > 0}>
+              <i class="xw-wt-dn" title="Rendered on this photo"><IconCheck /></i>
+            </Show>
+          </span>
+          <span class="xw-wt-tx">
+            <b>{t.entry.product.name}</b>
+            <Show when={t.compact && !t.forceOpen}>
+              <small>{props.catalogue.brands.find((b) => Number(b.id) === Number(t.entry.product.manufacturer_id))?.name}</small>
+            </Show>
+            <Show when={open()}>
+              <small>
+                {pick()!.variantIds.length === 0 ? "Pick one or more finishes" : `${pick()!.variantIds.length} of ${t.entry.variants.length} picked`}
+              </small>
+            </Show>
+          </span>
+        </button>
+        <Show when={open()}>
+          <div class="xw-fin" role="group" aria-label="Finish">
+            <For each={pick()!.variants}>
+              {(v) => {
+                const on = () => pick()!.variantIds.includes(v.id);
+                const dn = () => done().includes(v.id);
+                const noRoom = () => !on() && atCap();
+
+                return (
+                  <button
+                    type="button"
+                    class={`xw-fn ${on() ? "on" : ""} ${dn() ? "dn" : ""}`}
+                    aria-pressed={on()}
+                    disabled={dn() || noRoom()}
+                    title={dn() ? "Rendered on this photo" : noRoom() ? "No renders left to add this" : undefined}
+                    onClick={() => props.onToggleFinish(id(), v.id)}
+                  >
+                    <span class="xw-fn-img" style={!variantImage(v) && v.hex_color ? { background: v.hex_color } : undefined}>
+                      <Show when={variantImage(v)}>
+                        <img src={variantImage(v)} alt="" draggable={false} loading="lazy" />
+                      </Show>
+                      <i class="xw-fn-tk"><IconCheck /></i>
+                    </span>
+                    <b>{v.variant_name}</b>
+                  </button>
+                );
+              }}
+            </For>
+          </div>
+        </Show>
+      </div>
+    );
+  };
+
+  const label = () => (props.picks.length === 0 ? "Pick a wheel" : total() === 0 ? "Pick a finish" : "Render");
+
   return (
     <div class="xw-split">
       <div class="xw-sp-pic">
@@ -65,88 +314,153 @@ export function PickerView(props: PickerViewProps) {
       </div>
 
       <div class="xw-pk">
-        <div class="xw-pk-top">
-          <select
-            class="xw-sel"
-            aria-label="Brand"
-            value={props.brandFilter === null ? "all" : String(props.brandFilter)}
-            onChange={(e) => props.onBrand(e.currentTarget.value === "all" ? null : Number(e.currentTarget.value))}
+        <div class="xw-pk-top" ref={top}>
+          <button
+            type="button"
+            class="xw-bb"
+            aria-haspopup="listbox"
+            aria-expanded={brandsOpen()}
+            disabled={props.loading}
+            onClick={() => setBrandsOpen(!brandsOpen())}
           >
-            <For each={props.catalogue.brands}>{(b) => <option value={String(b.id)}>{b.name}</option>}</For>
-            <option value="all">All brands</option>
-          </select>
+            <Show when={brand()} fallback={<span class="xw-bn">Brands</span>}>
+              <BrandMark name={brand()!.name} logoUrl={brand()!.logo_url} />
+            </Show>
+            <Chevron />
+          </button>
           <input
             class="xw-in xw-pk-s"
             type="search"
             placeholder="Search wheels"
             aria-label="Search wheels"
             value={props.search}
+            disabled={props.loading}
             onInput={(e) => props.onSearch(e.currentTarget.value)}
           />
-        </div>
 
-        <div class="xw-pk-grid" role="listbox" aria-label="Wheels">
-          <For each={matches().slice(0, SHOWN)}>
-            {(e) => (
-              <button
-                type="button"
-                role="option"
-                aria-selected={props.product?.id === e.product.id}
-                class={`xw-pk-tile ${props.product?.id === e.product.id ? "on" : ""}`}
-                onClick={() => props.onChoose(e)}
-              >
-                <span class="xw-pk-img">
-                  <Show when={wheelImage(e.product)}>
-                    <img src={wheelImage(e.product)} alt="" loading="lazy" draggable={false} />
-                  </Show>
-                  <i class="xw-tk"><IconCheck /></i>
-                </span>
-                <b>{e.product.name}</b>
-              </button>
-            )}
-          </For>
-          <Show when={matches().length === 0}>
-            <p class="xw-pk-none">No wheels found</p>
-          </Show>
-          <Show when={matches().length > SHOWN}>
-            <p class="xw-pk-none">Search to see more</p>
-          </Show>
-        </div>
-
-        <Show when={props.product}>
-          <div class="xw-pk-fin">
-            <Show when={multi()}>
-              <span class="xw-pickl">Pick a finish</span>
-            </Show>
-            <div class="xw-pk-sws">
-              <For each={props.variants}>
-                {(v) => (
-                  <button
-                    type="button"
-                    class={`xw-sw ${multi() ? "" : "solo"} ${props.selectedVariantIds.includes(v.id) || done(v.id) ? "on" : ""} ${done(v.id) ? "done" : ""}`}
-                    disabled={!multi() || done(v.id)}
-                    aria-pressed={props.selectedVariantIds.includes(v.id)}
-                    onClick={() => props.onToggleVariant(v.id)}
-                  >
-                    <span class="xw-wc">
-                      <Show when={variantImage(v)}>
-                        <img src={variantImage(v)} alt="" />
-                      </Show>
-                      <i class="xw-tk"><IconCheck /></i>
-                    </span>
-                    <b>{v.variant_name}</b>
-                  </button>
-                )}
-              </For>
+          <Show when={brandsOpen()}>
+            <div class="xw-bl" role="listbox" aria-label="Brands">
+              <Show when={brands().length > 12}>
+                <input
+                  class="xw-in xw-bl-s"
+                  type="search"
+                  placeholder="Search brands"
+                  aria-label="Search brands"
+                  value={brandQ()}
+                  onInput={(e) => setBrandQ(e.currentTarget.value)}
+                />
+              </Show>
+              <div class="xw-bl-g">
+                <For each={shownBrands()}>
+                  {(b) => (
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={Number(b.id) === Number(props.brandFilter)}
+                      class={`xw-bl-t ${Number(b.id) === Number(props.brandFilter) ? "on" : ""}`}
+                      onClick={() => {
+                        props.onBrand(Number(b.id));
+                        setBrandsOpen(false);
+                        setBrandQ("");
+                      }}
+                    >
+                      <BrandMark name={b.name} logoUrl={b.logo_url} />
+                    </button>
+                  )}
+                </For>
+                <Show when={shownBrands().length === 0}>
+                  <p class="xw-pk-none">No brand matches that name</p>
+                </Show>
+              </div>
             </div>
-          </div>
-        </Show>
+          </Show>
+        </div>
 
-        <button type="button" class="xw-btn ai full" disabled={!props.product || picked() === 0} onClick={() => props.onRender()}>
+        <div class="xw-pk-grid" role="listbox" aria-label="Wheels" aria-multiselectable="true">
+          <Show when={props.loading}>
+            <For each={Array.from({ length: 9 })}>
+              {() => (
+                <div class="xw-wt sk" aria-hidden="true">
+                  <span class="xw-wt-img" />
+                  <span class="xw-wt-tx"><b>&nbsp;</b></span>
+                </div>
+              )}
+            </For>
+          </Show>
+
+          <Show when={!props.loading}>
+            <Show when={showSuggested()}>
+              <section class="xw-sg" aria-label="Suggested">
+                <div class="xw-sg-h">
+                  <b>Suggested for {suggested().name}</b>
+                  <span>
+                    <Show when={suggested().list.length > STRIP}>
+                      <button type="button" class="xw-link" onClick={() => setSeeAll(!seeAll())}>
+                        {seeAll() ? "Show less" : `See all ${suggested().list.length}`}
+                      </button>
+                    </Show>
+                    <button type="button" class="xw-sg-x" aria-label="Close the suggestions" onClick={() => setSuggestOpen(false)}>
+                      ×
+                    </button>
+                  </span>
+                </div>
+                <div class={`xw-sg-r ${seeAll() ? "all" : ""}`}>
+                  <For each={stripList()}>
+                    {(e) => <Tile entry={e} compact />}
+                  </For>
+                </div>
+                <For each={stripOpen()}>
+                  {(e) => (
+                    <div class="xw-sg-o">
+                      <Tile entry={e} forceOpen />
+                    </div>
+                  )}
+                </For>
+              </section>
+            </Show>
+
+            <For each={matches().slice(0, SHOWN)}>{(e) => <Tile entry={e} />}</For>
+
+            <Show when={matches().length === 0}>
+              <div class="xw-pk-none">
+                <p>No wheels match</p>
+                <Show when={elsewhere().length > 0}>
+                  <div class="xw-el">
+                    <For each={elsewhere()}>
+                      {(x) => (
+                        <button type="button" class="xw-link" onClick={() => props.onBrand(x.id, true)}>
+                          {x.n} in {x.name}
+                        </button>
+                      )}
+                    </For>
+                  </div>
+                </Show>
+              </div>
+            </Show>
+            <Show when={matches().length > SHOWN}>
+              <p class="xw-pk-none">Search to see more</p>
+            </Show>
+          </Show>
+        </div>
+
+        <div class="xw-pk-sum">
+          <Show when={props.picks.length > 0}>
+            <span>
+              {props.picks.length} {props.picks.length === 1 ? "wheel" : "wheels"}
+              {total() > 0 ? ` · ${total()} ${total() === 1 ? "finish" : "finishes"}` : ""}
+              <Show when={needFinish() > 0}>
+                <em> · {needFinish()} {needFinish() === 1 ? "needs" : "need"} a finish</em>
+              </Show>
+            </span>
+            <button type="button" class="xw-link" onClick={() => props.onClear()}>Clear</button>
+          </Show>
+        </div>
+
+        <button type="button" class="xw-btn ai full" disabled={total() === 0} onClick={() => props.onRender()}>
           <IconSpark />
-          Render
-          <Show when={picked() > 1}>
-            <span class="xw-chip">{picked()} renders</span>
+          {label()}
+          <Show when={total() > 1}>
+            <span class="xw-chip">{total()} renders</span>
           </Show>
         </button>
       </div>
