@@ -793,10 +793,11 @@
 .xw-pk > .xw-btn { flex: none; height: 56px; }
 .xw-wr em { display: block; font-style: normal; font-weight: 500; font-size: 11.5px; color: #5b6475; overflow-wrap: anywhere; }
 
-.xw.ph .xw-split { inset: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 12px 14px; }
-.xw.ph .xw-sp-pic { flex: none; container-type: normal; }
-.xw.ph .xw-sp-pic .xw-pic { width: min(100%, 24svh * var(--ar, 1.5)); }
-.xw.ph .xw-pk { flex: 1; padding: 12px; border-radius: 22px; }
+/* phone, as in the studio: the photo runs edge to edge under the header, the picker is flat on the sheet */
+.xw.ph .xw-split { inset: 0; display: flex; flex-direction: column; gap: 0; padding: 0; }
+.xw.ph .xw-sp-pic { flex: none; container-type: normal; display: block; }
+.xw.ph .xw-sp-pic .xw-pic { width: 100%; height: clamp(150px, 24svh, 220px); aspect-ratio: auto; border-radius: 0; }
+.xw.ph .xw-pk { flex: 1; padding: 12px 12px 14px; border-radius: 0; background: none; box-shadow: none; }
 .xw.ph .xw-fin { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .xw.ph .xw-bb { flex-basis: 120px; }
 
