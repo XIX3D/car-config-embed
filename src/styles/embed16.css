@@ -666,11 +666,11 @@
 }
 .xw-bb:disabled { opacity: 0.5; cursor: default; }
 .xw-bb svg { width: 16px; height: 16px; flex: none; opacity: 0.55; }
-.xw-bn { padding: 0 8px; font-weight: 700; font-size: 13px; line-height: 1.2; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.xw-bm { flex: 1; min-width: 0; height: 32px; display: grid; place-items: center; padding: 0 10px; border-radius: 16px; }
-.xw-bm img { display: block; max-width: 100%; max-height: 18px; object-fit: contain; }
-.xw-bm.dk { background: #191c1e; }
-.xw-bm.lt { background: #fff; box-shadow: inset 0 0 0 1px rgba(18, 20, 28, 0.12); }
+.xw-bn { padding: 0 8px; font-weight: 800; font-size: 13px; line-height: 1.2; letter-spacing: 0.02em; text-transform: uppercase; color: #12141c; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* One look: no chip behind any mark; the mark in one dark ink (a silhouette of its own shape), a badge as it is. */
+.xw-bm { flex: 1; min-width: 0; height: 32px; display: grid; place-items: center; padding: 0 8px; }
+.xw-bm img { display: block; max-width: 100%; max-height: 20px; object-fit: contain; }
+.xw-bm.mono img { filter: brightness(0); opacity: 0.86; }
 .xw-bl {
   position: absolute;
   z-index: 8;
@@ -694,10 +694,10 @@
   place-items: center;
   border: 1px solid rgba(18, 20, 28, 0.1);
   border-radius: 12px;
-  background: #f6f8fb;
+  background: #fff;
   cursor: pointer;
 }
-.xw-bl-t:hover { background: #eef2f8; }
+.xw-bl-t:hover { background: #f3f6fb; }
 .xw-bl-t.on { box-shadow: 0 0 0 2px var(--xw-accent, #1f87f5); background: #fff; }
 .xw-bl-t .xw-bm { width: 100%; flex: none; }
 .xw-bl-t .xw-bn { white-space: normal; }

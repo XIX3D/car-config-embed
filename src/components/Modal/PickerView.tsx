@@ -118,14 +118,14 @@ const Chevron = () => (
   </svg>
 );
 
-/** A brand's mark on its own chip (dark ink on light, white or coloured on dark), or its name. */
+/** A brand's mark, one dark ink on the tile it sits on (a badge in its own colours), or its name in the same ink. */
 function BrandMark(props: { name: string; logoUrl?: string | null }) {
   const logo = () => brandLogo(props.name, props.logoUrl);
   const [bad, setBad] = createSignal(false);
 
   return (
     <Show when={logo() && !bad()} fallback={<span class="xw-bn">{props.name}</span>}>
-      <span class={`xw-bm ${logo()!.dark ? "lt" : "dk"}`}>
+      <span class={`xw-bm ${logo()!.mono ? "mono" : ""}`}>
         <img src={logo()!.url} alt={props.name} draggable={false} onError={() => setBad(true)} />
       </span>
     </Show>
