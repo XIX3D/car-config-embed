@@ -21,7 +21,8 @@ export function ModalHeader(props: ModalHeaderProps) {
         {props.modelName ? `${props.brandName} - ${props.modelName}` : props.brandName}
         <small>
           Powered by{" "}
-          <a href="https://render.xix3d.com" target="_blank" rel="noopener noreferrer">xix3D</a>
+          {/* xix3D's own site, not the render app (dealer notes, 18 November). */}
+          <a href="https://xix3d.com" target="_blank" rel="noopener noreferrer">xix3D</a>
         </small>
       </div>
       <button class="xw-round" aria-label="Close" onClick={() => props.onClose()}>
