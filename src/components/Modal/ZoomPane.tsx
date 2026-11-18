@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount, Show, type JSX } from "solid-js";
+import { createEffect, createSignal, on, onCleanup, onMount, Show, type JSX } from "solid-js";
 
 const MAX_ZOOM = 5;
 const WHEEL_STEP = 1.18;
@@ -8,6 +8,10 @@ const HOLD_MS = 240;
 /** A press that moves further than this (px) is not a hold. */
 const MOVE_PX = 8;
 const SWIPE_PX = 40;
+/** A tap waits this long (ms) for a second one, so a double tap zooms and never also swaps. */
+const TAP_WAIT_MS = 260;
+/** The panes on screen, newest last: only the top one answers the arrow keys (full screen over the window). */
+const panes: HTMLDivElement[] = [];
 
 interface ZoomPaneProps {
   src: string;
@@ -24,9 +28,15 @@ interface ZoomPaneProps {
 
 /**
  * The studio's way of looking at a render: scroll or pinch to zoom (to 5x, toward the pointer),
- * drag to move once zoomed, double-click for 2.5x and back, swipe or the arrow keys for the next
- * render. Clicking does nothing. Press and hold shows the photo it was made from, opening from
- * the press point as a circle, and closing when let go.
+ * drag to move once zoomed, double-click for 2.5x and back, a finger's swipe or the arrow keys
+ * for the next render. Press and hold shows the photo it was made from, opening from the press
+ * point as a circle, and closing when let go.
+ *
+ * A TAP SWAPS RENDER AND PHOTO, AND STAYS (dealer notes, 18 November: "can't click to swap between og and done render
+ * in fullscreen", and "clicking on the renders seems to cycle through all the renders"). A click or tap shows the
+ * photo it was made from until the next one; only a finger's swipe pages (a mouse drag that strayed sideways paged
+ * too), and only the top pane hears the arrow keys (with full screen open, both it and the window's picture heard
+ * them, so one press moved two renders).
  */
 export function ZoomPane(props: ZoomPaneProps) {
   let box: HTMLDivElement | undefined;
@@ -37,6 +47,9 @@ export function ZoomPane(props: ZoomPaneProps) {
   const [held, setHeld] = createSignal(false);
   const [at, setAt] = createSignal({ x: 0, y: 0 });
   const [maxR, setMaxR] = createSignal(2000);
+  const [shown, setShown] = createSignal(false);
+  let tapTimer = 0;
+  let downAt = 0;
 
   const pointers = new Map<number, { x: number; y: number }>();
   let start = { x: 0, y: 0, ox: 0, oy: 0 };
@@ -113,8 +126,10 @@ export function ZoomPane(props: ZoomPaneProps) {
     }
 
     moved = false;
+    downAt = Date.now();
     start = { x: e.clientX, y: e.clientY, ox: ox(), oy: oy() };
-    swipeFrom = { x: e.clientX, y: e.clientY };
+    // Only a finger pages: a mouse that drifts while clicking is not a swipe.
+    swipeFrom = e.pointerType === "mouse" ? null : { x: e.clientX, y: e.clientY };
     const r = rect();
 
     setMaxR(Math.hypot(r.width, r.height));
@@ -153,9 +168,16 @@ export function ZoomPane(props: ZoomPaneProps) {
   };
 
   const onUp = (e: PointerEvent) => {
+    const wasHeld = held();
+
     pointers.delete(e.pointerId);
     endHold();
     setMoving(false);
+    // A quick, still tap swaps render and photo (after a moment, in case it is the first of a double tap).
+    if (pointers.size === 0 && !moved && !wasHeld && props.original && Date.now() - downAt < HOLD_MS) {
+      clearTimeout(tapTimer);
+      tapTimer = window.setTimeout(() => setShown(!shown()), TAP_WAIT_MS);
+    }
     if (pointers.size > 0 || !swipeFrom) return;
     const dx = e.clientX - swipeFrom.x;
     const dy = e.clientY - swipeFrom.y;
@@ -169,12 +191,14 @@ export function ZoomPane(props: ZoomPaneProps) {
 
   const onDouble = (e: MouseEvent) => {
     if ((e.target as Element).closest("button, a, input")) return;
+    clearTimeout(tapTimer);
     if (z() > 1) zoomTo(1, e.clientX, e.clientY);
     else zoomTo(DOUBLE_TAP_ZOOM, e.clientX, e.clientY);
   };
 
   const onKey = (e: KeyboardEvent) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (panes[panes.length - 1] !== box) return;
     const el = e.target as HTMLElement | null;
 
     if (el && /^(input|textarea|select)$/i.test(el.tagName)) return;
@@ -185,18 +209,23 @@ export function ZoomPane(props: ZoomPaneProps) {
   onMount(() => {
     box!.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("keydown", onKey);
+    panes.push(box!);
     onCleanup(() => {
       box?.removeEventListener("wheel", onWheel);
       window.removeEventListener("keydown", onKey);
       clearTimeout(holdTimer);
+      clearTimeout(tapTimer);
+      panes.splice(panes.indexOf(box!), 1);
     });
   });
+  // Another render on screen starts as the render, not as the photo.
+  createEffect(on(() => props.src, () => setShown(false), { defer: true }));
 
   return (
     <div
       ref={box}
       class={`xw-zp ${props.fit === "contain" ? "ct" : ""} ${z() > 1 ? "zoomed" : ""}`}
-      title={props.original ? "Press and hold to see your photo" : undefined}
+      title={props.original ? "Tap to see your photo" : undefined}
       onPointerDown={onDown}
       onPointerMove={onMove}
       onPointerUp={onUp}
@@ -219,8 +248,8 @@ export function ZoomPane(props: ZoomPaneProps) {
 
       <Show when={props.original}>
         <div
-          class={`xw-orig ${held() ? "on" : ""}`}
-          style={{ "clip-path": `circle(${held() ? maxR() : 0}px at ${at().x}px ${at().y}px)` }}
+          class={`xw-orig ${held() || shown() ? "on" : ""}`}
+          style={{ "clip-path": `circle(${held() || shown() ? maxR() : 0}px at ${at().x}px ${at().y}px)` }}
           aria-hidden="true"
         >
           <img src={props.original!} alt="" draggable={false} />
