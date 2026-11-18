@@ -36,21 +36,13 @@ store.actions.enableV2Loading(V2_LOADING_SCRIPTS)
  */
 let sessionId = ''
 
-/**
- * Serialises v2 renders. The modal fires one request per selected finish at once; run
- * concurrently, each would miss the outline cache and pay pass 1 again (~14 s and a model
- * call). Queued, the first builds it and the rest reuse it.
+/*
+ * NO QUEUE HERE (dealer notes, 18 November: "when I select 5 renders it does it 1 at a time, instead of how we have
+ * it where only the first is done if mask needed, then the rest are done in parallel"). This file used to run every
+ * v2 render one after another, so a batch took five whole renders end to end. The window already does the right
+ * thing itself (Modal startBatch): the first render runs alone until its mask_complete (the outline cached for this
+ * session), then the rest run side by side and find it cached. The queue sat under that and undid it.
  */
-let queue: Promise<unknown> = Promise.resolve()
-
-function enqueue<T>(task: () => Promise<T>): Promise<T> {
-  const run = queue.then(task, task)
-
-  // Keep the chain alive when a render rejects, or one failure stalls every finish behind it.
-  queue = run.catch(() => {})
-
-  return run
-}
 
 type RenderProducts = Array<{ product_id: string; variant_id?: string }>
 
@@ -68,23 +60,22 @@ function renderOnV2(
   events: Parameters<typeof baseApi.renderStream>[3],
   signal?: AbortSignal,
 ) {
-  return enqueue(async () => {
-    const visitor = baseApi.getVisitor()
+  const visitor = baseApi.getVisitor()
 
-    return renderStreamV2(
-      API_URL,
-      sessionId,
-      await prepareVehiclePhoto(file),
-      {
-        product_id: parseInt(products[0].product_id, 10),
-        ...(products[0].variant_id ? { variant_id: parseInt(products[0].variant_id, 10) } : {}),
-      },
-      manufacturerId,
-      events,
-      signal,
-      { visitorId: visitor?.id, visitorHeader: visitor?.header },
-    )
-  })
+  // The photo is shrunk once per file (prepareVehiclePhoto keeps it), however many finishes ask for it.
+  return prepareVehiclePhoto(file).then((photo) => renderStreamV2(
+    API_URL,
+    sessionId,
+    photo,
+    {
+      product_id: parseInt(products[0].product_id, 10),
+      ...(products[0].variant_id ? { variant_id: parseInt(products[0].variant_id, 10) } : {}),
+    },
+    manufacturerId,
+    events,
+    signal,
+    { visitorId: visitor?.id, visitorHeader: visitor?.header },
+  ))
 }
 
 const api: typeof baseApi = {
