@@ -329,10 +329,12 @@ export function Modal(props: ModalProps) {
   };
 
   const handleFileSelect = (file: File) => {
-    const reader = new FileReader();
-
-    reader.onload = (e) => actions.setFile(file, e.target?.result as string, state.catalogue ? undefined : sortedVariants()[0]?.id);
-    reader.readAsDataURL(file);
+    /* THE PHOTO ON SCREEN IS THE FILE ITSELF (dealer notes, 18 November: "after I upload a car it freezes until
+       responsive again"). It was read into a data URL first: a 12 MP phone photo became a 16 MB string, copied into
+       the store and into every picture showing it, and decoded from text each time. An object URL is a reference to
+       the file the browser already holds, decoded off the main thread. Kept for the visit: earlier renders still
+       show the photo they were made from. */
+    actions.setFile(file, URL.createObjectURL(file), state.catalogue ? undefined : sortedVariants()[0]?.id);
     // A dealer's picker suggests wheels for THIS car, so the car is read now, not after the first render.
     if (state.catalogue) {
       const key = state.photoKey + 1;

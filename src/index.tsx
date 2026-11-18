@@ -81,6 +81,9 @@ function renderOnV2(
 const api: typeof baseApi = {
   ...baseApi,
 
+  // The car is read from the photo as it will be rendered (2048 px, shrunk once per file), not the phone's whole file.
+  detectVehicle: (file) => prepareVehiclePhoto(file).then(baseApi.detectVehicle),
+
   setSessionId: (id) => {
     sessionId = id
     baseApi.setSessionId(id)
