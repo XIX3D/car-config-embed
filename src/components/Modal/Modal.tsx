@@ -344,7 +344,8 @@ export function Modal(props: ModalProps) {
     actions.setFile(file, URL.createObjectURL(file), state.catalogue ? undefined : sortedVariants()[0]?.id);
     // A dealer's picker suggests wheels for THIS car, so the car is read now, not after the first render.
     if (state.catalogue) {
-      const key = state.photoKey + 1;
+      // setFile above has already moved photoKey to this photo's (it ran later, in a FileReader callback, until 5230d99).
+      const key = state.photoKey;
 
       props.api.detectVehicle(file).then((v) => {
         if (v && state.photoKey === key && !state.detectedVehicle) actions.setDetectedVehicle(v);
