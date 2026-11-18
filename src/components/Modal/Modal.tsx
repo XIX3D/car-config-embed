@@ -540,6 +540,7 @@ export function Modal(props: ModalProps) {
                     selectedVariantIds={state.selectedVariantIds}
                     doneVariantIds={doneVariantIds()}
                     previewUrl={state.previewDataUrl}
+                    wheelImage={state.product?.reference_image_paths?.[0] || state.product?.orthographic_image || ""}
                     onFileSelect={handleFileSelect}
                     onToggleVariant={actions.toggleVariantSelection}
                     onRender={renderPicked}

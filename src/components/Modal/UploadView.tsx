@@ -1,4 +1,5 @@
 import { createSignal, For, onCleanup, onMount, Show, type ComponentProps } from "solid-js";
+import { thumb, thumbFallback } from "../../utils/thumb";
 import type { Variant } from "../../types";
 import { VALID_IMAGE_TYPES, MAX_FILE_SIZE_BYTES, MAX_IMAGE_DIMENSION } from "../../constants";
 import { Frame } from "./Frame";
@@ -13,6 +14,8 @@ interface UploadViewProps {
   /** Finishes already rendered (or rendering) on this photo: shown, not offered again. */
   doneVariantIds: string[];
   previewUrl: string | null;
+  /** The wheel's own photo: a finish with no photo of its own shows the wheel, never a bare colour. */
+  wheelImage?: string;
   onFileSelect: (file: File) => void;
   onToggleVariant: (id: string) => void;
   onRender: () => void;
@@ -76,6 +79,10 @@ export function UploadView(props: UploadViewProps) {
     }
   };
 
+  /* EVERY FINISH AS A PICTURE (dealer notes, 18 November: "show the thumbnails instead of colours", and on a brand's
+     wheel "images not loading", white circles): the finish's own photo, else the wheel's, at the size drawn; a
+     finish that has only a colour wears it as the ring round the wheel's photo. */
+  const pictureOf = (v: Variant) => variantImage(v) || props.wheelImage || "";
   const Swatches = () => (
     <For each={props.variants}>
       {(v) => (
@@ -86,9 +93,9 @@ export function UploadView(props: UploadViewProps) {
           aria-pressed={props.selectedVariantIds.includes(v.id)}
           onClick={() => props.onToggleVariant(v.id)}
         >
-          <span class="xw-wc" style={!variantImage(v) && v.hex_color ? { background: v.hex_color } : undefined}>
-            <Show when={variantImage(v)}>
-              <img src={variantImage(v)} alt="" />
+          <span class="xw-wc" style={!pictureOf(v) && v.hex_color ? { background: v.hex_color } : !variantImage(v) && v.hex_color ? { "border-color": v.hex_color } : undefined}>
+            <Show when={pictureOf(v)}>
+              <img src={thumb(pictureOf(v), 160)} alt="" decoding="async" onError={thumbFallback(pictureOf(v))} />
             </Show>
             <i class="xw-tk"><IconCheck /></i>
           </span>
@@ -98,15 +105,32 @@ export function UploadView(props: UploadViewProps) {
     </For>
   );
 
+  // The word sits in the middle of the button: with no count beside it, a space as wide as the star balances it.
   const RenderButton = () => (
     <button type="button" class="xw-btn ai" disabled={picked() === 0} onClick={() => props.onRender()}>
       <IconSpark />
       Render
-      <Show when={picked() > 1}>
+      <Show when={picked() > 1} fallback={<span class="xw-bal" aria-hidden="true" />}>
         <span class="xw-chip">{picked()} renders</span>
       </Show>
     </button>
   );
+  /* EVERY FINISH IN REACH (dealer notes, 18 November: "I'm pretty sure there's a 3rd option"): the row scrolls when
+     the window is narrow, and then it fades at the edge that has more, so the next finish is plainly there. */
+  let row: HTMLDivElement | undefined;
+  const [more, setMore] = createSignal({ l: false, r: false });
+  const measure = () => {
+    if (!row) return;
+    setMore({ l: row.scrollLeft > 2, r: row.scrollLeft + row.clientWidth < row.scrollWidth - 2 });
+  };
+
+  onMount(() => {
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+
+    queueMicrotask(() => row && ro.observe(row));
+    onCleanup(() => ro.disconnect());
+  });
 
   // Paste works anywhere while this screen is up: nothing inside the window has focus to take it.
   onMount(() => {
@@ -175,7 +199,7 @@ export function UploadView(props: UploadViewProps) {
           }
           bar={
             <>
-              <div class="xw-bcol">
+              <div class={`xw-bcol ${more().l ? "ml" : ""} ${more().r ? "mr" : ""}`} ref={row} onScroll={measure}>
                 <Show when={multi()}>
                   <span class="xw-pickl">Pick a finish</span>
                 </Show>

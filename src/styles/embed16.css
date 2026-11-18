@@ -189,6 +189,8 @@
 }
 .xw-btn:hover { background: #2a2e31; }
 .xw-btn svg { width: 18px; height: 18px; flex: none; }
+/* As wide as the star on the other side of the word, so the word is in the middle (dealer notes, 18 November). */
+.xw-bal { width: 18px; flex: none; }
 .xw-btn:disabled { opacity: 0.4; cursor: default; }
 .xw-btn:disabled:hover { background: #191c1e; }
 .xw-btn.full { width: 100%; }
@@ -305,23 +307,30 @@
 }
 
 /* ---------- photo and finishes (B3) ---------- */
-.xw-bcol { flex: 1; min-width: 0; height: 56px; display: flex; align-items: center; gap: 22px; overflow-x: auto; scrollbar-width: none; }
+.xw-bcol { flex: 1; min-width: 0; height: 76px; display: flex; align-items: center; gap: 14px; overflow-x: auto; scrollbar-width: none; }
+/* More finishes past an edge: that edge fades, so the row plainly goes on. */
+.xw-bcol.mr { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+.xw-bcol.ml { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); }
+.xw-bcol.ml.mr { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
 .xw-bcol::-webkit-scrollbar { display: none; }
 .xw-pickl { flex: none; margin-right: 4px; font-weight: 600; font-size: 14px; color: #5b6475; white-space: nowrap; }
+/* A finish: its picture over its name, so three or four sit side by side beside Render, the name whole. */
 .xw-sw {
   flex: none;
-  height: 56px;
+  width: 88px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 0 4px 0 0;
+  gap: 4px;
+  padding: 0;
   border: 0;
   background: none;
   cursor: pointer;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 12px;
+  line-height: 1.2;
   color: #5b6475;
-  text-align: left;
+  text-align: center;
 }
 .xw-sw b { font-weight: bolder; }
 .xw-sw.on { color: #12141c; font-weight: 700; }
@@ -329,8 +338,8 @@
   position: relative;
   flex: none;
   display: block;
-  width: 50px;
-  height: 50px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: #fff;
   border: 2px solid rgba(18, 20, 28, 0.14);
