@@ -50,7 +50,7 @@ function usePhone() {
 
 export function Modal(props: ModalProps) {
   // eslint-disable-next-line solid/reactivity
-  const { state, actions, getLoadingSteps, getBrandName, getModelName, getCurrentResult, getDoneResults, isLimitReached, isV2LoadingEnabled } = props.store;
+  const { state, actions, getBrandName, getModelName, getCurrentResult, getDoneResults, isLimitReached, isV2LoadingEnabled } = props.store;
   const phone = usePhone();
   const [ar, setAr] = createSignal(1.5);
 
@@ -100,6 +100,13 @@ export function Modal(props: ModalProps) {
     !state.catalogue && sortedVariants().every((v) =>
       state.galleryResults.some((r) => r.photoKey === state.photoKey && r.success && r.variantId === v.id));
   const pending = () => state.galleryResults.some((r) => r.loading);
+  /** "2 of 5" while a batch renders: the one being made of the renders asked for on this photo. */
+  const batchOf = () => {
+    const mine = state.galleryResults.filter((r) => r.photoKey === state.photoKey);
+    const coming = mine.filter((r) => r.loading).length;
+
+    return coming ? { n: Math.min(mine.length, mine.length - coming + 1), total: mine.length } : null;
+  };
   const vehicle = () => {
     const v = state.detectedVehicle;
 
@@ -575,8 +582,7 @@ export function Modal(props: ModalProps) {
                     phone={phone()}
                     ar={ar()}
                     previewDataUrl={state.previewDataUrl}
-                    loadingSteps={getLoadingSteps()}
-                    currentStep={state.loadingStep}
+                    of={batchOf()}
                     cutout={state.cutout && state.cutout.photoKey === state.photoKey ? state.cutout.url : null}
                     onAspect={setAr}
                   />

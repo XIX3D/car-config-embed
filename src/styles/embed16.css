@@ -412,28 +412,30 @@
 
 /* ---------- the live render animation (LoadingView), on the picture ---------- */
 .xw-pic.ld > img.xw-fg { filter: brightness(0.7); }
-.xw-pic .avacar-inner-glow { z-index: 2; animation: innerGlowRotateHre 2s linear infinite; }
 .xw-lvo {
   position: absolute;
   inset: 0;
   z-index: 3;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.25) 70%);
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.35);
   line-height: normal;
-}
-.xw-lvo .avacar-loading-letter { font-size: 24px; }
-.xw-lvr {
-  margin: 26px 0 0;
-  /* takes the bar's 88px, so the picture does not move when the render arrives */
-  min-height: 62px;
+  color: #fff;
   text-align: center;
-  font-weight: 500;
-  font-size: 14px;
-  color: #5b6475;
-  animation: pulse 2s ease-in-out infinite;
 }
+/* With the wheels lit the words drop to the foot of the photo, off the car (render.xix3D's lift-low). */
+.xw-lvo.low { justify-content: flex-end; padding-bottom: 22px; background: none; }
+.xw-lvo b { font-weight: 600; font-size: 14px; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); }
+.xw-lvo span { margin-top: -10px; font-size: 12px; opacity: 0.75; font-variant-numeric: tabular-nums; }
+.xw-orb.sm { width: 96px; height: 96px; margin: 0; }
+.xw-orb.sm svg { width: 36px; height: 36px; color: #fff; }
+.xw-lvo.low .xw-orb.sm { width: 56px; height: 56px; }
+.xw-lvo.low .xw-orb.sm svg { width: 22px; height: 22px; }
+/* An empty line under the picture: it takes the bar's 88px, so the picture does not move when the render arrives. */
+.xw-lvr { margin: 26px 0 0; min-height: 62px; }
 
 
 /* ---------- pop-ups: centred card on a desk, a sheet from the bottom on a phone ---------- */
@@ -608,7 +610,6 @@
 .xw.ph .xw-sws.solo { flex: 1; align-items: center; min-height: 220px; }
 .xw.ph .xw-sw.solo { width: auto; font-size: 16px; }
 .xw.ph .xw-sw.solo .xw-wc { width: 140px; height: 140px; margin-bottom: 10px; box-shadow: 0 0 0 1px rgba(18, 20, 28, 0.14); }
-.xw.ph .xw-lvo .avacar-loading-letter { font-size: 16px; }
 .xw.ph .xw-drop { inset: 16px 16px 20px; }
 .xw.ph .xw-drop h2 { font-size: clamp(24px, 7vw, 30px); padding: 0 12px; }
 .xw.ph .xw-ov { align-items: flex-end; bottom: -20px; }
@@ -867,7 +868,8 @@
 .xw-th .xw-thw img.cover { object-fit: cover; padding: 0; }
 .xw-th.pend { cursor: default; box-shadow: 0 0 0 1px rgba(18, 20, 28, 0.08); }
 .xw-th.pend .xw-thw { opacity: 0.45; }
-.xw-th-sp { position: absolute; inset: 0; border-radius: inherit; border: 3px solid transparent; border-top-color: var(--xw-accent, #1f87f5); animation: xw-turn 0.9s linear infinite; }
+/* A small round spinner in the middle of a thumb still coming, inside it, never round its edge. */
+.xw-th-sp { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; border: 2.5px solid rgba(18, 20, 28, 0.15); border-top-color: var(--xw-accent, #1f87f5); animation: xw-turn 0.9s linear infinite; }
 .xw.ph .xw-th { flex: none; width: 46px; height: 46px; max-width: none; }
 .xw.ph .xw-ths { gap: 8px; }
 

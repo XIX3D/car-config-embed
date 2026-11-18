@@ -1,42 +1,16 @@
-import { For, Show } from "solid-js";
+import { Show } from "solid-js";
 import type { LoadingStep } from "../../types";
 import { Frame } from "./Frame";
+import { IconSpark } from "./icons";
 
 /**
- * Rough remaining time, from what is left of the script.
- *
- * Quoting a fixed "~30 seconds" was close enough on v1 (~23s) but is wrong for a cold
- * two-pass render (~45s), and an estimate the user watches expire is worse than none.
- * Rounding to a coarse bucket keeps it honest without implying precision the render does
- * not have.
+ * WHILE IT RENDERS, THE RENDER.XIX3D SCREEN (dealer notes, 18 November: "Old visualizer loading animation is back?").
+ * The old widget's animation (a glow turning round the edge, the step spelled in pulsing letters, "This may take a
+ * moment...") is gone. As on render.xix3D's render page: the photo dimmed, the wheels the server found lifting out of
+ * it once it has them, the metal orb with its star, and one word, "Rendering", with "2 of 5" when several are coming.
+ * The orb is the window's own CSS one (the upload screen's), not a WebGL canvas on the dealer's page.
  */
-function remainingLabel(steps: LoadingStep[], currentStep: number): string {
-  const remainingMs = steps
-    .slice(currentStep)
-    .reduce((total, step) => total + step.duration, 0);
-
-  if (remainingMs > 40000) return "About a minute";
-  if (remainingMs > 25000) return "~45 seconds";
-  if (remainingMs > 12000) return "~30 seconds";
-  if (remainingMs > 6000) return "Almost there";
-
-  return "Finishing up...";
-}
-
-function createLoadingText(text: string) {
-  return text.split("").map((char, i) => ({
-    char: char === " " ? " " : char,
-    delay: i * 0.1,
-  }));
-}
-
-/**
- * The live widget's render animation, unchanged: the glow turning round the picture's edge and
- * the step spelled in pulsing letters. Laid over a photo whose brightness is dropped (`.ld`).
- */
-export function LoadingOverlay(props: { steps: LoadingStep[]; step: number; photo?: string | null; cutout?: string | null }) {
-  const letters = () => createLoadingText(props.steps[props.step]?.text || "");
-
+export function LoadingOverlay(props: { photo?: string | null; cutout?: string | null; of?: { n: number; total: number } | null }) {
   return (
     <>
       {/* The server's cut-out of the wheels: they come up bright against the dimmed photo, with a soft glow round their edge. */}
@@ -46,17 +20,12 @@ export function LoadingOverlay(props: { steps: LoadingStep[]; step: number; phot
           <img src={props.photo!} alt="" draggable={false} />
         </div>
       </Show>
-      <div class="avacar-inner-glow" />
-      <div class="xw-lvo">
-        <div style={{ display: "flex", "justify-content": "center" }}>
-          <For each={letters()}>
-            {(letter) => (
-              <span class="avacar-loading-letter" style={{ "animation-delay": `${letter.delay}s` }}>
-                {letter.char}
-              </span>
-            )}
-          </For>
-        </div>
+      <div class={`xw-lvo ${props.cutout ? "low" : ""}`} role="status">
+        <div class="xw-orb sm" aria-hidden="true"><IconSpark /></div>
+        <b>Rendering</b>
+        <Show when={props.of && props.of.total > 1}>
+          <span>{props.of!.n} of {props.of!.total}</span>
+        </Show>
       </div>
     </>
   );
@@ -66,17 +35,18 @@ interface LoadingViewProps {
   phone: boolean;
   ar: number;
   previewDataUrl: string | null;
-  loadingSteps: LoadingStep[];
-  currentStep: number;
+  /** Kept for the callers; the screen no longer spells the steps. */
+  loadingSteps?: LoadingStep[];
+  currentStep?: number;
+  /** Which render of the batch is being made, for "2 of 5". */
+  of?: { n: number; total: number } | null;
   /** The wheel cut-out the server sent for this photo, once its mask is made. */
   cutout?: string | null;
   onAspect: (ar: number) => void;
 }
 
-/** S1: the photo the visitor gave, dimmed, with the animation, and the time line under it. */
+/** S1: the photo the visitor gave, dimmed, with the render screen over it. */
 export function LoadingView(props: LoadingViewProps) {
-  const isLongWait = () => props.currentStep >= props.loadingSteps.length - 2;
-
   return (
     <Frame
       phone={props.phone}
@@ -91,14 +61,10 @@ export function LoadingView(props: LoadingViewProps) {
             draggable={false}
             onLoad={(e) => props.onAspect(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight)}
           />
-          <LoadingOverlay steps={props.loadingSteps} step={props.currentStep} photo={props.previewDataUrl} cutout={props.cutout} />
+          <LoadingOverlay photo={props.previewDataUrl} cutout={props.cutout} of={props.of} />
         </>
       }
-      under={
-        <p class="xw-lvr">
-          {isLongWait() ? "This may take a moment..." : remainingLabel(props.loadingSteps, props.currentStep)}
-        </p>
-      }
+      under={<p class="xw-lvr" aria-hidden="true" />}
     />
   );
 }

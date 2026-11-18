@@ -4,6 +4,7 @@ import { Frame } from "./Frame";
 import { ZoomPane } from "./ZoomPane";
 import { DebugPanel } from "../Debug/DebugPanel";
 import { IconClock, IconFull, IconSpark, IconSwap } from "./icons";
+import { thumb, thumbFallback } from "../../utils/thumb";
 
 const DEBUG = import.meta.env.VITE_DEBUG === "true";
 
@@ -39,13 +40,15 @@ interface ResultViewProps {
  * opened while the rest are still coming. At the limit the caption becomes the limit card.
  */
 export function ResultView(props: ResultViewProps) {
+  /* A FINISHED RENDER IS ITS PICTURE, ONE STILL COMING IS ITS WHEEL (dealer notes, 18 November: "Icons are weird
+     placed? 1 render is done here; 4 are in progress"): five wheels in a row could not say which were done. */
   const Thumb = (t: { r: RenderResult }) => {
     const wheel = () => t.r.referenceImage;
 
     return (
-      <span class="xw-thw" style={!wheel() && t.r.hexColor ? { background: t.r.hexColor } : undefined}>
-        <Show when={wheel()} fallback={<Show when={!t.r.hexColor && t.r.image}><img class="cover" src={t.r.image} alt="" /></Show>}>
-          <img src={wheel()!} alt="" draggable={false} />
+      <span class="xw-thw" style={!t.r.image && !wheel() && t.r.hexColor ? { background: t.r.hexColor } : undefined}>
+        <Show when={t.r.image} fallback={<Show when={wheel()}><img src={thumb(wheel()!, 120)} alt="" draggable={false} onError={thumbFallback(wheel()!)} /></Show>}>
+          <img class="cover" src={t.r.image} alt="" draggable={false} />
         </Show>
       </span>
     );
