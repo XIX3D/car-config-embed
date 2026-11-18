@@ -455,7 +455,9 @@ export function PickerView(props: PickerViewProps) {
 
             <Show when={matches().length === 0}>
               <div class="xw-pk-none">
-                <p>No wheels match</p>
+                {/* Found in other brands, it says where it is not, so the line and the brands under it agree
+                    (dealer notes, 18 November: "No wheels match" over "9 in Inozetek, 5 in AL13"). */}
+                <p>{elsewhere().length > 0 && brand() ? `None in ${brand()!.name}` : "No wheels match"}</p>
                 <Show when={elsewhere().length > 0}>
                   <div class="xw-el">
                     <For each={elsewhere()}>
@@ -491,7 +493,7 @@ export function PickerView(props: PickerViewProps) {
         <button type="button" class="xw-btn ai full" disabled={total() === 0} onClick={() => props.onRender()}>
           <IconSpark />
           {label()}
-          <Show when={total() > 1}>
+          <Show when={total() > 1} fallback={<span class="xw-bal" aria-hidden="true" />}>
             <span class="xw-chip">{total()} renders</span>
           </Show>
         </button>
