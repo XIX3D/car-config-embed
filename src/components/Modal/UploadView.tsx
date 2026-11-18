@@ -123,14 +123,15 @@ export function UploadView(props: UploadViewProps) {
     if (!row) return;
     setMore({ l: row.scrollLeft > 2, r: row.scrollLeft + row.clientWidth < row.scrollWidth - 2 });
   };
+  // The row exists only once a photo is in: it is watched from the moment it is drawn.
+  const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+  const watchRow = (el: HTMLDivElement) => {
+    row = el;
+    ro?.observe(el);
+    queueMicrotask(measure);
+  };
 
-  onMount(() => {
-    if (typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(measure);
-
-    queueMicrotask(() => row && ro.observe(row));
-    onCleanup(() => ro.disconnect());
-  });
+  onCleanup(() => ro?.disconnect());
 
   // Paste works anywhere while this screen is up: nothing inside the window has focus to take it.
   onMount(() => {
@@ -199,7 +200,7 @@ export function UploadView(props: UploadViewProps) {
           }
           bar={
             <>
-              <div class={`xw-bcol ${more().l ? "ml" : ""} ${more().r ? "mr" : ""}`} ref={row} onScroll={measure}>
+              <div class={`xw-bcol ${more().l ? "ml" : ""} ${more().r ? "mr" : ""}`} ref={watchRow} onScroll={measure}>
                 <Show when={multi()}>
                   <span class="xw-pickl">Pick a finish</span>
                 </Show>
