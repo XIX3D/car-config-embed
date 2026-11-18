@@ -33,6 +33,24 @@ export interface Pick {
   variantIds: string[]
 }
 
+/*
+ * A DEALER'S LIST IS HELD AS IT CAME (dealer notes, 18 November: the window froze after the photo, after a brand
+ * was picked, on every key of the search and on a tap of a wheel). In the store as a plain object, Solid made each of
+ * a paid dealer's 12,650 wheels and 31,000 finishes a tracked proxy, so every pass over the list (the brands with
+ * wheels, a brand's wheels, a search) read tens of thousands of proxies and subscribed to each. The list never changes
+ * in place (a new one replaces it), so it is kept in a class instance, which the store keeps as it is.
+ */
+class RawCatalogue implements Catalogue {
+  readonly brands: Catalogue['brands']
+  readonly products: Catalogue['products']
+
+  constructor(c: Catalogue) {
+    this.brands = c.brands
+    this.products = c.products
+  }
+}
+const raw = (c: Catalogue): Catalogue => (c instanceof RawCatalogue ? c : new RawCatalogue(c))
+
 /** The most renders one press may start (the studio's batch cap). */
 export const MAX_BATCH = 10
 
@@ -299,7 +317,7 @@ export function createWidgetStore() {
     ) {
       const isWraps = !!(selections.wrap_id && !selections.wheel_id)
       // While the list is on its way the window is already a dealer's: an empty list stands in.
-      const catalogue = extra?.catalogue ?? (extra?.catalogueLoading ? { brands: [], products: [] } : null)
+      const catalogue = extra?.catalogue ? raw(extra.catalogue) : extra?.catalogueLoading ? raw({ brands: [], products: [] }) : null
 
       if (state.loadingInterval) clearInterval(state.loadingInterval)
       setState({
@@ -398,7 +416,9 @@ export function createWidgetStore() {
     },
 
     /** The list was read again (after "Wheel not available"): the wheel in play stays only if it is still offered. */
-    setCatalogue(catalogue: Catalogue) {
+    setCatalogue(list: Catalogue) {
+      const catalogue = raw(list)
+
       setState({
         catalogue,
         catalogueLoading: false,

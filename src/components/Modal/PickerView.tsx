@@ -2,6 +2,7 @@ import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show }
 import type { Catalogue, CatalogueEntry, Product, Variant } from "../../types";
 import type { Pick } from "../../stores/widget-store";
 import { brandLogo } from "../../utils/brandLogos";
+import { thumb, thumbFallback } from "../../utils/thumb";
 import { carName, loadSeenOn, seenOn, type Car } from "../../utils/seenOn";
 import { IconCamera, IconCheck, IconSpark } from "./icons";
 
@@ -38,8 +39,21 @@ interface PickerViewProps {
 }
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
-const wheelImage = (p: Product) => p.reference_image_paths?.[0] || p.orthographic_image || "";
+/** One collator for every sort (localeCompare with options builds a new one on every call). */
+const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+/** Each wheel's searchable words, worked out once, not on every key for every wheel. */
+const words = new WeakMap<Product, { name: string; sku: string }>();
+const wordsOf = (p: Product) => {
+  let w = words.get(p);
+
+  if (!w) words.set(p, (w = { name: norm(p.name), sku: norm(p.sku ?? "") }));
+
+  return w;
+};
 const variantImage = (v: Variant) => v.reference_image_paths?.[0] || v.reference_image || "";
+/** A wheel's picture: its own, else its first finish's (many brands keep their photos on the finishes only). */
+const wheelImage = (e: CatalogueEntry) =>
+  e.product.reference_image_paths?.[0] || e.product.orthographic_image || (e.variants.find((v) => v.is_default) ?? e.variants[0] ? variantImage(e.variants.find((v) => v.is_default) ?? e.variants[0]) : "");
 
 const WheelGlyph = () => (
   <svg class="xw-glyph" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
@@ -53,13 +67,13 @@ const WheelGlyph = () => (
  * A wheel's picture. It is asked for only when its tile is near the screen, and until it lands a
  * wheel outline stands there, so a tile never stays a blank square.
  */
-function WheelImage(props: { src: string; alt?: string }) {
+function WheelImage(props: { src: string; alt?: string; eager?: boolean }) {
   let box: HTMLSpanElement | undefined;
   const [seen, setSeen] = createSignal(false);
   const [ok, setOk] = createSignal(false);
 
   onMount(() => {
-    if (!box || typeof IntersectionObserver === "undefined") {
+    if (props.eager || !box || typeof IntersectionObserver === "undefined") {
       setSeen(true);
 
       return;
@@ -86,11 +100,12 @@ function WheelImage(props: { src: string; alt?: string }) {
       <Show when={seen() && props.src}>
         <img
           class={ok() ? "ok" : ""}
-          src={props.src}
+          src={thumb(props.src, 240)}
           alt={props.alt ?? ""}
           draggable={false}
           decoding="async"
           onLoad={() => setOk(true)}
+          onError={thumbFallback(props.src)}
         />
       </Show>
     </span>
@@ -136,11 +151,26 @@ export function PickerView(props: PickerViewProps) {
   const pickOf = (id: string) => props.picks.find((p) => p.product.id === id);
   const doneOf = (id: string) => props.doneByProduct[id] ?? [];
 
-  const brands = createMemo(() =>
-    [...props.catalogue.brands]
-      .filter((b) => props.catalogue.products.some((e) => Number(e.product.manufacturer_id) === Number(b.id)))
-      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" })),
-  );
+  // The brands with a wheel to show: one pass over the list (it was every wheel once per brand, 312 times).
+  const brands = createMemo(() => {
+    const has = new Set<number>();
+
+    for (const e of props.catalogue.products) has.add(Number(e.product.manufacturer_id));
+
+    return props.catalogue.brands.filter((b) => has.has(Number(b.id))).sort((a, b) => byName.compare(a.name, b.name));
+  });
+  /* THE SEARCH THE LIST FOLLOWS: the field shows each key at once, the list catches up once typing pauses (120 ms),
+     and at once when it is cleared. */
+  const [settled, setSettled] = createSignal(props.search);
+
+  createEffect(() => {
+    const s = props.search;
+
+    if (!s) return setSettled("");
+    const wait = setTimeout(() => setSettled(s), 120);
+
+    onCleanup(() => clearTimeout(wait));
+  });
   const brand = () => props.catalogue.brands.find((b) => Number(b.id) === Number(props.brandFilter)) ?? null;
   const shownBrands = createMemo(() => {
     const q = norm(brandQ());
@@ -149,26 +179,28 @@ export function PickerView(props: PickerViewProps) {
   });
 
   const matches = createMemo(() => {
-    const q = norm(props.search);
+    const q = norm(settled());
     const id = brand() ? Number(brand()!.id) : null;
     const rows = props.catalogue.products.filter((e) => id === null || Number(e.product.manufacturer_id) === id);
 
-    if (!q) return [...rows].sort((a, b) => a.product.name.localeCompare(b.product.name, undefined, { numeric: true }));
-    const byName = rows.filter((e) => norm(e.product.name).includes(q));
-    const bySku = rows.filter((e) => !norm(e.product.name).includes(q) && norm(e.product.sku ?? "").includes(q));
+    if (!q) return rows.sort((a, b) => byName.compare(a.product.name, b.product.name));
+    const named = rows.filter((e) => wordsOf(e.product).name.includes(q));
+    const bySku = rows.filter((e) => !wordsOf(e.product).name.includes(q) && wordsOf(e.product).sku.includes(q));
 
-    return [...byName, ...bySku];
+    return [...named, ...bySku];
   });
 
   /** The search has nothing in this brand: the other brands that do, most first. */
   const elsewhere = createMemo(() => {
-    const q = norm(props.search);
+    const q = norm(settled());
 
     if (!q || matches().length > 0) return [];
     const count = new Map<number, number>();
 
     for (const e of props.catalogue.products) {
-      if (norm(e.product.name).includes(q) || norm(e.product.sku ?? "").includes(q)) {
+      const w = wordsOf(e.product);
+
+      if (w.name.includes(q) || w.sku.includes(q)) {
         const b = Number(e.product.manufacturer_id);
 
         count.set(b, (count.get(b) ?? 0) + 1);
@@ -197,7 +229,7 @@ export function PickerView(props: PickerViewProps) {
 
     return { name: carName(props.car) ?? [props.car.make, props.car.model].filter(Boolean).join(" "), list };
   });
-  const showSuggested = () => suggestOpen() && suggested().list.length >= 2 && !props.search;
+  const showSuggested = () => suggestOpen() && suggested().list.length >= 2 && !settled();
   const stripList = () => (seeAll() ? suggested().list : suggested().list.slice(0, STRIP));
   /** Wheels drawn in the strip: their tile there is only ticked, their finishes open under the strip. */
   const stripIds = createMemo(() => new Set(showSuggested() ? stripList().map((e) => e.product.id) : []));
@@ -232,7 +264,7 @@ export function PickerView(props: PickerViewProps) {
     </div>
   );
 
-  const Tile = (t: { entry: CatalogueEntry; compact?: boolean; forceOpen?: boolean }) => {
+  const Tile = (t: { entry: CatalogueEntry; compact?: boolean; forceOpen?: boolean; eager?: boolean }) => {
     const id = () => t.entry.product.id;
     const pick = () => pickOf(id());
     const open = () => !!pick() && t.entry.variants.length > 1 && (t.forceOpen || (!t.compact && !stripIds().has(id())));
@@ -251,7 +283,7 @@ export function PickerView(props: PickerViewProps) {
           onClick={() => props.onToggleWheel(t.entry)}
         >
           <span class="xw-wt-img">
-            <WheelImage src={wheelImage(t.entry.product)} alt={t.entry.product.name} />
+            <WheelImage src={wheelImage(t.entry)} alt={t.entry.product.name} eager={t.eager} />
             <Show when={pick()}>
               <i class="xw-wt-tk"><IconCheck /></i>
             </Show>
@@ -290,7 +322,7 @@ export function PickerView(props: PickerViewProps) {
                   >
                     <span class="xw-fn-img" style={!variantImage(v) && v.hex_color ? { background: v.hex_color } : undefined}>
                       <Show when={variantImage(v)}>
-                        <img src={variantImage(v)} alt="" draggable={false} loading="lazy" />
+                        <img src={thumb(variantImage(v), 200)} alt="" draggable={false} decoding="async" onError={thumbFallback(variantImage(v))} />
                       </Show>
                       <i class="xw-fn-tk"><IconCheck /></i>
                     </span>
@@ -406,7 +438,7 @@ export function PickerView(props: PickerViewProps) {
                 </div>
                 <div class={`xw-sg-r ${seeAll() ? "all" : ""}`}>
                   <For each={stripList()}>
-                    {(e) => <Tile entry={e} compact />}
+                    {(e) => <Tile entry={e} compact eager />}
                   </For>
                 </div>
                 <For each={stripOpen()}>
