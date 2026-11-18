@@ -46,11 +46,12 @@
 .xw-hd {
   position: relative;
   flex: none;
-  height: 56px;
+  min-height: 56px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 14px 0 16px;
+  padding: 6px 14px 6px 16px;
 }
 .xw-mark {
   flex: none;
@@ -67,11 +68,12 @@
   min-width: 0;
   font-weight: 700;
   font-size: 16px;
-  line-height: normal;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
+/* the brand before the wheel, lighter, so the two read as two names (p9) */
+.xw-name .xw-br { font-weight: 500; color: #4a5266; }
+.xw.ph .xw-name { font-size: 15px; }
 .xw-name small a { color: inherit; text-decoration: none; font-weight: 600; }
 .xw-name small a:hover { color: #12141c; text-decoration: underline; }
 .xw-name small {
