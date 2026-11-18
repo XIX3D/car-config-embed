@@ -13,6 +13,9 @@
  * page from the other port so the browser really preflights.
  *
  *   node tools/mock-backend.mjs [--api 3911] [--page 3910] [--assets <dir>] [--bundle <file>]
+ *     [--catalogue <file.json>]   a whole dealer catalogue ({ brands, products } as GET /embed/catalogue answers),
+ *                                 in place of the five brands below, for timing the picker as a dealer meets it
+ *     [--car "BMW|3 Series|2006"] the car the photo is read as (default a Ferrari F8)
  *
  * <dir> holds orig.jpg, gold.jpg, bronze.jpg, black.jpg (renders) and wheel-*.png (finishes).
  * Dependency-free on purpose, like the other tools/ scripts.
@@ -31,6 +34,8 @@ const PAGE_PORT = Number(arg('page', 3910))
 const ASSETS = resolve(arg('assets', 'test/assets'))
 const BUNDLE = resolve(arg('bundle', 'dist/car-config-embed.iife.js'))
 const PAGE = resolve(arg('pagefile', 'test/round16.html'))
+const BIG = arg('catalogue', null) ? JSON.parse(readFileSync(resolve(arg('catalogue')), 'utf8')) : null
+const [CAR_MAKE, CAR_MODEL, CAR_YEAR] = (arg('car', 'Ferrari|F8 Tributo|2020')).split('|')
 
 const CORS_HEADERS = 'Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, X-Session-ID, X-Impersonate, Stripe-Signature, ngrok-skip-browser-warning'
 
@@ -160,7 +165,7 @@ async function renderStream(req, res, raw) {
 
   send('started', { status: 'processing', ...usage() })
   await sleep(scenario.step)
-  send('vehicle_detected', { make: 'Ferrari', model: 'F8 Tributo', year: '2020', vehicle_type: 'coupe' })
+  send('vehicle_detected', { make: CAR_MAKE, model: CAR_MODEL, year: CAR_YEAR, vehicle_type: 'coupe' })
   await sleep(scenario.step)
   send('mask_started', { cached: renderCount > 1 })
 
@@ -267,6 +272,7 @@ const api = createServer(async (req, res) => {
       if (!scenario.catalogue) return json(res, 409, { error: 'not_a_catalogue_embed', code: 'not_a_catalogue_embed' })
       if (!req.headers['x-session-id']) return json(res, 401, { error: 'embed_session_not_bound' })
       if (scenario.catalogueFail) return json(res, scenario.catalogueFail.status, { error: scenario.catalogueFail.error })
+      if (BIG) return json(res, 200, { brands: BIG.brands, products: BIG.products.filter((e) => !scenario.hide.includes(String(e.product.id))) })
       const shown = CAT_WHEELS.filter((w) => !scenario.hide.includes(String(w.id)))
 
       return json(res, 200, {
@@ -282,7 +288,7 @@ const api = createServer(async (req, res) => {
         variants: VARIANTS.map((v, i) => ({ id: v.id, variant_name: v.variant_name, display_order: i, reference_image_paths: [asset(v.file)] })),
       })
     case '/api/v1/products/detect-vehicle':
-      return json(res, 200, { success: true, detection: { is_car: true, make: 'Ferrari', model: 'F8 Tributo', year: '2020', vehicle_type: 'coupe', wheels_visible: 2 } })
+      return json(res, 200, { success: true, detection: { is_car: true, make: CAR_MAKE, model: CAR_MODEL, year: CAR_YEAR, vehicle_type: 'coupe', wheels_visible: 2 } })
     case '/api/v1/render/email-required':
       return json(res, 200, {
         ...scenario.gate,
