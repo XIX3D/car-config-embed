@@ -19,10 +19,12 @@ interface Note {
  * count, no time and no timer on any of them.
  */
 const NOTES: Record<ProblemKind, Note> = {
-  limit: { icon: IconClock, h: "You've hit your limit", p: "Please come back later.", a: ["Request quote", "quote"] },
+  // The visitor's own renders for the day (backend R1: a number a day per device, 5 unless the brand set it).
+  limit: { icon: IconClock, h: "You've used today's free renders", p: "Come back tomorrow, or request a quote.", a: ["Request quote", "quote"] },
   slow: { icon: IconClock, h: "You're going fast", p: "Wait a moment, then try again.", a: ["Try again", "back"] },
   paused: { icon: IconPause, h: "Renders are paused", p: "Please come back later.", a: ["Request quote", "quote"] },
-  fail: { icon: IconWarn, h: "Something went wrong", a: ["Try again", "retry"] },
+  // What happened and what to do, in plain words (dealer notes, 18 November: "is this descriptive enough?").
+  fail: { icon: IconWarn, h: "This render didn't work", p: "Try again. If it happens again, try another photo.", a: ["Try again", "retry"], b: ["Try another photo", "photo"] },
   timeout: { icon: IconClock, h: "Taking longer than usual", a: ["Keep waiting", "back"], b: ["Try again", "retry"] },
   nocar: { icon: IconPhoto, h: "No car found", p: "Try a side photo.", a: ["Try another photo", "photo"] },
   nowheels: { icon: IconPhoto, h: "Wheels not visible", p: "Both wheels need to show.", a: ["Try another photo", "photo"] },
@@ -47,14 +49,19 @@ export function Overlay(props: { children: JSX.Element; onOutside?: () => void }
   );
 }
 
-export function NoticeCard(props: { kind: ProblemKind; onClose: () => void; onAction: (a: NoticeAction) => void }) {
+/** Notices about a render that did not happen: their X means "I'm done", and leaves (dealer notes, 18 November). */
+export const LEAVING: ProblemKind[] = ["fail", "timeout"];
+
+export function NoticeCard(props: { kind: ProblemKind; limit?: number | null; onClose: () => void; onAction: (a: NoticeAction) => void }) {
   const note = () => NOTES[props.kind];
+  // The limit with its number when the backend gave one: "You've used today's 5 free renders".
+  const title = () => (props.kind === "limit" && props.limit ? `You've used today's ${props.limit} free renders` : note().h);
 
   return (
-    <div class="xw-card nt" role="alertdialog" aria-label={note().h}>
+    <div class="xw-card nt" role="alertdialog" aria-label={title()}>
       <Close onClick={props.onClose} />
       <span class="xw-nic">{note().icon()}</span>
-      <h3>{note().h}</h3>
+      <h3>{title()}</h3>
       <Show when={note().p}>
         <p>{note().p}</p>
       </Show>

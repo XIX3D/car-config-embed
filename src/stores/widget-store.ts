@@ -487,7 +487,7 @@ export function createWidgetStore() {
         notice: null,
         showOriginal: false,
       })
-      restartTimer()
+      // The render screen no longer spells timed steps (LoadingView), so no clock rewrites the store ten times a second.
     },
 
     /**

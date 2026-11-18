@@ -10,7 +10,7 @@ import { LoadingView } from "./LoadingView";
 import { ResultView } from "./ResultView";
 import { QuoteView } from "./QuoteView";
 import { EmailGateView } from "./EmailGateView";
-import { EmailedCard, LeaveCard, NoticeCard, Overlay, SentCard, type NoticeAction } from "./Popups";
+import { EmailedCard, LEAVING, LeaveCard, NoticeCard, Overlay, SentCard, type NoticeAction } from "./Popups";
 import { FullView } from "./FullView";
 
 interface ModalProps {
@@ -412,6 +412,20 @@ export function Modal(props: ModalProps) {
     afterNotice();
   };
 
+  /* THE X ON A RENDER THAT DID NOT HAPPEN (dealer notes, 18 November: "I wanted to quit after it failed so I pressed
+     X, but the rendering animation continues. Need it to close out the entire window if they don't want to try
+     again"). Try again and Try another photo are on the card; its X is "I'm done": every render still on its way is
+     stopped, the animation with them, and the window closes (asking Keep your renders first where that is on). A tap
+     beside the card or Esc only puts the card away. */
+  const noticeX = () => {
+    if (!state.notice || !LEAVING.includes(state.notice)) return closeNotice();
+    actions.setNotice(null);
+    abortAll();
+    state.galleryResults.filter((r) => r.loading).forEach((r) => actions.dropSlot(r.id));
+    actions.stopLoading();
+    tryClose();
+  };
+
   const tryClose = () => {
     if (!nothingToLose() && canEmailRenders()) actions.setPopup("leave");
     else closeAll();
@@ -631,7 +645,7 @@ export function Modal(props: ModalProps) {
 
               <Show when={state.notice}>
                 <Overlay onOutside={closeNotice}>
-                  <NoticeCard kind={state.notice!} onClose={closeNotice} onAction={handleNoticeAction} />
+                  <NoticeCard kind={state.notice!} limit={state.visitorLimit} onClose={noticeX} onAction={handleNoticeAction} />
                 </Overlay>
               </Show>
 

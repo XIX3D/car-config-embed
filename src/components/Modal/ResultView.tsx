@@ -95,8 +95,8 @@ export function ResultView(props: ResultViewProps) {
       <div class="xw-cap capped">
         <i class="xw-ci"><IconClock /></i>
         <div>
-          <b>You've hit your limit</b>
-          <span>Please come back later</span>
+          <b>You've used today's free renders</b>
+          <span>Come back tomorrow, or request a quote</span>
         </div>
       </div>
     </Show>
