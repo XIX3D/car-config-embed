@@ -16,6 +16,8 @@
  *     [--catalogue <file.json>]   a whole dealer catalogue ({ brands, products } as GET /embed/catalogue answers),
  *                                 in place of the five brands below, for timing the picker as a dealer meets it
  *     [--car "BMW|3 Series|2006"] the car the photo is read as (default a Ferrari F8)
+ *     [--seen-on <file.json>]     the car-to-wheels index ("Suggested for <car>", render.xix3D's public/seen-on.json),
+ *                                 served at /seen-on.json; build with VITE_SEEN_ON_URL=http://127.0.0.1:<api>/seen-on.json
  *
  * <dir> holds orig.jpg, gold.jpg, bronze.jpg, black.jpg (renders) and wheel-*.png (finishes).
  * Dependency-free on purpose, like the other tools/ scripts.
@@ -36,6 +38,7 @@ const BUNDLE = resolve(arg('bundle', 'dist/car-config-embed.iife.js'))
 const PAGE = resolve(arg('pagefile', 'test/round16.html'))
 const BIG = arg('catalogue', null) ? JSON.parse(readFileSync(resolve(arg('catalogue')), 'utf8')) : null
 const [CAR_MAKE, CAR_MODEL, CAR_YEAR] = (arg('car', 'Ferrari|F8 Tributo|2020')).split('|')
+const SEEN_ON = arg('seen-on', null) ? resolve(arg('seen-on')) : null
 
 const CORS_HEADERS = 'Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, X-Session-ID, X-Impersonate, Stripe-Signature, ngrok-skip-browser-warning'
 
@@ -234,6 +237,11 @@ const api = createServer(async (req, res) => {
     return json(res, 200, scenario)
   }
   if (p === '/__log') return json(res, 200, log)
+  if (p === '/seen-on.json' && SEEN_ON) {
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+
+    return res.end(readFileSync(SEEN_ON))
+  }
   if (p.startsWith('/assets/')) {
     const f = join(ASSETS, p.slice('/assets/'.length))
 
@@ -243,12 +251,13 @@ const api = createServer(async (req, res) => {
     return res.end(readFileSync(f))
   }
 
+  // scenario.brandName / wheelName: a brand code's header as a real one reads (p9: "ZZ Test - Test Co", "Brixton ...").
   const wheel = {
     id: '101',
-    name: 'P101',
+    name: scenario.wheelName ?? 'P101',
     category: 'Wheels',
     manufacturer_id: 7,
-    manufacturer: { id: 7, company_name: 'HRE Wheels' },
+    manufacturer: { id: 7, company_name: scenario.brandName ?? 'HRE Wheels' },
     reference_image_paths: [asset('crest.jpg')],
   }
 
@@ -267,7 +276,7 @@ const api = createServer(async (req, res) => {
         })
       }
 
-      return json(res, 200, { valid: true, manufacturer_id: 7, wheel, wrap: null, variant_ids: (scenario.variants ?? [1, 2, 3]), account: { name: 'HRE Wheels', logo_url: asset('crest.jpg') } })
+      return json(res, 200, { valid: true, manufacturer_id: 7, wheel, wrap: null, variant_ids: (scenario.variants ?? [1, 2, 3]), account: { name: scenario.brandName ?? 'HRE Wheels', logo_url: asset('crest.jpg') } })
     case '/api/v1/embed/catalogue': {
       if (!scenario.catalogue) return json(res, 409, { error: 'not_a_catalogue_embed', code: 'not_a_catalogue_embed' })
       if (!req.headers['x-session-id']) return json(res, 401, { error: 'embed_session_not_bound' })

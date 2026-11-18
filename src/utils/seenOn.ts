@@ -6,7 +6,8 @@ import { carFamily } from "./carFamily";
  * from render.xix3d.com. Only ids and counts, never a photo. It is asked for when a car is known
  * (after the first render's vehicle_detected), not on page load.
  */
-const URL_ = "https://render.xix3d.com/seen-on.json";
+// VITE_SEEN_ON_URL only for a local test build against tools/mock-backend.mjs --seen-on (unset in production).
+const URL_ = import.meta.env.VITE_SEEN_ON_URL || "https://render.xix3d.com/seen-on.json";
 
 interface Doc {
   cars: Record<string, { n: string; p: number; w: [number[], number][] }>;
